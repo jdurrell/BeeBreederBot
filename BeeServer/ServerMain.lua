@@ -10,9 +10,9 @@ Component = require("component")
 Modem = require("modem")
 -- TODO: Should the below be 'require()' statements instead?
 dofile("/home/BeeBreederBot/Shared.lua")
-dofile("/home/BeeBreederBot/BeeMath.lua")
-dofile("/home/BeeBreederBot/BeeGraphParse.lua")
-dofile("/home/BeeBreederBot/BeeGraphQuery.lua")
+dofile("/home/BeeBreederBot/MutationMath.lua")
+dofile("/home/BeeBreederBot/GraphParse.lua")
+dofile("/home/BeeBreederBot/GraphQuery.lua")
 
 
 function PingHandler(addr, data)
@@ -29,6 +29,11 @@ function TargetHandler(addr, data)
     -- TODO: *Technically* this request doesn't necessarily have to come after the SpeciesFoundRequest for the previous species
     --       because messages can arrive out of order over a network (or get lost). However, it seems unlikely that OpenComputers
     --       replicates this reality of distributed systems, so we'll ignore it for now.
+    -- TODO: The above shouldn't even be a problem because the server shouldn't really be managing the state anyways.
+    --       Instead, the client should probably store the whole path and just request the breedInfo for the target.
+    --       The server will cache the info (since it's the originator anyways), use that cache to answer the query, and utilize 
+    --       reports from the robot to display the state out to a screen (eventually), but it shouldn't need to actually manage
+    --       where the robot is in the path.
     for i, v in ipairs(BreedPath) do
         if FoundSpecies[v] ~= nil then
             -- We have another target in the tree to send: Calculate odds and send them over.
