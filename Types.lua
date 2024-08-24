@@ -68,3 +68,15 @@ local AnalyzedBeeTraits = {}
 ---@field temperature string  The temperature required by this species for its jubilant state.
 ---@field uid string  The unique identifier for this species like "forestry.speciesForest".
 local BeeSpecies = {}
+
+---@class StorageInfo
+---@field nextChest Point  The next open chest to use for a new species.
+---@field chestArray table<string, Point>  Mapping of species to the chest where they are stored.
+local StorageInfo = {}
+
+---@class Point
+---@field x integer
+---@field y integer
+local Point = {}
+
+-- TODO: Define types for message payloads.

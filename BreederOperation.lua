@@ -8,6 +8,13 @@ local function swapBees(side)
     BK.swapDrone(side)
 end
 
+---@param beeStack AnalyzedBeeStack
+---@param species string
+---@return boolean
+local function isPureBred(beeStack, species)
+    return (beeStack.individual.active.species == beeStack.individual.inactive.species)
+end
+
 -- Robot walks the apiary row and starts an empty apiary with the bees in its internal inventory.
 -- TODO: Deal with the possibility of foundation blocks or special "flowers" being required and tracking which apiaries have them.
 function WalkApiariesAndStartBreeding()
@@ -114,13 +121,25 @@ function PickUpBees(target, breedInfo)
     -- Sleep a little longer to ensure we have all (or at least several of) the drones
     Sleep(2.0)
 
-    -- Collect a list of all drones in the attached inventory.
+    -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     ---@type AnalyzedBeeStack[]
     local drones = {}
+    local pureTargetCount = 0
     for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
-        if IC.getStackInSlot(i) ~= nil then
+        ---@type AnalyzedBeeStack
+        local droneStack = IC.getStackInSlot(i)
+        if droneStack ~= nil then
             table.insert(drones, IC.getStackInSlot(i))
+            if isPureBred(droneStack, target) then
+                pureTargetCount = pureTargetCount + droneStack.size
+            end
         end
+    end
+
+    -- If we have a full stack of our target, then we are done.
+    -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to deal with this possibility.
+    if pureTargetCount >= 64 then
+        return E_GOTENOUGH_DRONES
     end
 
     -- Determine the drone that has the highest chance of breeding the result when paired with the given princess.
@@ -143,4 +162,95 @@ function PickUpBees(target, breedInfo)
     IC.suckFromSlot(ANALYZED_DRONE_CHEST, maxChanceDroneSlotInChest, 1)
 
     return 0
+end
+
+---@param dist integer
+---@param direction integer
+local function moveDistance(dist, direction)
+    for i = 0, dist do
+        Robot.move(direction)
+    end
+end
+
+---@return boolean succeeded
+local function unloadIntoChest()
+    for i = 0, NUM_INTERNAL_SLOTS do
+        Robot.select(i)
+
+        -- Early exit when we have hit the end of the items in the inventory.
+        if Robot.count() == 0 then
+            break
+        end
+
+        local dropped = Robot.dropDown()
+        if not dropped then
+            -- TODO: Deal with the possibility of the chest becoming full.
+            print("Failed to drop items.")
+            return false
+        end
+    end
+
+    return true
+end
+
+---@param chestLoc Point
+local function moveToChest(chestLoc)
+    --- Move to the chest row.
+    Robot.move(Sides.up)
+    moveDistance(5, Sides.right)
+    Robot.move(Sides.down)
+
+    -- Move to the given chest.
+    moveDistance(Sides.right, chestLoc.x)
+    moveDistance(Sides.front, chestLoc.y)
+end
+
+---@param chestLoc Point
+local function returnToStartFromChest(chestLoc)
+    -- Retrace to the beginning of the row.
+    moveDistance(Sides.back, chestLoc.y)
+    moveDistance(Sides.left, chestLoc.x)
+
+    -- Return to the start from the chest row.
+    Robot.move(Sides.up)
+    moveDistance(5, Sides.left)
+    Robot.move(Sides.down)
+end
+
+---@param species string
+---@param storageInfo StorageInfo
+function StoreSpecies(species, storageInfo)
+    -- Take pure-bred drones from the drone chest and store them in the storage array.
+    local robotSlot = 0
+    Robot.select(robotSlot)
+    for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
+        ---@type AnalyzedBeeStack
+        local beeStack = IC.getStackInSlot(i)
+        if isPureBred(beeStack, species) then
+            IC.suckFromSlot(ANALYZED_DRONE_CHEST, i)
+            robotSlot = robotSlot + 1
+            Robot.select(robotSlot)
+        end
+    end
+
+    local chestLoc = storageInfo.chestArray[species]
+    if chestLoc == nil then
+        -- No pre-existing store for this species. Pick the next open one.
+        -- Copy by value so that we can update nextChest here as well.
+        chestLoc = {
+            x = storageInfo.nextChest.x,
+            y = storageInfo.nextChest.y
+        }
+
+        storageInfo.nextChest.x = storageInfo.nextChest.x + 1
+        if storageInfo.nextChest.x > 2 then
+            storageInfo.nextChest.x = 0
+            storageInfo.nextChest.y = storageInfo.nextChest.y + 1
+        end
+    end
+
+    moveToChest(chestLoc)
+    -- TODO: Deal with the possibility of the chest having been broken/moved.
+    unloadIntoChest()
+    returnToStartFromChest(chestLoc)
 end

@@ -2,9 +2,23 @@
 -- The bee-graph server analyzes the bee breeding data from the apiary adapter
 -- and communicates with the breeder robot to give it instructions on which bees to breed.
 
+---------------------
+-- Global Variables.
+
+-- Load Dependencies.
+Component = require("component")
+Modem = require("modem")
+-- TODO: Should the below be 'require()' statements instead?
+dofile("/home/BeeBreederBot/Shared.lua")
+dofile("/home/BeeBreederBot/BeeMath.lua")
+dofile("/home/BeeBreederBot/BeeGraphParse.lua")
+dofile("/home/BeeBreederBot/BeeGraphQuery.lua")
+
+
 function PingHandler(addr, data)
     -- Ping Request: Just respond with our own ping.
-    local sent = Modem.send(addr, COM_PORT, MessageCode.PingResponse)
+    local payload = {transactionId = data.transactionId}
+    local sent = Modem.send(addr, COM_PORT, MessageCode.PingResponse, payload)
     if not sent then
         print("Failed to send PingResponse.")
     end
@@ -32,7 +46,7 @@ function TargetHandler(addr, data)
     -- We have bred everything in BreedPath. Nothing else to do.
     local sent = Modem.send(addr, COM_PORT, MessageCode.TargetResponse)
     if not sent then
-        print("Failed to send TargetResponse")
+        print("Failed to send TargetResponse.")
     end
 end
 
@@ -52,41 +66,40 @@ function PollForMessageAndHandle()
 end
 
 
-
-
 ---------------------
 -- Initial Setup.
-Component = require("component")
-Modem = require("modem")
-
 
 -- Obtain the full bee graph from the attached adapter and apiary/bee house.
 BeeGraph = ImportBeeGraph(Component.apiary)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
 -- We will synchronize this with the robot later on.
+-- TODO: Actually do this.
 FoundSpecies = {}
 
-HandlerTable = {}
-HandlerTable[MessageCode.PingRequest] = PingHandler
-HandlerTable[MessageCode.SpeciesFoundRequest] = SpeciesFoundHandler
-HandlerTable[MessageCode.TargetRequest] = TargetHandler
+HandlerTable = {
+    [MessageCode.PingRequest] = PingHandler,
+    [MessageCode.SpeciesFoundRequest] = SpeciesFoundHandler,
+    [MessageCode.TargetRequest] = TargetHandler
+}
+
 
 ---------------------
 -- Main operation loop.
+print("Enter your target species to breed:\n")
+local input = nil
+while BeeGraph[input] == nil do
+    input = io.read()
+    print("Error: did not recognize species.\n")
+end
+
+BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)
+print("Breeding " .. input .. ". Full breeding order:\n")
+for _ ,v in ipairs(BreedPath) do
+    print(v)
+end
+
 while true do
-    print("Enter your target species to breed:\n")
-    local input = io.read()
-    if BeeGraph[input] == nil then
-        print("Error: did not recognize species.\n")
-        goto continue
-    end
-
-    BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)
-    print("Breeding given target species. Full breeding order:\n")
-    for _ ,v in ipairs(BreedPath) do
-        print(v)
-    end
-
-    ::continue::
+    PollForMessageAndHandle()
+    -- TODO: Handle cancelling and selecting a different species without restarting.
 end

@@ -7,6 +7,7 @@
 ---------------------
 -- Global variables.
 
+-- Load Dependencies.
 Component = require("component")
 Event = require("event")
 Sides = require("sides")
@@ -14,6 +15,8 @@ Robot = Component.robot
 BK = Component.beekeeper
 IC = Component.inventory_controller
 Modem = Component.modem
+dofile("/home/BeeBreederBot/Shared.lua")
+dofile("/home/BeeBreederBot/BreederOperation.lua")
 
 ServerAddress = nil
 E_NOERROR          = 0
@@ -27,12 +30,21 @@ E_NOTARGET         = 2
 -- Slots for holding items in the robot.
 PRINCESS_SLOT = 1
 DRONE_SLOT    = 2
+NUM_INTERNAL_SLOTS = 16
 
 -- Info for chests for analyzed bees at the start of the apiary row.
 ANALYZED_PRINCESS_CHEST = Sides.left
 ANALYZED_DRONE_CHEST    = Sides.right
 BASIC_CHEST_INVENTORY_SLOTS = 27
-NumDrones = {}
+
+-- Info for chests in the storage row.
+StorageInfo = {
+    nextChest = {
+        x = 0,
+        y = 0
+    },
+    chestArray = {}
+}
 
 
 ---@param species string
@@ -52,7 +64,8 @@ end
 ---@return string | nil address The address of the server that responded to the ping.
 function PingServerForStartup()
     local transactionId = math.floor(math.random(65535))
-    local sent = Modem.broadcast(COM_PORT, MessageCode.PingRequest, transactionId)
+    local payload = {transactionId = transactionId}
+    local sent = Modem.broadcast(COM_PORT, MessageCode.PingRequest, payload)
     if not sent then
         return nil
     end
@@ -159,7 +172,7 @@ while ServerAddress == nil do
 end
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
--- TODO: Do we need to load our current state of bees bred here?
+-- TODO: Load our current state of bees bred here.
 
 
 ---------------------
@@ -187,6 +200,7 @@ while true do
             WalkApiariesAndStartBreeding()
         elseif retval == E_GOTENOUGH_DRONES then
             -- If we have enough of the target species now, then clean up, break out, and ask the server for the next species.
+            StoreSpecies(target, StorageInfo)
             ReportSpeciesFinishedToServer(target)
             break
         else
