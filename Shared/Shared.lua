@@ -3,17 +3,20 @@
 -- Variables for communication between robot and server.
 COM_PORT = 34000
 SIGNAL_STRENGTH    = 16  -- TODO: Determine a good strength.
+MODEM_EVENT_NAME = "modem_message"
 
 ---@enum MessageCodes
 MessageCode = {
     PingRequest = 0,
     PingResponse = 1,
-    TargetRequest = 2,
-    TargetResponse = 3,
+    PathRequest = 2,
+    PathResponse = 3,
     CancelRequest = 4,
     CancelResponse = 5,
     SpeciesFoundRequest = 6,
-    SpeciesFoundResponse = 7
+    SpeciesFoundResponse = 7,
+    BreedInfoRequest = 8,
+    BreedInfoResponse = 9
 }
 
 function Sleep(time)

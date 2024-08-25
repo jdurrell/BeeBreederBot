@@ -24,34 +24,22 @@ function PingHandler(addr, data)
     end
 end
 
-function TargetHandler(addr, data)
-    -- Target Request. Send the robot its next target.
-    -- TODO: *Technically* this request doesn't necessarily have to come after the SpeciesFoundRequest for the previous species
-    --       because messages can arrive out of order over a network (or get lost). However, it seems unlikely that OpenComputers
-    --       replicates this reality of distributed systems, so we'll ignore it for now.
-    -- TODO: The above shouldn't even be a problem because the server shouldn't really be managing the state anyways.
-    --       Instead, the client should probably store the whole path and just request the breedInfo for the target.
-    --       The server will cache the info (since it's the originator anyways), use that cache to answer the query, and utilize 
-    --       reports from the robot to display the state out to a screen (eventually), but it shouldn't need to actually manage
-    --       where the robot is in the path.
-    for i, v in ipairs(BreedPath) do
-        if FoundSpecies[v] ~= nil then
-            -- We have another target in the tree to send: Calculate odds and send them over.
-            local payload = {}
-            payload.target = v
-            payload.breedInfo = CalculateBreedInfo(v, BeeGraph)
-            local sent = Modem.send(addr, COM_PORT, MessageCode.TargetResponse, payload)
-            if not sent then
-                print("Failed to send TargetResponse.")
-            end
-            return
-        end
-    end
-
-    -- We have bred everything in BreedPath. Nothing else to do.
-    local sent = Modem.send(addr, COM_PORT, MessageCode.TargetResponse)
+---@param data {target: string}
+function BreedInfoHandler(addr, data)
+    local payload = {}
+    payload.breedInfo = CalculateBreedInfo(data.target, BeeGraph)
+    local sent = Modem.send(addr, COM_PORT, MessageCode.BreedInfoResponse, payload)
     if not sent then
         print("Failed to send TargetResponse.")
+    end
+end
+
+function PathHandler(addr, data)
+    -- Path Request. Send the breed path to the robot.
+    local payload = BreedPath
+    local sent = Modem.send(addr, COM_PORT, MessageCode.PathResponse, payload)
+    if not sent then
+        print("Failed to send PathResponse")
     end
 end
 
@@ -60,7 +48,7 @@ function SpeciesFoundHandler(addr, data)
 end
 
 function PollForMessageAndHandle()
-    local event, _, addr, _, _, code, data = Event.pull(2.0, "modem_message")
+    local event, _, addr, _, _, code, data = Event.pull(2.0, MODEM_EVENT_NAME)
     if event ~= nil then
         if HandlerTable[code] == nil then
             print("Received unidentified code " .. tostring(code))
@@ -85,7 +73,8 @@ FoundSpecies = {}
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,
     [MessageCode.SpeciesFoundRequest] = SpeciesFoundHandler,
-    [MessageCode.TargetRequest] = TargetHandler
+    [MessageCode.BreedInfoRequest] = BreedInfoHandler
+    
 }
 
 

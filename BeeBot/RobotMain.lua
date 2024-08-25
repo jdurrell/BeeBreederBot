@@ -17,6 +17,7 @@ IC = Component.inventory_controller
 Modem = Component.modem
 dofile("/home/BeeBreederBot/Shared.lua")
 dofile("/home/BeeBreederBot/BreederOperation.lua")
+dofile("/home/BeeBreederBot/RobotComms.lua")
 
 ServerAddress = nil
 E_NOERROR          = 0
@@ -26,6 +27,9 @@ E_SENDFAILED       = -3  -- We'll throw this error for send failures, but I don'
 E_NOPRINCESS       = -4
 E_GOTENOUGH_DRONES = 1
 E_NOTARGET         = 2
+
+-- Order of species to breed.
+BreedPath = {}
 
 -- Slots for holding items in the robot.
 PRINCESS_SLOT = 1
@@ -49,7 +53,7 @@ StorageInfo = {
 
 ---@param species string
 function LogSpeciesFinishedToDisk(species)
-    local logfile = io.open("species.log", "w")
+    local logfile = io.open("species.log", "a")
     if logfile == nil then
         -- We can't really handle this error. Just print it out and move on.
         print("Failed to get logfile species.log.")
@@ -59,101 +63,6 @@ function LogSpeciesFinishedToDisk(species)
     logfile:write(species + "\n")
     logfile:flush()
     logfile:close()
-end
-
----@return string | nil address The address of the server that responded to the ping.
-function PingServerForStartup()
-    local transactionId = math.floor(math.random(65535))
-    local payload = {transactionId = transactionId}
-    local sent = Modem.broadcast(COM_PORT, MessageCode.PingRequest, payload)
-    if not sent then
-        return nil
-    end
-    while true do
-        local event, _, addr, _, _, code, tid = Event.pull(10, "modem_message")
-        if event == nil then
-            -- We timed out.
-            return nil
-        elseif (code == MessageCode.PingResponse) and (transactionId == tid) then
-            return addr
-        end
-        -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
-        -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous instance of this program.
-    end
-end
-
-function WaitUntilCommsReEstablished()
-    local retval = nil
-    while retval ~= E_NOERROR do
-        retval = PingServerForStartup()
-    end
-end
-
----@return integer, string, table<string, table<string>>
-function GetTargetFromServer()
-    local sent = Modem.send(ServerAddress, COM_PORT, MessageCode.TargetRequest)
-    if not sent then
-        return E_SENDFAILED, "", {}
-    end
-
-    local event, _, _, _, _, code, payload = Event.pull(10, "modem_message")
-    if event == nil then
-        -- Timed out.
-        return E_TIMEDOUT, "", {}
-    end
-
-    if code ~= MessageCode.TargetResponse then
-        -- This only ever happens if the server tells the robot to cancel.
-        return E_CANCELLED, "", {}
-    end
-
-    if payload == nil then
-        -- We have no other target to breed.
-        return E_NOTARGET, "", {}
-    end
-
-    -- TODO: Check if it's possible for breedInfo to be more than the 8kB message limit.
-    --       If so, then we will need to sequence these responses to build the full table before returning it.
-    return E_NOERROR, payload.target, payload.breedInfo
-end
-
----@param species string
----@return integer
-function ReportSpeciesFinishedToServer(species)
-    -- Write to our own local logfile in case the server is down and we need to sync later.
-    LogSpeciesFinishedToDisk(species)
-
-    -- Report the update to the server.
-    local sent = Modem.send(ServerAddress, COM_PORT, MessageCode.SpeciesFoundRequest, species)
-    if not sent then
-        return E_SENDFAILED
-    end
-
-    local event, _, _, _, _, code = Event.pull(10, "modem_message")
-    if event == nil then
-        return E_TIMEDOUT
-    elseif code == MessageCode.CancelRequest then
-        return E_CANCELLED
-    end
-
-    return E_NOERROR
-end
-
----@return boolean
-function PollForCancel()
-    local event, _, _, _, _, code = Event.pull(0, "modem_message")
-    local cancelled = (event ~= nil) and (code == MessageCode.CancelRequest)
-
-    if cancelled then
-        local sent = Modem.send(ServerAddress, COM_PORT, MessageCode.CancelResponse)
-        if not sent then
-            -- Not really anything we can do here, I think.
-            print("Failed to send Cancel response.")
-            return true
-        end
-    end
-
-    return cancelled
 end
 
 
@@ -166,48 +75,47 @@ if not listenPortOpened then
 end
 
 math.randomseed(os.time())
-while ServerAddress == nil do
-    print("Querying server address...")
-    ServerAddress = PingServerForStartup()
-end
+ServerAddress = EstablishComms()
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
 -- TODO: Load our current state of bees bred here.
-
+local retval
+retval, BreedPath = GetBreedPathFromServer(ServerAddress)
 
 ---------------------
 -- Main operation loop.
-while true do
-    local retval, target, breedInfo = GetTargetFromServer()
+for i, v in ipairs(BreedPath) do
+    ::retry::
+    local breedInfo
+    retval, breedInfo = GetBreedInfoFromServer(ServerAddress, v)
     if retval == E_TIMEDOUT then
         print("Error: Lost communication with the server.")
 
-        WaitUntilCommsReEstablished()
-        goto continue
-    elseif (retval == E_CANCELLED) or (retval == E_NOTARGET) then
-        -- Not really anything to do here except sit around and periodically query for another target.
-        Sleep(10.0)
-        goto continue
+        ServerAddress = EstablishComms()
+        goto retry
+    elseif retval == E_CANCELLED then
+        os.exit(1)
     end
 
+    -- Breed the target.
     while true do
-        if PollForCancel() then
+        if PollForCancel(ServerAddress) then
             break
         end
 
-        retval = PickUpBees(target, breedInfo)
+        retval = PickUpBees(v, breedInfo)
         if retval == E_NOERROR then
             WalkApiariesAndStartBreeding()
         elseif retval == E_GOTENOUGH_DRONES then
             -- If we have enough of the target species now, then clean up, break out, and ask the server for the next species.
-            StoreSpecies(target, StorageInfo)
-            ReportSpeciesFinishedToServer(target)
+            StoreSpecies(v, StorageInfo)
+            ReportSpeciesFinishedToServer(ServerAddress, v)
             break
-        else
+        elseif retval == E_NOPRINCESS then
             -- Otherwise, just hang out for a little while.
             Sleep(5.0)
+        else
+            print("Got unknown return code from the princess-drone matcher.")
         end
     end
-
-    ::continue::
 end
