@@ -11,7 +11,7 @@ local function arrayContainsValue(tab, val)
 end
 
 ---@param target string
----@param siblings table<string, boolean>
+---@param siblings table<string, boolean>  Hash map.
 ---@return number
 local function CalculateMutationChanceForTarget(target, siblings)
     -- TODO: Implement this math.
@@ -21,6 +21,7 @@ end
 
 ---@param target string
 ---@param beeGraph SpeciesGraph
+---@return table<string, table<string, number>>
 function CalculateBreedInfo(target, beeGraph)
     -- TODO: Refactor breedInfo to be a mapping of unique key (probably something like "<parent1>-<parent2>") instead of a 2D matrix
     --       to prevent duplicating data and achieve lower memory usage.
