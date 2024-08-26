@@ -42,6 +42,7 @@ ANALYZED_DRONE_CHEST    = Sides.right
 BASIC_CHEST_INVENTORY_SLOTS = 27
 
 -- Info for chests in the storage row.
+LOG_FILE = "/home/BeeBreederBot/DroneLocations.log"
 StorageInfo = {
     nextChest = {
         x = 0,
@@ -49,21 +50,6 @@ StorageInfo = {
     },
     chestArray = {}
 }
-
-
----@param species string
-function LogSpeciesFinishedToDisk(species)
-    local logfile = io.open("species.log", "a")
-    if logfile == nil then
-        -- We can't really handle this error. Just print it out and move on.
-        print("Failed to get logfile species.log.")
-        return
-    end
-
-    logfile:write(species + "\n")
-    logfile:flush()
-    logfile:close()
-end
 
 
 ---------------------
@@ -94,22 +80,22 @@ for i, v in ipairs(BreedPath) do
         ServerAddress = EstablishComms()
         goto retry
     elseif retval == E_CANCELLED then
-        os.exit(1)
+        os.exit(E_CANCELLED)
     end
 
     -- Breed the target.
     while true do
         if PollForCancel(ServerAddress) then
-            break
+            os.exit(E_CANCELLED)
         end
 
         retval = PickUpBees(v, breedInfo)
         if retval == E_NOERROR then
             WalkApiariesAndStartBreeding()
         elseif retval == E_GOTENOUGH_DRONES then
-            -- If we have enough of the target species now, then clean up, break out, and ask the server for the next species.
-            StoreSpecies(v, StorageInfo)
-            ReportSpeciesFinishedToServer(ServerAddress, v)
+            -- If we have enough of the target species now, then clean up and break out.
+            local point = StoreSpecies(v, LOG_FILE, StorageInfo)
+            ReportSpeciesFinishedToServer(ServerAddress, v, point)
             break
         elseif retval == E_NOPRINCESS then
             -- Otherwise, just hang out for a little while.

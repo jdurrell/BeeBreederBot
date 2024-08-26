@@ -84,25 +84,16 @@ end
 
 ---@param addr string
 ---@param species string
----@return integer
-function ReportSpeciesFinishedToServer(addr, species)
-    -- Write to our own local logfile in case the server is down and we need to sync later.
-    LogSpeciesFinishedToDisk(species)
-
+---@param location Point
+function ReportSpeciesFinishedToServer(addr, species, location)
     -- Report the update to the server.
-    local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, species)
+    local payload = {species = species, location = location}
+    local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, payload)
     if not sent then
-        return E_SENDFAILED
+        print("Failed to send SpeciesFoundRequest.")
     end
 
-    local event, _, _, _, _, code = Event.pull(10, MODEM_EVENT_NAME)
-    if event == nil then
-        return E_TIMEDOUT
-    elseif code == MessageCode.CancelRequest then
-        return E_CANCELLED
-    end
-
-    return E_NOERROR
+    -- TODO: Do we need an ACK for this?
 end
 
 ---@param addr string
@@ -111,14 +102,7 @@ function PollForCancel(addr)
     local event, _, _, _, _, code = Event.pull(0, MODEM_EVENT_NAME)
     local cancelled = (event ~= nil) and (code == MessageCode.CancelRequest)
 
-    if cancelled then
-        local sent = Modem.send(addr, COM_PORT, MessageCode.CancelResponse)
-        if not sent then
-            -- Not really anything we can do here, I think.
-            print("Failed to send Cancel response.")
-            return true
-        end
-    end
+    -- TOOD: Do we need to ACK this?
 
     return cancelled
 end

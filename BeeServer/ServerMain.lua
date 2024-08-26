@@ -14,9 +14,12 @@ dofile("/home/BeeBreederBot/MutationMath.lua")
 dofile("/home/BeeBreederBot/GraphParse.lua")
 dofile("/home/BeeBreederBot/GraphQuery.lua")
 
+LOG_FILE_ONLINE = "/home/BeeBreederBot/DroneLocations.log"
 
+---@param addr string
+---@param data {transactionId: integer}
 function PingHandler(addr, data)
-    -- Ping Request: Just respond with our own ping.
+    -- Just respond with our own ping.
     local payload = {transactionId = data.transactionId}
     local sent = Modem.send(addr, COM_PORT, MessageCode.PingResponse, payload)
     if not sent then
@@ -24,8 +27,10 @@ function PingHandler(addr, data)
     end
 end
 
+---@param addr string
 ---@param data {target: string}
 function BreedInfoHandler(addr, data)
+    -- Calculate mutation chances and send them back to the robot.
     local payload = {}
     payload.breedInfo = CalculateBreedInfo(data.target, BeeGraph)
     local sent = Modem.send(addr, COM_PORT, MessageCode.BreedInfoResponse, payload)
@@ -34,8 +39,10 @@ function BreedInfoHandler(addr, data)
     end
 end
 
+---@param addr string
+---@param data nil
 function PathHandler(addr, data)
-    -- Path Request. Send the breed path to the robot.
+    -- Send the calculated breed path to the robot.
     local payload = BreedPath
     local sent = Modem.send(addr, COM_PORT, MessageCode.PathResponse, payload)
     if not sent then
@@ -43,8 +50,13 @@ function PathHandler(addr, data)
     end
 end
 
+---@param addr string
+---@param data {species: string, location: Point}
 function SpeciesFoundHandler(addr, data)
+    -- Record the species that was found by the robot to our own disk.
+    LogSpeciesFinishedToDisk(LOG_FILE, data.species, data.location)
 
+    -- TODO: Do we need to ACK this?
 end
 
 function PollForMessageAndHandle()
@@ -68,13 +80,17 @@ BeeGraph = ImportBeeGraph(Component.apiary)
 -- Read our local logfile to figure out which species we already have (and where they're stored).
 -- We will synchronize this with the robot later on.
 -- TODO: Actually do this.
+-- TODO: Also need to distinguish between the robot having an update vs. the server having an update.
+--       This could be done via timestamps, except the only time the server would have an update is when
+--       the player updates the list manually, and they likely won't want to deal with timestamps. We
+--       could either have them delete the timestamp (and then detect that and generate it later) or
+--       dupe the file into a human-editable version (and then overwrite the online version at startup).
 FoundSpecies = {}
 
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,
     [MessageCode.SpeciesFoundRequest] = SpeciesFoundHandler,
     [MessageCode.BreedInfoRequest] = BreedInfoHandler
-    
 }
 
 
