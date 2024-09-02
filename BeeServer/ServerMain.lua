@@ -74,8 +74,10 @@ end
 ---------------------
 -- Initial Setup.
 
--- Obtain the full bee graph from the attached adapter and apiary/bee house.
-BeeGraph = ImportBeeGraph(Component.apiary)
+-- Obtain the full bee graph from the attached adapter and apiary.
+-- TODO: This is set up to be attached to an apiary, but this isn't technically required.
+--       We need more generous matching here to determine the correct component.
+BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
 -- We will synchronize this with the robot later on.
