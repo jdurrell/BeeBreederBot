@@ -5,18 +5,18 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-SAVE_FOLDER=$(<$SCRIPT_DIR/savefolderpath.txt) | tr -d '\n'
-SERVER_ID=$(<$SCRIPT_DIR/serverid.txt) | tr -d '\n'
-ROBOT_ID=%(<$SCRIPT_DIR/robotid.txt) | tr -d '\n'
-
-
+SAVE_FOLDER=$(<"$SCRIPT_DIR/savefolderpath.txt")
+SERVER_ID=$(<"$SCRIPT_DIR/serverid.txt")
+ROBOT_ID=$(<"$SCRIPT_DIR/robotid.txt")
 
 # Copy server files to server.
-$SERVER_DEST="$SAVE_FOLDER/opencomputers/$SERVER_ID/home/BeeBreederBot"
-cp $SCRIPT_DIR/BeeServer/* $SERVER_DEST
-cp $SCRIPT_DIR/Shared/* $SERVER_DEST
+SERVER_DEST=$(echo $SAVE_FOLDER/opencomputers/$SERVER_ID/home/BeeBreederBot/)
+echo "Copying server files to $SERVER_DEST"
+cp "$SCRIPT_DIR"/BeeServer/* "$SERVER_DEST"
+cp "$SCRIPT_DIR"/Shared/* "$SERVER_DEST"
 
 # Copy robot files to robot.
-$ROBOT_DEST="$SAVE_FOLDER/opencomputers/$ROBOT_ID/home/BeeBreederBot"
-cp $SCRIPT_DIR/BeeBot/* $ROBOT_DEST
-cp $SCRIPT_DIR/Shared/* $ROBOT_DEST
+ROBOT_DEST=$(echo $SAVE_FOLDER/opencomputers/$ROBOT_ID/home/BeeBreederBot/)
+echo "Copying robot files to $ROBOT_DEST"
+cp "$SCRIPT_DIR"/BeeBot/* "$ROBOT_DEST"
+cp "$SCRIPT_DIR"/Shared/* "$ROBOT_DEST"
