@@ -41,3 +41,9 @@ function LogSpeciesFinishedToDisk(filepath, species, location)
     logfile:flush()
     logfile:close()
 end
+
+function DebugPromptForKeyPress(message)
+    print(tostring(message))
+    Sleep(0.25)
+    Event.pull("key_up")
+end

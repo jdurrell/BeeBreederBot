@@ -7,12 +7,14 @@
 
 -- Load Dependencies.
 Component = require("component")
-Modem = require("modem")
+Event = require("event")
+Modem = Component.modem
 -- TODO: Should the below be 'require()' statements instead?
 dofile("/home/BeeBreederBot/Shared.lua")
 dofile("/home/BeeBreederBot/MutationMath.lua")
 dofile("/home/BeeBreederBot/GraphParse.lua")
 dofile("/home/BeeBreederBot/GraphQuery.lua")
+Sleep(0.5)
 
 LOG_FILE_ONLINE = "/home/BeeBreederBot/DroneLocations.log"
 
@@ -77,6 +79,7 @@ end
 -- Obtain the full bee graph from the attached adapter and apiary.
 -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
 --       We need more generous matching here to determine the correct component.
+print("Importing bee graph.")
 BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
@@ -100,9 +103,14 @@ HandlerTable = {
 -- Main operation loop.
 print("Enter your target species to breed:\n")
 local input = nil
-while BeeGraph[input] == nil do
+while true do
     input = io.read()
-    print("Error: did not recognize species.\n")
+
+    if (BeeGraph[input] == nil) then
+        print("Error: did not recognize species.\n")
+    else
+        break
+    end
 end
 
 BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)

@@ -5,9 +5,41 @@
 ---@param graph SpeciesGraph
 ---@param species string
 local function createNodeInGraph(graph, species)
-    graph[species].speciesName = species
-    graph[species].parentMutations = nil
-    graph[species].childMutations = nil
+    graph[species] = {
+        speciesName = species,
+        parentMutations = {},
+        childMutations = {},
+    }
+end
+
+---@param graph SpeciesGraph
+---@param result string
+---@param allele1 string
+---@param allele2 string
+local function addMutationToGraph(graph, allele1, allele2, result)
+    -- Do setup for graph nodes if they don't already exist.
+    if graph[allele1] == nil then
+        createNodeInGraph(graph, allele1)
+    end
+    if graph[allele2] == nil then
+        createNodeInGraph(graph, allele2)
+    end
+    if graph[result] == nil then
+        createNodeInGraph(graph, result)
+    end
+
+    -- Do setup for mutations of allele nodes if they don't already exist.
+    if graph[allele1].childMutations[result] == nil then
+        graph[allele1].childMutations[result] = {}
+    end
+    if graph[allele2].childMutations[result] == nil then
+        graph[allele2].childMutations[result] = {}
+    end
+
+    -- Actually add the mutation to the graph.
+    table.insert(graph[result].parentMutations, {allele1, allele2})
+    table.insert(graph[allele1].childMutations[result], allele2)
+    table.insert(graph[allele2].childMutations[result], allele1)
 end
 
 ---@return SpeciesGraph
@@ -18,19 +50,7 @@ function ImportBeeGraph(beehouseComponent)
     ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
     local breedingData = beehouseComponent.getBeeBreedingData()
     for i, mutation in pairs(breedingData) do
-        if graph[mutation.allele1] == nil then
-            createNodeInGraph(graph, mutation.allele1)
-        end
-        if graph[mutation.allele2] == nil then
-            createNodeInGraph(graph, mutation.allele2)
-        end
-        if graph[mutation.result] == nil then
-            createNodeInGraph(graph, mutation.result)
-        end
-
-        table.insert(graph[mutation.result].parentMutations, {mutation.allele1, mutation.allele2})
-        table.insert(graph[mutation.allele1].childMutations[mutation.result], mutation.allele2)
-        table.insert(graph[mutation.allele2].childMutations[mutation.result], mutation.allele1)
+        addMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result)
     end
 
     return graph
