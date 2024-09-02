@@ -38,12 +38,17 @@ end
 ---@param graph SpeciesGraph
 ---@param leafSpecies string[]
 ---@param target string
----@return string[]
+---@return string[] | nil
 function QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
     for _, spec in pairs(leafSpecies) do
         bfsQueueSearch:Push(spec, 0, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
+    end
+
+    if #(bfsQueueSearch.queue) == 0 then
+        print("Error: Failed to start the queue search because no leaf nodes were provided.")
+        return nil
     end
 
     local found = false

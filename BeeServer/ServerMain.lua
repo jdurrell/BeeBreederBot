@@ -101,24 +101,30 @@ HandlerTable = {
 
 ---------------------
 -- Main operation loop.
-print("Enter your target species to breed:\n")
+print("Enter your target species to breed:")
 local input = nil
-while true do
+while BreedPath == nil do
+    ::continue::
     input = io.read()
 
     if (BeeGraph[input] == nil) then
-        print("Error: did not recognize species.\n")
-    else
-        break
+        print("Error: did not recognize species.")
+        goto continue
+    end
+
+    BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)
+    if BreedPath == nil then
+        print("Error: Could not find breeding path for species " .. tostring(input))
+        goto continue
     end
 end
 
-BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)
-print("Breeding " .. input .. ". Full breeding order:\n")
+print("Breeding " .. input .. " bees. Full breeding order:")
 for _ ,v in ipairs(BreedPath) do
     print(v)
 end
 
+print("Graph server is online to answer queries.")
 while true do
     PollForMessageAndHandle()
     -- TODO: Handle cancelling and selecting a different species without restarting.
