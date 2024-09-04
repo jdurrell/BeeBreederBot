@@ -80,13 +80,13 @@ for i, v in ipairs(BreedPath) do
         ServerAddress = EstablishComms()
         goto retry
     elseif retval == E_CANCELLED then
-        os.exit(E_CANCELLED)
+        os.exit(E_CANCELLED, true)
     end
 
     -- Breed the target.
     while true do
         if PollForCancel(ServerAddress) then
-            os.exit(E_CANCELLED)
+            os.exit(E_CANCELLED, true)
         end
 
         retval = PickUpBees(v, breedInfo)

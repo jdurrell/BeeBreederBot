@@ -84,6 +84,11 @@ function QueryBreedingPath(graph, leafSpecies, target)
         end
     end
 
+    if not found then
+        print("Failed to find the target in the graph.")
+        return nil
+    end
+
     -- Retrace the path to return it out.
     -- In theory, we could have built the path as we did the search, but we are memory-limited,
     -- so we trade off some time to limit the information stored and rebuild the path later.
@@ -102,7 +107,7 @@ function QueryBreedingPath(graph, leafSpecies, target)
     end
 
     -- Reverse the path to give the forward direction since we built it by retracing.
-    for i=1,(#path)/2 do  -- TODO: verify that this does integer division and can't return some float.
+    for i=1, (#path)/2 do  -- TODO: verify that this does integer division and can't return some float.
         local temp = path[i]
         path[i] = path[#path - i]
         path[#path - i] = temp

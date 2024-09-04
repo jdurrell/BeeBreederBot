@@ -251,7 +251,7 @@ function StoreSpecies(species, filepath, storageInfo)
         end
 
         -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-        LogSpeciesFinishedToDisk(filepath, species, chestLoc)
+        LogSpeciesToDisk(filepath, species, chestLoc)
     end
 
     moveToChest(chestLoc)

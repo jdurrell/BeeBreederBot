@@ -56,7 +56,7 @@ end
 ---@param data {species: string, location: Point}
 function SpeciesFoundHandler(addr, data)
     -- Record the species that was found by the robot to our own disk.
-    LogSpeciesFinishedToDisk(LOG_FILE, data.species, data.location)
+    LogSpeciesToDisk(LOG_FILE, data.species, data.location)
 
     -- TODO: Do we need to ACK this?
 end
@@ -90,7 +90,11 @@ BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 --       the player updates the list manually, and they likely won't want to deal with timestamps. We
 --       could either have them delete the timestamp (and then detect that and generate it later) or
 --       dupe the file into a human-editable version (and then overwrite the online version at startup).
-FoundSpecies = {}
+FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE_ONLINE)
+if FoundSpecies == nil then
+    print("Failed to get found species from logfile.")
+    os.exit(1, true)
+end
 
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,
