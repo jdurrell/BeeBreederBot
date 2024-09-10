@@ -36,13 +36,13 @@ function BFSQueue:Pop()
 end
 
 ---@param graph SpeciesGraph
----@param leafSpecies string[]
+---@param leafSpecies ChestArray
 ---@param target string
 ---@return string[] | nil
 function QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
-    for _, spec in pairs(leafSpecies) do
+    for spec, _ in pairs(leafSpecies) do
         bfsQueueSearch:Push(spec, 0, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
     end
 

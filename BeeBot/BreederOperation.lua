@@ -220,7 +220,7 @@ end
 ---@param species string
 ---@param filepath string
 ---@param storageInfo StorageInfo
----@return Point
+---@return StorageNode
 function StoreSpecies(species, filepath, storageInfo)
     -- Take pure-bred drones from the drone chest and store them in the storage array.
     local robotSlot = 0
@@ -235,13 +235,16 @@ function StoreSpecies(species, filepath, storageInfo)
         end
     end
 
-    local chestLoc = storageInfo.chestArray[species]
-    if chestLoc == nil then
+    local chestNode = storageInfo.chestArray[species]
+    if chestNode == nil then
         -- No pre-existing store for this species. Pick the next open one.
         -- Copy by value so that we can update nextChest here as well.
-        chestLoc = {
-            x = storageInfo.nextChest.x,
-            y = storageInfo.nextChest.y
+        chestNode = {
+            loc = {
+                x = storageInfo.nextChest.x,
+                y = storageInfo.nextChest.y
+            },
+            timestamp = GetCurrentTimestamp()
         }
 
         storageInfo.nextChest.x = storageInfo.nextChest.x + 1
@@ -250,14 +253,16 @@ function StoreSpecies(species, filepath, storageInfo)
             storageInfo.nextChest.y = storageInfo.nextChest.y + 1
         end
 
+        storageInfo.chestArray[species] = chestNode
+
         -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-        LogSpeciesToDisk(filepath, species, chestLoc)
+        LogSpeciesToDisk(filepath, species, chestNode.loc, chestNode.timestamp)
     end
 
-    moveToChest(chestLoc)
+    moveToChest(chestNode.loc)
     -- TODO: Deal with the possibility of the chest having been broken/moved.
     unloadIntoChest()
-    returnToStartFromChest(chestLoc)
+    returnToStartFromChest(chestNode.loc)
 
-    return chestLoc
+    return chestNode
 end

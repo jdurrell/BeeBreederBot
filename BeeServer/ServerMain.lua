@@ -53,12 +53,12 @@ function PathHandler(addr, data)
 end
 
 ---@param addr string
----@param data {species: string, location: Point}
+---@param data {species: string, location: Point, timestamp: integer}
 function SpeciesFoundHandler(addr, data)
     -- Record the species that was found by the robot to our own disk.
-    LogSpeciesToDisk(LOG_FILE, data.species, data.location)
-
-    -- TODO: Do we need to ACK this?
+    if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.timestamp) then
+        LogSpeciesToDisk(LOG_FILE, data.species, data.location, data.timestamp)
+    end
 end
 
 function PollForMessageAndHandle()

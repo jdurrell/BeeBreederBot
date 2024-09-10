@@ -94,8 +94,8 @@ for i, v in ipairs(BreedPath) do
             WalkApiariesAndStartBreeding()
         elseif retval == E_GOTENOUGH_DRONES then
             -- If we have enough of the target species now, then clean up and break out.
-            local point = StoreSpecies(v, LOG_FILE, StorageInfo)
-            ReportSpeciesFinishedToServer(ServerAddress, v, point)
+            local node = StoreSpecies(v, LOG_FILE, StorageInfo)
+            ReportSpeciesFinishedToServer(ServerAddress, node)
             break
         elseif retval == E_NOPRINCESS then
             -- Otherwise, just hang out for a little while.

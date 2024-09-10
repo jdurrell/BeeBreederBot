@@ -69,9 +69,16 @@ local AnalyzedBeeTraits = {}
 ---@field uid string  The unique identifier for this species like "forestry.speciesForest".
 local BeeSpecies = {}
 
+---@class StorageNode
+---@field loc Point
+---@field timestamp integer
+local StorageNode = {}
+
+---@alias ChestArray table<string, StorageNode>
+
 ---@class StorageInfo
 ---@field nextChest Point  The next open chest to use for a new species.
----@field chestArray table<string, Point>  Mapping of species to the chest where they are stored.
+---@field chestArray ChestArray  Mapping of species to the chest where they are stored.
 local StorageInfo = {}
 
 ---@class Point

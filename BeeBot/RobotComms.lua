@@ -83,11 +83,10 @@ function GetBreedInfoFromServer(addr, target)
 end
 
 ---@param addr string
----@param species string
----@param location Point
-function ReportSpeciesFinishedToServer(addr, species, location)
+---@param node StorageNode
+function ReportSpeciesFinishedToServer(addr, node)
     -- Report the update to the server.
-    local payload = {species = species, location = location}
+    local payload = node
     local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, payload)
     if not sent then
         print("Failed to send SpeciesFoundRequest.")

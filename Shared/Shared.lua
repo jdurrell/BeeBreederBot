@@ -19,7 +19,7 @@ MessageCode = {
     BreedInfoResponse = 9
 }
 
-local function getCurrentTimestamp()
+function GetCurrentTimestamp()
     return math.floor(os.time())
 end
 
@@ -32,7 +32,8 @@ end
 ---@param filepath string
 ---@param species string
 ---@param location Point
-function LogSpeciesToDisk(filepath, species, location)
+---@param timestamp integer
+function LogSpeciesToDisk(filepath, species, location, timestamp)
     local logfile = io.open(filepath, "r")
     if logfile == nil then
         -- We can't really handle this error. Just print it out and move on.
@@ -86,14 +87,14 @@ function LogSpeciesToDisk(filepath, species, location)
 
     -- Write out the new entry, then the rest of the file.
     -- Technically, we could serialize a table and just store that, but a csv is easier to edit for a human, if necessary.
-    logfile:write(species .. "," .. tostring(location.x) .. "," .. tostring(location.y) .. "," .. tostring(getCurrentTimestamp()), "\n")
+    logfile:write(species .. "," .. tostring(location.x) .. "," .. tostring(location.y) .. "," .. tostring(timestamp), "\n")
     logfile:write(restOfFile)
     logfile:flush()
     logfile:close()
 end
 
 ---@param filepath string
----@return table<string, {x: integer, y: integer, timestamp: integer}> | nil
+---@return ChestArray | nil
 function ReadSpeciesLogFromDisk(filepath)
     -- TODO: This should probably format the log as well in case of human-added species.
     local logfile = io.open(filepath, "r")
@@ -125,9 +126,11 @@ function ReadSpeciesLogFromDisk(filepath)
         end
 
         log[fields[1]] = {
-            x = tonumber(fields[2]),
-            y = tonumber(fields[3]),
-            timestamp = fields[4] == "0" and getCurrentTimestamp() or tonumber(fields[4])  -- Set manually adjusted values to override pre-existing versions.
+            loc = {
+                x = tonumber(fields[2]),
+                y = tonumber(fields[3]),
+            },
+            timestamp = fields[4] == "0" and GetCurrentTimestamp() or tonumber(fields[4])  -- Set manually adjusted values to override pre-existing versions.
         }
 
         -- If this is the first read of something manually adjusted, then we will need to write out the new time afterwards.
@@ -139,7 +142,7 @@ function ReadSpeciesLogFromDisk(filepath)
 
     -- Write out the new time for any manually adjusted species.
     for _, newlyAdjustedSpecies in ipairs(newManualAdjusts) do
-        LogSpeciesToDisk(filepath, newlyAdjustedSpecies, {x=log[newlyAdjustedSpecies].x, y=log[newlyAdjustedSpecies].x})
+        LogSpeciesToDisk(filepath, newlyAdjustedSpecies, log[newlyAdjustedSpecies].loc, GetCurrentTimestamp())
     end
 
     return log
