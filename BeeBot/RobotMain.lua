@@ -64,7 +64,7 @@ math.randomseed(os.time())
 ServerAddress = EstablishComms()
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
--- TODO: Load our current state of bees bred here.
+FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE)
 local retval
 retval, BreedPath = GetBreedPathFromServer(ServerAddress)
 
