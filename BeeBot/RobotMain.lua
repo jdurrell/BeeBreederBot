@@ -65,7 +65,18 @@ ServerAddress = EstablishComms()
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
 FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE)
+if FoundSpecies == nil then
+    print("Got nil when reading species Log.")
+    os.exit(0)
+end
+
 local retval
+retval = SyncLogWithServer(ServerAddress, FoundSpecies)
+if retval ~= E_NOERROR then
+    print("Got error while attempting to sync log with server.")
+    os.exit(0)
+end
+
 retval, BreedPath = GetBreedPathFromServer(ServerAddress)
 
 ---------------------

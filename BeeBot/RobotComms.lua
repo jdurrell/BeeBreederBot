@@ -101,7 +101,60 @@ function PollForCancel(addr)
     local event, _, _, _, _, code = Event.pull(0, MODEM_EVENT_NAME)
     local cancelled = (event ~= nil) and (code == MessageCode.CancelRequest)
 
-    -- TOOD: Do we need to ACK this?
+    -- TODO: Do we need to ACK this?
 
     return cancelled
+end
+
+---@param addr string
+---@param foundSpecies table<string, StorageNode>
+---@return integer
+function SyncLogWithServer(addr, foundSpecies)
+    -- Stream our log to the server.
+    for species, storageNode in pairs(foundSpecies) do
+        local payload = {
+            species=species,
+            node=storageNode
+        }
+
+        local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, payload)
+        if not sent then
+            print("Failed to send SpeciesFoundRequest st startup.")
+        end
+
+        -- Give the server time to actually process instead of just blowing up its buffer.
+        Sleep(0.2)
+    end
+
+    -- Now request the server's log and update our local state.
+    local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamRequest)
+    if not sent then
+        print("Failed to send LogStreamRequest.")
+    end
+
+    ---@type {species: string, node: StorageNode}
+    local data
+    while true do
+        local event, _, _, _, _, code, data = Event.pull(2.0, MODEM_EVENT_NAME)
+        if event == nil then
+            return E_TIMEDOUT
+        elseif code == MessageCode.CancelRequest then
+            return E_CANCELLED
+        elseif code ~= MessageCode.LogStreamResponse then
+            print("Unrecognized message code while attempting to process logs.")
+            return E_CANCELLED
+        end
+
+        if data == nil then
+            -- End of the stream
+            break
+        end
+
+        if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
+            FoundSpecies[data.species] = data.node
+            LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
+        end
+    end
+
+    return E_NOERROR
 end

@@ -16,13 +16,16 @@ MessageCode = {
     SpeciesFoundRequest = 6,
     -- SpeciesFoundResponse = 7,  -- Do we really need to send an ACK for this?
     BreedInfoRequest = 8,
-    BreedInfoResponse = 9
+    BreedInfoResponse = 9,
+    LogStreamRequest = 10,
+    LogStreamResponse = 11
 }
 
 function GetCurrentTimestamp()
     return math.floor(os.time())
 end
 
+---@param time number Time to sleep in seconds
 function Sleep(time)
     -- os.sleep() only exists inside OpenComputers, so outside IntelliSense doesn't recognize it.
     ---@diagnostic disable-next-line: undefined-field

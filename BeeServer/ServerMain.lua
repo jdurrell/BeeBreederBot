@@ -53,11 +53,39 @@ function PathHandler(addr, data)
 end
 
 ---@param addr string
----@param data {species: string, location: Point, timestamp: integer}
+---@param data {species: string, node: StorageNode}
 function SpeciesFoundHandler(addr, data)
     -- Record the species that was found by the robot to our own disk.
-    if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.timestamp) then
-        LogSpeciesToDisk(LOG_FILE, data.species, data.location, data.timestamp)
+    if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
+        FoundSpecies[data.species] = data.node
+        LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
+    end
+end
+
+---@param addr string
+---@param data nil
+function LogStreamHandler(addr, data)
+    --- Disabled warning because we check this for nil already.
+    ---@diagnostic disable-next-line: param-type-mismatch
+    for species, node in pairs(FoundSpecies) do
+        local payload = {
+            species=species,
+            node=node
+        }
+
+        local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamResponse, payload)
+        if not sent then
+            print("Failed to send LogStreamResponse.")
+        end
+
+        -- Give the robot time to actually process these instead of just blowing up its event queue.
+        Sleep(0.2)
+    end
+
+    -- Send an empty response to indicate that the stream has ended.
+    local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamResponse, nil)
+    if not sent then
+        print("Failed to send LogStreamResponse.")
     end
 end
 
@@ -83,13 +111,7 @@ print("Importing bee graph.")
 BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
--- We will synchronize this with the robot later on.
--- TODO: Actually do this.
--- TODO: Also need to distinguish between the robot having an update vs. the server having an update.
---       This could be done via timestamps, except the only time the server would have an update is when
---       the player updates the list manually, and they likely won't want to deal with timestamps. We
---       could either have them delete the timestamp (and then detect that and generate it later) or
---       dupe the file into a human-editable version (and then overwrite the online version at startup).
+-- We will synchronize this with the robot later on via LogStreamHandler when it boots up.
 FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE_ONLINE)
 if FoundSpecies == nil then
     print("Failed to get found species from logfile.")
@@ -99,7 +121,8 @@ end
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,
     [MessageCode.SpeciesFoundRequest] = SpeciesFoundHandler,
-    [MessageCode.BreedInfoRequest] = BreedInfoHandler
+    [MessageCode.BreedInfoRequest] = BreedInfoHandler,
+    [MessageCode.LogStreamRequest] = LogStreamHandler
 }
 
 
