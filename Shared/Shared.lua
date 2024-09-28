@@ -2,7 +2,7 @@
 
 -- Variables for communication between robot and server.
 COM_PORT = 34000
-SIGNAL_STRENGTH    = 16  -- TODO: Determine a good strength.
+SIGNAL_STRENGTH = 16  -- TODO: Determine a good strength.
 MODEM_EVENT_NAME = "modem_message"
 
 ---@enum MessageCodes
@@ -155,4 +155,50 @@ function DebugPromptForKeyPress(message)
     print(tostring(message))
     Sleep(0.25)
     Event.pull("key_up")
+end
+
+function Shutdown()
+    if (Modem ~= nil) and (Modem.isOpen(COM_PORT)) then
+        Modem.close(COM_PORT) 
+    end
+    os.exit(0)
+end
+
+--- This helps keep IntelliSense happy.
+---@generic T
+---@param value T | nil
+---@return T
+function UnwrapNull(value)
+    return value
+end
+
+---@param addr string | nil
+---@param messageCode integer
+---@param payload table | nil
+function SendMessage(addr, messageCode, payload)
+    local message = {code=messageCode, payload=payload}
+
+    local sent
+    if addr == nil then
+        sent = Modem.broadcast(COM_PORT, Serial.serialize(message))
+    else
+        sent = Modem.send(addr, COM_PORT, Serial.serialize(message))
+    end
+
+    if not sent then
+        -- Report this exception in case it happens, but don't handle it because I'm still not sure what it truly indicates or how to handle it.
+        print("Failed to send message code " .. tostring(messageCode) .. ".")
+    end
+end
+
+---@param message string
+---@return Message
+function UnserializeMessage(message)
+    if message == nil then
+-- Disable this because this condition is likely better checked by checking for `event` == nil.
+---@diagnostic disable-next-line: return-type-mismatch
+        return nil
+    end
+
+    return Serial.unserialize(message)
 end

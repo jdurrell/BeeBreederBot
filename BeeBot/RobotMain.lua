@@ -10,14 +10,17 @@
 -- Load Dependencies.
 Component = require("component")
 Event = require("event")
+Serial = require("serialization")
 Sides = require("sides")
 Robot = Component.robot
 BK = Component.beekeeper
 IC = Component.inventory_controller
 Modem = Component.modem
+
 dofile("/home/BeeBreederBot/Shared.lua")
 dofile("/home/BeeBreederBot/BreederOperation.lua")
 dofile("/home/BeeBreederBot/RobotComms.lua")
+
 
 ServerAddress = nil
 E_NOERROR          = 0
@@ -54,27 +57,34 @@ StorageInfo = {
 
 ---------------------
 -- Initial Setup.
+print("Opening port " .. COM_PORT .. " for communications.")
 local listenPortOpened = Modem.open(COM_PORT)
 if not listenPortOpened then
     print("Error: Failed to open communication port.")
-    os.exit(1, true)
+    Shutdown()
 end
 
 math.randomseed(os.time())
 ServerAddress = EstablishComms()
+if ServerAddress == nil then
+    print("Timed out while attempting to establish comms with server.")
+    Shutdown()
+end
+ServerAddress = UnwrapNull(ServerAddress)
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
 FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE)
 if FoundSpecies == nil then
     print("Got nil when reading species Log.")
-    os.exit(0)
+    Shutdown()
 end
+FoundSpecies = UnwrapNull(FoundSpecies)
 
 local retval
 retval = SyncLogWithServer(ServerAddress, FoundSpecies)
 if retval ~= E_NOERROR then
     print("Got error while attempting to sync log with server.")
-    os.exit(0)
+    Shutdown()
 end
 
 retval, BreedPath = GetBreedPathFromServer(ServerAddress)

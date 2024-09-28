@@ -1,50 +1,51 @@
----@return string | nil addr The address of the server that responded to the ping.
-function PingServerForStartup()
-
-end
-
----@return string addr  The address of the server that responded to the ping.
+---@return string | nil addr  The address of the server that responded to the ping.
 function EstablishComms()
-    while true do
-        local transactionId = math.floor(math.random(65535))
-        local payload = {transactionId = transactionId}
-        local sent = Modem.broadcast(COM_PORT, MessageCode.PingRequest, payload)
-        if not sent then
-            print("Error sending PingRequest.")
-        end
+    print("Establishing conection to server...")
 
-        while true do
-            local event, _, addr, _, _, code, tid = Event.pull(10, MODEM_EVENT_NAME)
-            if (event ~= nil) and (code == MessageCode.PingResponse) and (transactionId == tid) then
+    local tid = math.floor(math.random(65535))
+    local payload = {transactionId=tid}
+    SendMessage(nil, MessageCode.PingRequest, payload)
+
+    while true do
+        local event, _, addr, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
+        ---@type Message
+        response = UnserializeMessage(response)
+        if event == nil then
+            return nil
+        elseif response.code == MessageCode.PingResponse then
+            ---@type PingResponsePayload
+            local data = response.payload
+            if (response.code == MessageCode.PingResponse) and (data.transactionId == tid) then
                 return addr
             end
-            -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
-            -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous instance of this program.
-            -- If we timed out, then just continue.
         end
+
+        -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
+        -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous instance of this program.
+        -- If we timed out, then just continue.
     end
 end
 
 ---@param addr string
 ---@return integer, string[]
 function GetBreedPathFromServer(addr)
-    local sent = Modem.send(addr, COM_PORT, MessageCode.PathRequest)
-    if not sent then
-        print("Failed to send PathRequest.")
-        return E_SENDFAILED, {}
-    end
+    SendMessage(addr, MessageCode.PathRequest, nil)
 
-    local event, _, _, _, _, code, data = Event.pull(10, MODEM_EVENT_NAME)
+    local event, _, _, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
     if event == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
+    UnserializeMessage(response)
 
-    if code == MessageCode.CancelRequest then
+    if response.code == MessageCode.CancelRequest then
         return E_CANCELLED, {}
-    elseif code ~= MessageCode.PathResponse then
-        print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(code))
+    elseif response.code ~= MessageCode.PathResponse then
+        print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(response.code))
     end
+
+    ---@type PathResponsePayload
+    local data = response.payload
 
     if data == nil then
         -- We have no other target to breed.
@@ -60,37 +61,32 @@ end
 ---@param target string
 ---@return integer, table<string, table<string, number>>
 function GetBreedInfoFromServer(addr, target)
-    local payload = {target = target}
-    local sent = Modem.send(addr, COM_PORT, MessageCode.BreedInfoRequest, payload)
-    if not sent then
-        print("Failed to send BreedInfoRequest.")
-        return E_SENDFAILED, {}
-    end
+    local payload = {target=target}
+    SendMessage(addr, MessageCode.BreedInfoRequest, payload)
 
-    local event, _, _, _, _, code, data = Event.pull(10, MODEM_EVENT_NAME)
+    local event, _, _, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
     if event == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
+    response = UnserializeMessage(response)
 
-    if code == MessageCode.CancelRequest then
+    if response.code == MessageCode.CancelRequest then
         return E_CANCELLED, {}
-    elseif code ~= MessageCode.BreedInfoResponse then
+    elseif response.code ~= MessageCode.BreedInfoResponse then
         return E_CANCELLED, {}
     end
 
-    return E_NOERROR, data.breedInfo
+    ---@type BreedInfoResponsePayload
+    local breedInfo = response.payload
+    return E_NOERROR, breedInfo
 end
 
 ---@param addr string
 ---@param node StorageNode
 function ReportSpeciesFinishedToServer(addr, node)
     -- Report the update to the server.
-    local payload = node
-    local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, payload)
-    if not sent then
-        print("Failed to send SpeciesFoundRequest.")
-    end
+    SendMessage(addr, MessageCode.SpeciesFoundRequest, node)
 
     -- TODO: Do we need an ACK for this?
 end
@@ -98,58 +94,50 @@ end
 ---@param addr string
 ---@return boolean
 function PollForCancel(addr)
-    local event, _, _, _, _, code = Event.pull(0, MODEM_EVENT_NAME)
-    local cancelled = (event ~= nil) and (code == MessageCode.CancelRequest)
+    local event, _, _, _, _, response = Event.pull(0, MODEM_EVENT_NAME)
+    if event ~= nil then
+        response = UnserializeMessage(response)
+        return response.code == MessageCode.CancelRequest
+    end
 
-    -- TODO: Do we need to ACK this?
-
-    return cancelled
+    return false
 end
 
 ---@param addr string
----@param foundSpecies table<string, StorageNode>
+---@param foundSpecies table<string, StorageNode> in/out parameter
 ---@return integer
 function SyncLogWithServer(addr, foundSpecies)
     -- Stream our log to the server.
     for species, storageNode in pairs(foundSpecies) do
-        local payload = {
-            species=species,
-            node=storageNode
-        }
-
-        local sent = Modem.send(addr, COM_PORT, MessageCode.SpeciesFoundRequest, payload)
-        if not sent then
-            print("Failed to send SpeciesFoundRequest st startup.")
-        end
+        local payload = {species=species, node=storageNode}
+        SendMessage(addr, MessageCode.SpeciesFoundRequest, payload)
 
         -- Give the server time to actually process instead of just blowing up its buffer.
         Sleep(0.2)
     end
 
     -- Now request the server's log and update our local state.
-    local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamRequest)
-    if not sent then
-        print("Failed to send LogStreamRequest.")
-    end
+    SendMessage(addr, MessageCode.LogStreamRequest, nil)
 
-    ---@type {species: string, node: StorageNode}
-    local data
     while true do
-        local event, _, _, _, _, code, data = Event.pull(2.0, MODEM_EVENT_NAME)
+        local event, _, _, _, _, response = Event.pull(2.0, MODEM_EVENT_NAME)
         if event == nil then
             return E_TIMEDOUT
-        elseif code == MessageCode.CancelRequest then
+        end
+        response = UnserializeMessage(response)
+
+        if response == nil then
+            -- End of the stream.
+            break
+        elseif response.code == MessageCode.CancelRequest then
             return E_CANCELLED
-        elseif code ~= MessageCode.LogStreamResponse then
+        elseif response.code ~= MessageCode.LogStreamResponse then
             print("Unrecognized message code while attempting to process logs.")
             return E_CANCELLED
         end
 
-        if data == nil then
-            -- End of the stream
-            break
-        end
-
+        ---@type LogStreamResponsePayload
+        local data = response.payload
         if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
             FoundSpecies[data.species] = data.node
             LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)

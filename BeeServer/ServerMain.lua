@@ -8,6 +8,7 @@
 -- Load Dependencies.
 Component = require("component")
 Event = require("event")
+Serial = require("serialization")
 Modem = Component.modem
 -- TODO: Should the below be 'require()' statements instead?
 dofile("/home/BeeBreederBot/Shared.lua")
@@ -19,41 +20,30 @@ Sleep(0.5)
 LOG_FILE_ONLINE = "/home/BeeBreederBot/DroneLocations.log"
 
 ---@param addr string
----@param data {transactionId: integer}
+---@param data PingRequestPayload
 function PingHandler(addr, data)
-    -- Just respond with our own ping.
-    local payload = {transactionId = data.transactionId}
-    local sent = Modem.send(addr, COM_PORT, MessageCode.PingResponse, payload)
-    if not sent then
-        print("Failed to send PingResponse.")
-    end
+    -- Just respond with our own ping, echoing back the transaction id.
+    local payload = {transactionId=data.transactionId}
+    SendMessage(addr, MessageCode.PingResponse, payload)
 end
 
 ---@param addr string
----@param data {target: string}
+---@param data BreedInfoRequestPayload
 function BreedInfoHandler(addr, data)
     -- Calculate mutation chances and send them back to the robot.
-    local payload = {}
-    payload.breedInfo = CalculateBreedInfo(data.target, BeeGraph)
-    local sent = Modem.send(addr, COM_PORT, MessageCode.BreedInfoResponse, payload)
-    if not sent then
-        print("Failed to send TargetResponse.")
-    end
+    local payload = {breedInfo=CalculateBreedInfo(data.target, BeeGraph)}
+    SendMessage(addr, MessageCode.BreedInfoResponse, payload)
 end
 
 ---@param addr string
----@param data nil
+---@param data PathRequestPayload
 function PathHandler(addr, data)
     -- Send the calculated breed path to the robot.
-    local payload = BreedPath
-    local sent = Modem.send(addr, COM_PORT, MessageCode.PathResponse, payload)
-    if not sent then
-        print("Failed to send PathResponse")
-    end
+    SendMessage(addr, MessageCode.PathResponse, BreedPath)
 end
 
 ---@param addr string
----@param data {species: string, node: StorageNode}
+---@param data SpeciesFoundRequestPayload
 function SpeciesFoundHandler(addr, data)
     -- Record the species that was found by the robot to our own disk.
     if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
@@ -63,39 +53,31 @@ function SpeciesFoundHandler(addr, data)
 end
 
 ---@param addr string
----@param data nil
+---@param data LogStreamRequestPayload
 function LogStreamHandler(addr, data)
     --- Disabled warning because we check this for nil already.
     ---@diagnostic disable-next-line: param-type-mismatch
     for species, node in pairs(FoundSpecies) do
-        local payload = {
-            species=species,
-            node=node
-        }
-
-        local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamResponse, payload)
-        if not sent then
-            print("Failed to send LogStreamResponse.")
-        end
+        local payload = {species=species, node=node}
+        SendMessage(addr, MessageCode.LogStreamResponse, payload)
 
         -- Give the robot time to actually process these instead of just blowing up its event queue.
         Sleep(0.2)
     end
 
     -- Send an empty response to indicate that the stream has ended.
-    local sent = Modem.send(addr, COM_PORT, MessageCode.LogStreamResponse, nil)
-    if not sent then
-        print("Failed to send LogStreamResponse.")
-    end
+    SendMessage(addr, MessageCode.LogStreamResponse, nil)
 end
 
 function PollForMessageAndHandle()
-    local event, _, addr, _, _, code, data = Event.pull(2.0, MODEM_EVENT_NAME)
+    local event, _, addr, _, _, response = Event.pull(2.0, MODEM_EVENT_NAME)
     if event ~= nil then
-        if HandlerTable[code] == nil then
-            print("Received unidentified code " .. tostring(code))
+        response = UnserializeMessage(response)
+
+        if HandlerTable[response.code] == nil then
+            print("Received unidentified code " .. tostring(response.code))
         else
-            HandlerTable[code](addr, data)
+            HandlerTable[response.code](addr, response.payload)
         end
     end
 end
@@ -115,8 +97,9 @@ BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE_ONLINE)
 if FoundSpecies == nil then
     print("Failed to get found species from logfile.")
-    os.exit(1, true)
+    Shutdown()
 end
+FoundSpecies = UnwrapNull(FoundSpecies)
 
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,

@@ -87,3 +87,20 @@ local StorageInfo = {}
 local Point = {}
 
 -- TODO: Define types for message payloads.
+--- Generics are still in progress, which is why this looks a little weird compared to the other types.
+---@class Message
+---@field code integer
+---@field payload table
+
+---@class CodedMessage<T>: {code: integer, payload: T}
+
+---@alias BreedInfoResponsePayload table<string, table<string, number>>
+---@alias BreedInfoRequestPayload {target: string}
+---@alias CancelRequestPayload nil
+---@alias LogStreamResponsePayload {species: string, node: StorageNode}
+---@alias LogStreamRequestPayload nil
+---@alias PathRequestPayload nil
+---@alias PathResponsePayload {breedInfo: string[]} | nil
+---@alias PingRequestPayload {transactionId: integer}
+---@alias PingResponsePayload {transactionId: integer}
+---@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}
