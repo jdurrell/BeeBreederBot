@@ -87,14 +87,14 @@ function QueryBreedingPath(graph, leafSpecies, target)
     -- In theory, we could have built the path as we did the search, but we are memory-limited,
     -- so we trade off some time to limit the information stored and rebuild the path later.
     local path = {}
-    local name = bfsQueueSearch.queue[#(bfsQueueSearch.queue)]  -- Target node is at the back since we just added it.
+    local name = bfsQueueSearch.queue[#(bfsQueueSearch.queue)]  -- Target node is at the back since we exited the above search immediately after adding it.
     local bfsQueueRetrace = BFSQueueCreate()
     BFSQueuePush(bfsQueueRetrace, name, 0, nil)
     while #(bfsQueueRetrace.queue) > 0 do
         name = BFSQueuePop(bfsQueueRetrace)
         table.insert(path, name)
         for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
-            if (parent ~= nil) and (bfsQueueRetrace.seen[parent] ~= nil) then
+            if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
                 BFSQueuePush(bfsQueueRetrace, parent, 0, nil)
             end
         end
@@ -103,8 +103,8 @@ function QueryBreedingPath(graph, leafSpecies, target)
     -- Reverse the path to give the forward direction since we built it by retracing.
     for i=1, math.floor((#path) / 2) do
         local temp = path[i]
-        path[i] = path[#path - i]
-        path[#path - i] = temp
+        path[i] = path[#path - (i - 1)]  -- off-by-one because Lua arrays are 1-indexed.
+        path[#path - (i - 1)] = temp     -- off-by-one because Lua arrays are 1-indexed.
     end
 
     return path
