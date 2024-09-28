@@ -1,13 +1,20 @@
 -- This file contains types for easy reference and external IntelliSense.
 -- It isn't needed on the in-game devices since it provides no direct functionality.
 
+---@class BFSQueue
+---@field queue string[]                      Queue of species for the BFS search.
+---@field seen table<string, integer>
+---@field pathlookup table<string, string[]>  Table to lookup the path later.
+
+
 ---@class SpeciesNode
 ---@field speciesName string          The name of this species.
 ---@field parentMutations string[][]  All parent mutations that can result in this species.
 ---@field childMutations table<string, string[]>    Mapping of results to other parents that can yield that result.
-local SpeciesNode = {}
+
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
+
 
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
@@ -24,7 +31,6 @@ local SpeciesNode = {}
 ---@field outputs {} -- Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
-local AnalyzedBeeStack = {}
 
 
 ---@class AnalyzedBeeIndividual
@@ -42,7 +48,6 @@ local AnalyzedBeeStack = {}
 ---@field isNatural boolean  Whether this species spawns naturally in hives in the world.
 ---@field maxHealth integer
 ---@field type string  For bees, this seems to always be set to "bee".
-local AnalyzedBeeIndividual = {}
 
 
 ---@class AnalyzedBeeTraits
@@ -59,7 +64,6 @@ local AnalyzedBeeIndividual = {}
 ---@field temperatureTolerance string  The termperature tolerance of this bee, of "NONE" if none.
 ---@field territory integer[]
 ---@field tolerantFlyer boolean  Whether this bee can work in the rain.
-local AnalyzedBeeTraits = {}
 
 
 ---@class BeeSpecies
@@ -67,24 +71,25 @@ local AnalyzedBeeTraits = {}
 ---@field name string  The "common" name of this species.
 ---@field temperature string  The temperature required by this species for its jubilant state.
 ---@field uid string  The unique identifier for this species like "forestry.speciesForest".
-local BeeSpecies = {}
+
 
 ---@class StorageNode
 ---@field loc Point
 ---@field timestamp integer
-local StorageNode = {}
+
 
 ---@alias ChestArray table<string, StorageNode>
+
 
 ---@class StorageInfo
 ---@field nextChest Point  The next open chest to use for a new species.
 ---@field chestArray ChestArray  Mapping of species to the chest where they are stored.
-local StorageInfo = {}
+
 
 ---@class Point
 ---@field x integer
 ---@field y integer
-local Point = {}
+
 
 -- TODO: Define types for message payloads.
 --- Generics are still in progress, which is why this looks a little weird compared to the other types.
@@ -93,6 +98,7 @@ local Point = {}
 ---@field payload table
 
 ---@class CodedMessage<T>: {code: integer, payload: T}
+
 
 ---@alias BreedInfoResponsePayload table<string, table<string, number>>
 ---@alias BreedInfoRequestPayload {target: string}

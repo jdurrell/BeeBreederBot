@@ -19,6 +19,7 @@ Sleep(0.5)
 
 LOG_FILE_ONLINE = "/home/BeeBreederBot/DroneLocations.log"
 
+
 ---@param addr string
 ---@param data PingRequestPayload
 function PingHandler(addr, data)

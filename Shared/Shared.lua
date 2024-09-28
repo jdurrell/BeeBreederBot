@@ -187,7 +187,7 @@ function SendMessage(addr, messageCode, payload)
 
     if not sent then
         -- Report this exception in case it happens, but don't handle it because I'm still not sure what it truly indicates or how to handle it.
-        print("Failed to send message code " .. tostring(messageCode) .. ".")
+        print("Error: Failed to send message code " .. tostring(messageCode) .. ".")
     end
 end
 
