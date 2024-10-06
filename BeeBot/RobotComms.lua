@@ -27,7 +27,7 @@ function EstablishComms()
 end
 
 ---@param addr string
----@return integer, string[]
+---@return integer, BreedPathNode[]
 function GetBreedPathFromServer(addr)
     SendMessage(addr, MessageCode.PathRequest, nil)
 
@@ -46,11 +46,6 @@ function GetBreedPathFromServer(addr)
 
     ---@type PathResponsePayload
     local data = response.payload
-
-    if data == nil then
-        -- We have no other target to breed.
-        return E_NOTARGET, {}
-    end
 
     -- TODO: Check if it's possible for breedInfo to be more than the 8kB message limit.
     --       If so, then we will need to sequence these responses to build the full table before returning it.

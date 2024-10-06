@@ -124,36 +124,37 @@ function PickUpBees(target, breedInfo)
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     ---@type AnalyzedBeeStack[]
     local drones = {}
-    local pureTargetCount = 0
     for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
         ---@type AnalyzedBeeStack
         local droneStack = IC.getStackInSlot(i)
         if droneStack ~= nil then
-            table.insert(drones, IC.getStackInSlot(i))
-            if isPureBred(droneStack, target) then
-                pureTargetCount = pureTargetCount + droneStack.size
+            droneStack.slotInChest = i
+            table.insert(drones, droneStack)
+
+            -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
+            --       or just force them to stack up. For now, it is simplest to force them to stack.
+            if isPureBred(droneStack, target) and droneStack.size == 64 then
+                -- If we have a full stack of our target, then we are done. Pick up the drones into the output slot.
+                Robot.select(DRONE_SLOT)
+                IC.suckFromSlot(i, 64)
             end
         end
     end
 
-    -- If we have a full stack of our target, then we are done.
-    -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to deal with this possibility.
-    if pureTargetCount >= 64 then
-        return E_GOTENOUGH_DRONES
-    end
-
     -- Determine the drone that has the highest chance of breeding the result when paired with the given princess.
-    -- This is important because we will be making use of ignoble princesses, which start dying after they breed too much
-    -- being efficient with their use lowers the numbers of other princesses we have to manually load into the system.
+    -- This is important because we will be making use of ignoble princesses, which start dying after they breed too much.
+    -- Being efficient with their use lowers the numbers of other princesses we have to manually load into the system.
     local maxChanceDroneSlotInChest = -1
     local maxChance = 0.0
     for i, drone in ipairs(drones) do
         local chance = calculateTargetMutationChance(target, princess, drone, breedInfo)
         if chance > maxChance then
-            maxChanceDroneSlotInChest = i
+            maxChanceDroneSlotInChest = drone.slotInChest
             maxChance = chance
         end
     end
+
+    -- TODO: We will accumulate more drones than we use during the operation of this breeder, so we need to garbage-collect the chest at some point.
 
     -- Actually pick up the bees.
     Robot.select(PRINCESS_SLOT)
@@ -222,19 +223,6 @@ end
 ---@param storageInfo StorageInfo
 ---@return StorageNode
 function StoreSpecies(species, filepath, storageInfo)
-    -- Take pure-bred drones from the drone chest and store them in the storage array.
-    local robotSlot = 0
-    Robot.select(robotSlot)
-    for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
-        ---@type AnalyzedBeeStack
-        local beeStack = IC.getStackInSlot(i)
-        if isPureBred(beeStack, species) then
-            IC.suckFromSlot(ANALYZED_DRONE_CHEST, i)
-            robotSlot = robotSlot + 1
-            Robot.select(robotSlot)
-        end
-    end
-
     local chestNode = storageInfo.chestArray[species]
     if chestNode == nil then
         -- No pre-existing store for this species. Pick the next open one.
@@ -265,4 +253,23 @@ function StoreSpecies(species, filepath, storageInfo)
     returnToStartFromChest(chestNode.loc)
 
     return chestNode
+end
+
+---@param loc Point
+---@param number integer
+---@param intoSlot integer
+---@return integer
+function RetrieveDronesFromChest(loc, number, intoSlot)
+    moveToChest(loc)
+
+    Robot.select(intoSlot)
+    Robot.suckDown(number)
+
+    returnToStartFromChest(loc)
+
+    Robot.turnRight()
+    Robot.drop()
+    Robot.select(0)
+
+    return E_NOERROR
 end

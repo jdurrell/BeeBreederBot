@@ -16,6 +16,12 @@
 ---@alias SpeciesGraph table<string, SpeciesNode>
 
 
+---@class BreedPathNode
+---@field target string
+---@field parent1 string
+---@field parent2 string
+
+
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
 ---@class AnalyzedBeeStack
@@ -31,6 +37,7 @@
 ---@field outputs {} -- Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
+---@field slotInChest? integer
 
 
 ---@class AnalyzedBeeIndividual
@@ -106,7 +113,7 @@
 ---@alias LogStreamResponsePayload {species: string, node: StorageNode}
 ---@alias LogStreamRequestPayload nil
 ---@alias PathRequestPayload nil
----@alias PathResponsePayload {breedInfo: string[]} | nil
+---@alias PathResponsePayload {breedInfo: BreedPathNode[]}
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}

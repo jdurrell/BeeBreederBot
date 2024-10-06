@@ -32,7 +32,7 @@ end
 ---@param graph SpeciesGraph
 ---@param leafSpecies ChestArray
 ---@param target string
----@return string[] | nil
+---@return BreedPathNode[] | nil
 function QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueueCreate()
@@ -83,16 +83,23 @@ function QueryBreedingPath(graph, leafSpecies, target)
         return nil
     end
 
+    ---@type BreedPathNode[]
+    local path = {}
+
     -- Retrace the path to return it out.
     -- In theory, we could have built the path as we did the search, but we are memory-limited,
     -- so we trade off some time to limit the information stored and rebuild the path later.
-    local path = {}
     local name = bfsQueueSearch.queue[#(bfsQueueSearch.queue)]  -- Target node is at the back since we exited the above search immediately after adding it.
     local bfsQueueRetrace = BFSQueueCreate()
     BFSQueuePush(bfsQueueRetrace, name, 0, nil)
     while #(bfsQueueRetrace.queue) > 0 do
         name = BFSQueuePop(bfsQueueRetrace)
-        table.insert(path, name)
+        table.insert(path, {
+            target=name,
+            parent1=bfsQueueSearch.pathlookup[name][1],
+            parent2=bfsQueueSearch.pathlookup[name][2]
+        })
+
         for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
             if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
                 BFSQueuePush(bfsQueueRetrace, parent, 0, nil)
