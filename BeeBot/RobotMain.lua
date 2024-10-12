@@ -95,6 +95,11 @@ retval, BreedPath = GetBreedPathFromServer(ServerAddress)
 ---------------------
 -- Main operation loop.
 for i, v in ipairs(BreedPath) do
+    -- TODO: At some point, we should probably have a way to store + retrieve breeding stock princesses,
+    -- but for now, we will just rely on the user to place them into the princess chest manually.
+    -- This system currently only supports breeding a stack of drones that somebody could then
+    -- use to very simply a different princess into a pure-bred production one.
+
     -- Move parent 1 drones to the breeding chest.
     RetrieveDronesFromChest(StorageInfo.chestArray[v.parent1].loc, 32, PARENT1_HOLD_SLOT)
 
@@ -122,6 +127,7 @@ for i, v in ipairs(BreedPath) do
         elseif retval == E_GOTENOUGH_DRONES then
             -- If we have enough of the parent1 species now, then clean up and break out.
             -- But only take half of them back.
+            Robot.transferTo(PARENT1_HOLD_SLOT, 32)  -- For now, hold this half-stack in a free spot in the robot. It will go back into the chest later.
             local node = StoreSpecies(v.target, LOG_FILE, StorageInfo)
             break
         elseif retval == E_NOPRINCESS then
@@ -134,6 +140,7 @@ for i, v in ipairs(BreedPath) do
 
     -- Move parent 2 drones to the breeding chest.
     RetrieveDronesFromChest(StorageInfo.chestArray[v.parent2].loc, 32, PARENT2_HOLD_SLOT)
+
     -- Breed extras of parent 2 to replace the drones we took from the chest.
     while true do
         ::retryparent2::
@@ -158,8 +165,8 @@ for i, v in ipairs(BreedPath) do
         elseif retval == E_GOTENOUGH_DRONES then
             -- If we have enough of the target species now, then clean up and break out.
             -- But only take half of them back.
-            -- local node = StoreSpecies(v.target, LOG_FILE, StorageInfo)
-            -- ReportSpeciesFinishedToServer(ServerAddress, node)
+            Robot.transferTo(PARENT2_HOLD_SLOT, 32)
+            local node = StoreSpecies(v.target, LOG_FILE, StorageInfo)
             break
         elseif retval == E_NOPRINCESS then
             -- Otherwise, just hang out for a little while.
@@ -169,10 +176,20 @@ for i, v in ipairs(BreedPath) do
         end
     end
 
-
+    -- Place the half-stacks of parent drones into the drone chest.
+    Robot.turnRight()
+    Robot.select(PARENT1_HOLD_SLOT)
+    Robot.drop(Sides.front)
+    Robot.select(PARENT2_HOLD_SLOT)
+    Robot.drop(Sides.front)
+    Robot.turnLeft()
 
     -- Breed the target using the left-over drones from both parents and the princesses
     -- implied to be created by breeding the replacements for parent 2.
+    -- TODO: Technically, it is likely possible that some princesses may not get converted
+    --   to one of the two parents. In this case, it could be impossible to get a drone that
+    --   has a non-zero chance to breed the target. For now, we will just rely on random
+    --   chance to eventually get us out of this scenario instead of detecting it outright.
     while true do
         ::retrytarget::
         local breedInfoTarget
