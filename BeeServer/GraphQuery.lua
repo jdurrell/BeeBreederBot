@@ -57,10 +57,10 @@ function QueryBreedingPath(graph, leafSpecies, target)
                 local minParent = nil
 
                 -- Get earliest parent that has already been found *and* can create this mutation.
-                for i,otherParent in ipairs(otherParents) do
-                    if (bfsQueueSearch.seen[otherParent] ~= nil) and (bfsQueueSearch.seen[otherParent] < oCount) then
-                        oCount = bfsQueueSearch.seen[otherParent]
-                        minParent = otherParent
+                for i, otherParent in ipairs(otherParents) do
+                    if (bfsQueueSearch.seen[otherParent] ~= nil) and (bfsQueueSearch.seen[otherParent.parent] < oCount) then
+                        oCount = bfsQueueSearch.seen[otherParent.parent]
+                        minParent = otherParent.parent
                     end
                 end
 

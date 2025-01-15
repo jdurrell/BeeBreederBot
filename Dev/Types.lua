@@ -9,9 +9,8 @@
 
 ---@class SpeciesNode
 ---@field speciesName string          The name of this species.
----@field parentMutations string[][]  All parent mutations that can result in this species.
----@field childMutations table<string, string[]>    Mapping of results to other parents that can yield that result.
-
+---@field parentMutations {parents: string[], chance: number}[]  All parent mutations that can result in this species.
+---@field childMutations table<string, {parent: string, chance: number}[]>    Mapping of results to other parents that combo to yield that result.
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
 
@@ -117,3 +116,5 @@
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}
+
+---@class Set<T>: table<T, boolean>

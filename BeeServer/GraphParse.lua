@@ -16,7 +16,8 @@ end
 ---@param result string
 ---@param allele1 string
 ---@param allele2 string
-local function addMutationToGraph(graph, allele1, allele2, result)
+---@param chance number
+local function addMutationToGraph(graph, allele1, allele2, result, chance)
     -- Do setup for graph nodes if they don't already exist.
     if graph[allele1] == nil then
         createNodeInGraph(graph, allele1)
@@ -37,9 +38,9 @@ local function addMutationToGraph(graph, allele1, allele2, result)
     end
 
     -- Actually add the mutation to the graph.
-    table.insert(graph[result].parentMutations, {allele1, allele2})
-    table.insert(graph[allele1].childMutations[result], allele2)
-    table.insert(graph[allele2].childMutations[result], allele1)
+    table.insert(graph[result].parentMutations, {parents={allele1, allele2}, chance=chance})
+    table.insert(graph[allele1].childMutations[result], {parent=allele2, chance=chance})
+    table.insert(graph[allele2].childMutations[result], {parent=allele1, chance=chance})
 end
 
 ---@return SpeciesGraph
@@ -49,8 +50,8 @@ function ImportBeeGraph(beehouseComponent)
 
     ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
     local breedingData = beehouseComponent.getBeeBreedingData()
-    for i, mutation in pairs(breedingData) do
-        addMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result)
+    for i, mutation in ipairs(breedingData) do
+        addMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
     end
 
     return graph

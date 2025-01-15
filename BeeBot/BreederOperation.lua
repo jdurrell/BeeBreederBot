@@ -76,7 +76,7 @@ local function calculateTargetMutationChance(target, princess, drone, breedInfo)
     local breedChancePrincessSecondaryDronePrimary = breedInfo[princessSecondarySpecies][dronePrimarySpecies]
 
     -- TODO: Account for multiple possible mutations and order shuffling logic.
-    -- TODO: Account for escritoire reseach.
+    -- TODO: Account for escritoire reseach. - Probably won't do this. If you're doing escritoire, you would probably just do everything else by hand.
     -- TODO: Perhaps the above TODOs should be calculated by the server and baked into the breedInfo received by the robot...
 
     local breedChance = 0.5 * (breedChancePrincessPrimaryDroneSecondary + breedChancePrincessSecondaryDronePrimary)
