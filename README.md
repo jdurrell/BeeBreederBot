@@ -12,3 +12,7 @@ The piping system is not directly handled by OpenComputers and instead consists 
 
 ## Usage
 This system is still under development and does not have an official release date. Currently, Gregtech: New Horizons in 1.7.10 is the only modpack targeted for support, but it is possible that this system might end up working for other similar scenarios.
+
+## Running Development Tests 
+1. Install LuaUnit v3.4 from [https://github.com/bluebird75/luaunit](https://github.com/bluebird75/luaunit/tree/LUAUNIT_V3_4) to `${BeeBreederBot}/Test/`.
+2. In a terminal from the root of the repository, run `lua Test/BeeBreederBotTest.lua`.

@@ -1,0 +1,4 @@
+{
+    // OpenComputers uses Lua 5.3.
+    "lua.debug.settings.luaVersion": "lua53"
+}

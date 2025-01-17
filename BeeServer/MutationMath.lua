@@ -2,9 +2,9 @@
 
 ---@param x integer
 ---@return integer
-local function factorial(x)
+function Factorial(x)
     local output = 1
-    for i = 1, x do  -- TODO: Verify whether Lua will treat the termination condition as i < x or i <= x.
+    for i = 1, x do
         output = output * i
     end
 
@@ -13,7 +13,7 @@ end
 
 ---@param list number[]
 ---@return number[][]
-local function computeCombinations(list)
+function ComputeCombinations(list)
     local combinations = {}
     for combinationSize=1, #list do
 
@@ -33,13 +33,13 @@ local function computeCombinations(list)
             -- Starting from the end, check whether the pointers can be advanced or need to be reset.
             local pointersToReset = {}
             local advancingPointer = #pointers
-            while (advancingPointer >= 0) and (pointers[advancingPointer] == (#list - (#pointers - advancingPointer))) do
+            while (advancingPointer > 0) and (pointers[advancingPointer] == (#list - (#pointers - advancingPointer))) do
                 table.insert(pointersToReset, advancingPointer)
                 advancingPointer = advancingPointer - 1
             end
 
             -- If we can't advance any of the pointers, then we have seen every combination of this size. Continue to next size.
-            if advancingPointer < 0 then
+            if advancingPointer <= 0 then
                 break
             end
 
@@ -63,7 +63,7 @@ local function calculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- In practice, though, there are usually very few mutations (< 3) for a given set of parents, so this doesn't take very long.
 
     -- Get the list of all combinations of siblings could be tested for mutation by Forestry before the target.
-    local combinations = computeCombinations(siblingChances)
+    local combinations = ComputeCombinations(siblingChances)
 
     -- For each combination, compute the chance for that combination.
     -- Then, multiply that chance by the number of species order permutations that
@@ -71,13 +71,13 @@ local function calculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- This weights that chance in the sum according to the probability of it coming up.
     -- Add all the weighted chances together, then divide by the total number of permutations to get the actual chance.
     local weightedChanceSum = 0
-    local denominator = factorial(#siblingChances + 1)
+    local denominator = Factorial(#siblingChances + 1)
     for _, combo in ipairs(combinations) do
         local weightedChance = chanceForTarget
         for _, chance in ipairs(combo) do
             weightedChance = weightedChance * chance
         end
-        local numerator = factorial(#combo)
+        local numerator = Factorial(#combo)
 
         weightedChanceSum = weightedChanceSum + (weightedChance * numerator)
     end
