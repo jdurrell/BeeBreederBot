@@ -1,4 +1,4 @@
--- This file contains types for easy reference and external IntelliSense.
+-- This file contains types for easy reference and external Intellisense.
 -- It isn't needed on the in-game devices since it provides no direct functionality.
 
 ---@class BFSQueue

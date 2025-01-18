@@ -99,7 +99,6 @@ end
 ---@param filepath string
 ---@return ChestArray | nil
 function ReadSpeciesLogFromDisk(filepath)
-    -- TODO: This should probably format the log as well in case of human-added species.
     local logfile = io.open(filepath, "r")
     if logfile == nil then
         print("Failed to open logfile at " .. tostring(filepath))
@@ -159,12 +158,12 @@ end
 
 function Shutdown()
     if (Modem ~= nil) and (Modem.isOpen(COM_PORT)) then
-        Modem.close(COM_PORT) 
+        Modem.close(COM_PORT)
     end
     os.exit(0)
 end
 
---- This helps keep IntelliSense happy.
+--- This helps keep Intellisense happy.
 ---@generic T
 ---@param value T | nil
 ---@return T
