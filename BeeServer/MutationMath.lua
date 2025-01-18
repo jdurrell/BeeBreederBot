@@ -61,11 +61,22 @@ function ComputePowerset(list)
     return combinations
 end
 
+-- Forestry provides a `chance` of getting a given mutation from a given set of parents (call this "p"). This is also viewable in NEI in-game.
+-- However, p is *not* the true chance of getting that mutation from that set of parents because multiple sets of mutations exist.
+-- Internally, if Forestry decides that a species mutation will occur, it shuffles the list of possible child mutations to a random order,
+--   then iterates over this order. On each iteration, there is a chance p for that mutation to "succeed". The *first* mutation to "succeed"
+--   is chosen as the resulting child, and no other mutations later in the list are evaluated.
+-- Therefore, for a given permutation of the list, the chance of the target mutation actually resulting is equal to p times the chance of all
+--   mutations evaluated *before* the target *not* occurring. Thus, the *true* chance of the target mutation occurring (given that a mutation
+--   *is* occurring) is the sum of chances of occurence *in each permutation* times the probability of *that permutation actually appearing*.
+-- Just because each permutation of the evaluation order is equally likely (Forestry uses a Fisher-Yates shuffle), that does *not*
+--   mean that p is equal to the true chance! (consider the simple example of a 0.25 target mutation and a 0.5 non-target mutation)
+-- Technically, this function leaves out the chance of a species mutation occurring in the first place, but that's not relevant here
+-- because our only purpose for this function is comparison between different species mutations.
 ---@param chanceForTarget number
 ---@param siblingChances number[]
 ---@return number
 function CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
-    -- TODO: Explain why this math is necessary instead of just taking the mutation chance straight from the import.
     -- In theory, this algorithm runs in factorial time because it takes every permutation of the mutation shuffle.
     -- In practice, though, there are usually very few mutations (< 3) for a given set of parents, so this doesn't take very long.
 
@@ -73,7 +84,7 @@ function CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
     local combinations = ComputePowerset(siblingChances)
 
     -- For each combination, compute the chance for that combination.
-    -- Then, multiply that chance by the number of species order permutations that
+    -- Then, multiply that chance by the number of Forestry evaluation-order permutations that
     --   result in the combination being evaluated by Forestry before the target.
     -- This weights that chance in the sum according to the probability of it coming up.
     -- Add all the weighted chances together, then divide by the total number of permutations to get the actual chance.
@@ -136,7 +147,6 @@ function CalculateBreedInfo(target, beeGraph)
         end
 
         -- Calculate the chance of this target being chosen over the other siblings, taking into account every possible genome shuffle permutation.
-        -- TODO: Actually do this.
         local mutationChance = CalculateMutationChanceForTarget(targetChance, comboSiblings)
         breedInfo[v.parents[1]][v.parents[2]] = mutationChance
         breedInfo[v.parents[2]][v.parents[1]] = mutationChance
