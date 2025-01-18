@@ -13,8 +13,15 @@ end
 
 ---@param list number[]
 ---@return number[][]
-function ComputeCombinations(list)
+-- Returns the powerset of the elements of `list`. This treats all elements of `list` as unique elements,
+-- regardless of whether any have the same value. Thus, it can return duplicates in the case of duplicate
+-- elements provided.
+function ComputePowerset(list)
     local combinations = {}
+
+    -- Empty set.
+    table.insert(combinations, {})
+
     for combinationSize=1, #list do
 
         -- Initialize list of pointers
@@ -57,13 +64,13 @@ end
 ---@param chanceForTarget number
 ---@param siblingChances number[]
 ---@return number
-local function calculateMutationChanceForTarget(chanceForTarget, siblingChances)
+function CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- TODO: Explain why this math is necessary instead of just taking the mutation chance straight from the import.
     -- In theory, this algorithm runs in factorial time because it takes every permutation of the mutation shuffle.
     -- In practice, though, there are usually very few mutations (< 3) for a given set of parents, so this doesn't take very long.
 
     -- Get the list of all combinations of siblings could be tested for mutation by Forestry before the target.
-    local combinations = ComputeCombinations(siblingChances)
+    local combinations = ComputePowerset(siblingChances)
 
     -- For each combination, compute the chance for that combination.
     -- Then, multiply that chance by the number of species order permutations that
@@ -71,18 +78,21 @@ local function calculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- This weights that chance in the sum according to the probability of it coming up.
     -- Add all the weighted chances together, then divide by the total number of permutations to get the actual chance.
     local weightedChanceSum = 0
-    local denominator = Factorial(#siblingChances + 1)
+    local numPermutationsTotal = Factorial(#siblingChances + 1)
     for _, combo in ipairs(combinations) do
         local weightedChance = chanceForTarget
         for _, chance in ipairs(combo) do
-            weightedChance = weightedChance * chance
+            weightedChance = weightedChance * (1 - chance)
         end
-        local numerator = Factorial(#combo)
 
-        weightedChanceSum = weightedChanceSum + (weightedChance * numerator)
+        -- Number of permutations this chances applies to is the number of permutations of siblings in this combo (evaluated before target)
+        -- multiplied by the number of permutations of siblings not in this combo (evaluated after target).
+        local numPermutationsThisCombo = Factorial(#combo) * Factorial(#siblingChances - #combo)
+
+        weightedChanceSum = weightedChanceSum + (weightedChance * numPermutationsThisCombo)
     end
 
-    return weightedChanceSum / denominator
+    return weightedChanceSum / numPermutationsTotal
 end
 
 ---@param target string
@@ -127,7 +137,7 @@ function CalculateBreedInfo(target, beeGraph)
 
         -- Calculate the chance of this target being chosen over the other siblings, taking into account every possible genome shuffle permutation.
         -- TODO: Actually do this.
-        local mutationChance = calculateMutationChanceForTarget(targetChance, comboSiblings)
+        local mutationChance = CalculateMutationChanceForTarget(targetChance, comboSiblings)
         breedInfo[v.parents[1]][v.parents[2]] = mutationChance
         breedInfo[v.parents[2]][v.parents[1]] = mutationChance
     end
