@@ -17,7 +17,7 @@ end
 ---@param allele1 string
 ---@param allele2 string
 ---@param chance number
-local function addMutationToGraph(graph, allele1, allele2, result, chance)
+function AddMutationToGraph(graph, allele1, allele2, result, chance)
     -- Do setup for graph nodes if they don't already exist.
     if graph[allele1] == nil then
         createNodeInGraph(graph, allele1)
@@ -51,7 +51,7 @@ function ImportBeeGraph(beehouseComponent)
     ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
     local breedingData = beehouseComponent.getBeeBreedingData()
     for i, mutation in ipairs(breedingData) do
-        addMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
+        AddMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
     end
 
     return graph

@@ -1,5 +1,7 @@
 Luaunit = require("Test.luaunit")
+GraphParse = require("BeeServer.GraphParse")
 MutationMath = require("BeeServer.MutationMath")
+Resources = require("Test.Resources")
 
 TestFactorial = {}
     function TestFactorial:TestFactorialBasic()
@@ -52,8 +54,6 @@ TestPowerset = {}
     end
 
 TestMutationProbabilities = {}
-    local MATH_MARGIN = 0.001
-
     function TestMutationProbabilities:TestNoOtherMutations()
         local targetChance = 0.234
         Luaunit.assertEquals(CalculateMutationChanceForTarget(targetChance, {}), targetChance)
@@ -63,11 +63,11 @@ TestMutationProbabilities = {}
         local targetChance = 0.5
         local otherMutation = 0.15
         local correct = 0.4625
-        Luaunit.assertAlmostEquals(correct, (1/2 * targetChance) + (1/2 * (1-otherMutation) * targetChance), MATH_MARGIN, "Test constructed improperly.")
+        Luaunit.assertAlmostEquals(correct, (1/2 * targetChance) + (1/2 * (1-otherMutation) * targetChance), Res.MathMargin, "Test constructed improperly.")
         Luaunit.assertAlmostEquals(
             CalculateMutationChanceForTarget(targetChance, {otherMutation}),
             correct,
-            MATH_MARGIN
+            Res.MathMargin
         )
     end
 
@@ -79,10 +79,10 @@ TestMutationProbabilities = {}
             (((2/6) * targetChance) +
                 ((1/6) * (1-otherMutations2[1]) * targetChance) + ((1/6) * (1-otherMutations2[2]) * targetChance) +
                 ((2/6) * (1-otherMutations2[1]) * (1-otherMutations2[2]) * targetChance)),
-            MATH_MARGIN,
+                Res.MathMargin,
             "Test constructed improperly."
         )
-        Luaunit.assertAlmostEquals(CalculateMutationChanceForTarget(targetChance, otherMutations2), correct2, MATH_MARGIN)
+        Luaunit.assertAlmostEquals(CalculateMutationChanceForTarget(targetChance, otherMutations2), correct2, Res.MathMargin)
 
         local otherMutations3 = {0.6, 0.2, 0.12}
         local correct3 = 0.12168
@@ -91,8 +91,86 @@ TestMutationProbabilities = {}
                 ((2/24) * (1-otherMutations3[1]) * targetChance) + ((2/24) * (1-otherMutations3[2]) * targetChance) + ((2/24) * (1-otherMutations3[3]) * targetChance) + ((2/24) * (1-otherMutations3[1]) * (1-otherMutations3[2]) * targetChance) +
                 ((2/24) * (1-otherMutations3[1]) * (1-otherMutations3[3]) * targetChance) + ((2/24) * (1-otherMutations3[2]) * (1-otherMutations3[3]) * targetChance) +
                 ((6/24) * (1-otherMutations3[1]) * (1-otherMutations3[2]) * (1-otherMutations3[3]) * targetChance)),
-            MATH_MARGIN,
+                Res.MathMargin,
             "Test constructed improperly."
         )
-        Luaunit.assertAlmostEquals(CalculateMutationChanceForTarget(targetChance, otherMutations3), correct3, MATH_MARGIN)
+        Luaunit.assertAlmostEquals(CalculateMutationChanceForTarget(targetChance, otherMutations3), correct3, Res.MathMargin)
+    end
+
+TestCalculateBreedInfo = {}
+    function TestCalculateBreedInfo:TestTargetNotExisting()
+        local graph = {}
+        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        Luaunit.assertEquals(CalculateBreedInfo("shouldntexist", graph), {})
+    end
+
+    function TestCalculateBreedInfo:TestRootNodeNoPossibleCombination()
+        local graph = {}
+        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        AddMutationToGraph(graph, "Meadows", "Marshy", "Common", 0.15)
+        Luaunit.assertEquals(CalculateBreedInfo("Forest", graph), {})
+
+        graph = {}
+        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        AddMutationToGraph(graph, "Forest", "Modest", "Common", 0.15)
+        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.15)
+        AddMutationToGraph(graph, "Forest", "Marshy", "Common", 0.15)
+        AddMutationToGraph(graph, "Forest", "Rocky", "Common", 0.15)
+        AddMutationToGraph(graph, "Forest", "Wintry", "Common", 0.15)
+        Luaunit.assertEquals(CalculateBreedInfo("Forest", graph), {})
+        Luaunit.assertEquals(CalculateBreedInfo("Meadows", graph), {})
+        Luaunit.assertEquals(CalculateBreedInfo("Modest", graph), {})
+        Luaunit.assertEquals(CalculateBreedInfo("Tropical", graph), {})
+        Luaunit.assertEquals(CalculateBreedInfo("Marshy", graph), {})
+        Luaunit.assertEquals(CalculateBreedInfo("Wintry", graph), {})
+    end
+
+    function TestCalculateBreedInfo:TestOneCombinationUniqueOutcome()
+        local graph = {}
+        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+
+        local result = {Forest={Meadows=0.15}, Meadows={Forest=0.15}}
+        Luaunit.assertAlmostEquals(CalculateBreedInfo("Common", graph), result, Res.MathMargin)
+    end
+
+    function TestCalculateBreedInfo:TestManyCombinationsUniqueOutcome()
+        local graph = {}
+        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.35)
+
+        local result = {
+            Forest={Meadows=0.15}, Meadows={Forest=0.15},
+            Marshy={Tropical=0.35}, Tropical={Marshy=0.35}
+        }
+        Luaunit.assertAlmostEquals(CalculateBreedInfo("Common", graph), result, Res.MathMargin)
+
+        graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
+        Luaunit.assertAlmostEquals(
+            CalculateBreedInfo("Common", graph),
+            Res.BeeGraphMundaneIntoCommon.ExpectedBreedInfo["Common"],
+            Res.MathMargin
+        )
+
+        graph = Res.BeeGraphMundaneIntoCommonIntoCultivated:GetGraph()
+        Luaunit.assertAlmostEquals(
+            CalculateBreedInfo("Common", graph),
+            Res.BeeGraphMundaneIntoCommonIntoCultivated.ExpectedBreedInfo["Common"],
+            Res.MathMargin
+        )
+        Luaunit.assertAlmostEquals(
+            CalculateBreedInfo("Cultivated", graph),
+            Res.BeeGraphMundaneIntoCommonIntoCultivated.ExpectedBreedInfo["Cultivated"],
+            Res.MathMargin
+        )
+    end
+
+    function TestCalculateBreedInfo:TestManyCombinations()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        for species, _ in pairs(graph) do
+            Luaunit.assertAlmostEquals(
+                CalculateBreedInfo(species, graph),
+                Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo[species],
+                Res.MathMargin
+            )
+        end
     end

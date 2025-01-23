@@ -115,21 +115,30 @@ function CalculateBreedInfo(target, beeGraph)
     local breedInfo = {}
 
     -- For each mutation, calculate the chance of getting that mutation (taking into account the other possible mutations)
-    local node = beeGraph[target]
-    for i, v in ipairs(node.parentMutations) do
+    local targetNode = beeGraph[target]
+    if targetNode == nil then
+        return {}
+    end
+
+    for _, parentMut in ipairs(targetNode.parentMutations) do
         -- Collect the chances for all other siblings this set of parents could possibly make.
         ---@type number[]
         local comboSiblings = {}
         local targetChance = 0.0
 
-        local parent1Node = beeGraph[v.parents[1]]
-        for sibling, possibleParents in pairs(parent1Node.childMutations) do
-            -- TODO: Refactor childMutations[sibling] to be a hashset instead of an array for faster lookup. 
-            for _, mut in ipairs(possibleParents) do
-                if mut.parent == v.parents[2] then
-                    if sibling == target then
+        local parent1Node = beeGraph[parentMut.parents[1]]
+        assert(parent1Node.childMutations[target] ~= nil)
+        for result, muts in pairs(parent1Node.childMutations) do
+            if result == target then
+                for _, mut in ipairs(muts) do
+                    if mut.parent == parentMut.parents[2] then
                         targetChance = mut.chance
-                    else
+                        break
+                    end
+                end
+            else
+                for _, mut in ipairs(muts) do
+                    if mut.parent == parentMut.parents[2] then
                         table.insert(comboSiblings, mut.chance)
                     end
                 end
@@ -139,17 +148,17 @@ function CalculateBreedInfo(target, beeGraph)
         assert(targetChance > 0.0, "Didn't find target in its parent mutations.")
 
         -- Initialize breedInfo for each parent, if necessary.
-        if breedInfo[v.parents[1]] == nil then
-            breedInfo[v.parents[1]] = {}
+        if breedInfo[parentMut.parents[1]] == nil then
+            breedInfo[parentMut.parents[1]] = {}
         end
-        if breedInfo[v.parents[2]] == nil then
-            breedInfo[v.parents[2]] = {}
+        if breedInfo[parentMut.parents[2]] == nil then
+            breedInfo[parentMut.parents[2]] = {}
         end
 
         -- Calculate the chance of this target being chosen over the other siblings, taking into account every possible genome shuffle permutation.
         local mutationChance = CalculateMutationChanceForTarget(targetChance, comboSiblings)
-        breedInfo[v.parents[1]][v.parents[2]] = mutationChance
-        breedInfo[v.parents[2]][v.parents[1]] = mutationChance
+        breedInfo[parentMut.parents[1]][parentMut.parents[2]] = mutationChance
+        breedInfo[parentMut.parents[2]][parentMut.parents[1]] = mutationChance
     end
 
     return breedInfo
