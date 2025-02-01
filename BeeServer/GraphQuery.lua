@@ -30,35 +30,40 @@ function BFSQueuePop(queue)
 end
 
 ---@param graph SpeciesGraph
----@param leafSpecies ChestArray
+---@param leafSpecies string[]
 ---@param target string
 ---@return BreedPathNode[] | nil
 function QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueueCreate()
-    for spec, _ in pairs(leafSpecies) do
+    for _, spec in ipairs(leafSpecies) do
         BFSQueuePush(bfsQueueSearch, spec, 0, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
     end
 
     if #(bfsQueueSearch.queue) == 0 then
-        print("Error: Failed to start the queue search because no leaf nodes were provided.")
+        Print("Error: Failed to start the queue search because no leaf nodes were provided.")
         return nil
     end
 
     local found = false
     local count = 0
-    while (#(bfsQueueSearch.queue) > 0) and (not found) do
+    while #(bfsQueueSearch.queue) > 0 do
         count = count + 1
         local qNode = BFSQueuePop(bfsQueueSearch)
         local bNode = graph[qNode]
+        if qNode == target then
+            found = true
+            break
+        end
+
         for result, otherParents in pairs(bNode.childMutations) do
             if bfsQueueSearch.seen[result] == nil then
                 local oCount = 999999  -- Large number to be greater than any count.
                 local minParent = nil
 
                 -- Get earliest parent that has already been found *and* can create this mutation.
-                for i, otherParent in ipairs(otherParents) do
-                    if (bfsQueueSearch.seen[otherParent] ~= nil) and (bfsQueueSearch.seen[otherParent.parent] < oCount) then
+                for _, otherParent in ipairs(otherParents) do
+                    if (bfsQueueSearch.seen[otherParent.parent] ~= nil) and (bfsQueueSearch.seen[otherParent.parent] < oCount) then
                         oCount = bfsQueueSearch.seen[otherParent.parent]
                         minParent = otherParent.parent
                     end
@@ -67,19 +72,13 @@ function QueryBreedingPath(graph, leafSpecies, target)
                 -- If another parent was already found, then push this mutation onto the queue.
                 if minParent ~= nil then
                     BFSQueuePush(bfsQueueSearch, result, count, {qNode, minParent})
-
-                    -- If we found the path to the target, then no point in continuing the search.
-                    found = (result == target)
-                    if found then
-                        break
-                    end
                 end
             end
         end
     end
 
     if not found then
-        print("Failed to find the target in the graph.")
+        Print("Failed to find the target in the graph.")
         return nil
     end
 
@@ -89,11 +88,10 @@ function QueryBreedingPath(graph, leafSpecies, target)
     -- Retrace the path to return it out.
     -- In theory, we could have built the path as we did the search, but we are memory-limited,
     -- so we trade off some time to limit the information stored and rebuild the path later.
-    local name = bfsQueueSearch.queue[#(bfsQueueSearch.queue)]  -- Target node is at the back since we exited the above search immediately after adding it.
     local bfsQueueRetrace = BFSQueueCreate()
-    BFSQueuePush(bfsQueueRetrace, name, 0, nil)
+    BFSQueuePush(bfsQueueRetrace, target, 0, nil)
     while #(bfsQueueRetrace.queue) > 0 do
-        name = BFSQueuePop(bfsQueueRetrace)
+        local name = BFSQueuePop(bfsQueueRetrace)
         table.insert(path, {
             target=name,
             parent1=bfsQueueSearch.pathlookup[name][1],
@@ -110,8 +108,8 @@ function QueryBreedingPath(graph, leafSpecies, target)
     -- Reverse the path to give the forward direction since we built it by retracing.
     for i=1, math.floor((#path) / 2) do
         local temp = path[i]
-        path[i] = path[#path - (i - 1)]  -- off-by-one because Lua arrays are 1-indexed.
-        path[#path - (i - 1)] = temp     -- off-by-one because Lua arrays are 1-indexed.
+        path[i] = path[(#path) - (i - 1)]  -- off-by-one because Lua arrays are 1-indexed.
+        path[(#path) - (i - 1)] = temp     -- off-by-one because Lua arrays are 1-indexed.
     end
 
     return path

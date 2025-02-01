@@ -1,6 +1,6 @@
 ---@return string | nil addr  The address of the server that responded to the ping.
 function EstablishComms()
-    print("Establishing conection to server...")
+    Print("Establishing conection to server...")
 
     local tid = math.floor(math.random(65535))
     local payload = {transactionId=tid}
@@ -41,7 +41,7 @@ function GetBreedPathFromServer(addr)
     if response.code == MessageCode.CancelRequest then
         return E_CANCELLED, {}
     elseif response.code ~= MessageCode.PathResponse then
-        print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(response.code))
+        Print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(response.code))
     end
 
     ---@type PathResponsePayload
@@ -127,7 +127,7 @@ function SyncLogWithServer(addr, foundSpecies)
         elseif response.code == MessageCode.CancelRequest then
             return E_CANCELLED
         elseif response.code ~= MessageCode.LogStreamResponse then
-            print("Unrecognized message code while attempting to process logs.")
+            Print("Unrecognized message code while attempting to process logs.")
             return E_CANCELLED
         end
 

@@ -4,6 +4,7 @@
 COM_PORT = 34000
 SIGNAL_STRENGTH = 16  -- TODO: Determine a good strength.
 MODEM_EVENT_NAME = "modem_message"
+IS_TEST = false  -- Backdoor for testing to suppress print statements.
 
 ---@enum MessageCodes
 MessageCode = {
@@ -40,7 +41,7 @@ function LogSpeciesToDisk(filepath, species, location, timestamp)
     local logfile = io.open(filepath, "r")
     if logfile == nil then
         -- We can't really handle this error. Just print it out and move on.
-        print("Failed to get logfile.")
+        Print("Failed to get logfile.")
         return
     end
 
@@ -53,7 +54,7 @@ function LogSpeciesToDisk(filepath, species, location, timestamp)
     for line in logfile:lines("l") do
         -- The species name is the first field in the line.
         local name = string.sub(line, 0, string.find(line, ",") - 1)
-        print("got name " .. name)
+        Print("got name " .. name)
         if name > species then  -- String comparison operators compare based on current locale.
             -- On the previous iteration, we set 'pos' to the start of this line.
             -- Now that we've found the species that comes right after this one, we can just break.
@@ -76,14 +77,14 @@ function LogSpeciesToDisk(filepath, species, location, timestamp)
         logfile:seek("set", pos)
     end
     local restOfFile = logfile:read("a")  -- TODO: Will we always have enough memory for this?
-    print("rest of file:\n" .. restOfFile)
+    Print("rest of file:\n" .. restOfFile)
 
     -- OpenComputers does not support the "r+"" file mode, so we have to close the log, then reopen in "append" mode.
     logfile:close()
     logfile = nil
     logfile = io.open(filepath, "a")
     if logfile == nil then
-        print("Failed to open logfile for writing.")
+        Print("Failed to open logfile for writing.")
         return
     end
     logfile:seek("set", pos)
@@ -101,7 +102,7 @@ end
 function ReadSpeciesLogFromDisk(filepath)
     local logfile = io.open(filepath, "r")
     if logfile == nil then
-        print("Failed to open logfile at " .. tostring(filepath))
+        Print("Failed to open logfile at " .. tostring(filepath))
         return nil
     end
 
@@ -119,10 +120,10 @@ function ReadSpeciesLogFromDisk(filepath)
         -- We should get 4 fields from each line. If we don't then we don't know what we're reading.
         if #fields ~= 4 then
             logfile:close()
-            print("Error: failed to parse logfile on line " .. tostring(count) .. ": " .. line)
-            print("Got " .. tostring(#fields) .. " fields:")
+            Print("Error: failed to parse logfile on line " .. tostring(count) .. ": " .. line)
+            Print("Got " .. tostring(#fields) .. " fields:")
             for _,v in ipairs(fields) do
-                print(v)
+                Print(v)
             end
             return nil
         end
@@ -151,7 +152,7 @@ function ReadSpeciesLogFromDisk(filepath)
 end
 
 function DebugPromptForKeyPress(message)
-    print(tostring(message))
+    Print(tostring(message))
     Sleep(0.25)
     Event.pull("key_up")
 end
@@ -171,6 +172,13 @@ function UnwrapNull(value)
     return value
 end
 
+---@param str any
+function Print(str)
+    if not IS_TEST then
+        print(str)
+    end
+end
+
 ---@param addr string | nil
 ---@param messageCode integer
 ---@param payload table | nil
@@ -186,7 +194,7 @@ function SendMessage(addr, messageCode, payload)
 
     if not sent then
         -- Report this exception in case it happens, but don't handle it because I'm still not sure what it truly indicates or how to handle it.
-        print("Error: Failed to send message code " .. tostring(messageCode) .. ".")
+        Print("Error: Failed to send message code " .. tostring(messageCode) .. ".")
     end
 end
 
@@ -200,4 +208,8 @@ function UnserializeMessage(message)
     end
 
     return Serial.unserialize(message)
+end
+
+function ActivateTestMode()
+    IS_TEST = true
 end

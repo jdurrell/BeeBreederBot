@@ -49,6 +49,7 @@ function SpeciesFoundHandler(addr, data)
     -- Record the species that was found by the robot to our own disk.
     if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
         FoundSpecies[data.species] = data.node
+        table.insert(LeafSpeciesList, data.species)
         LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
     end
 end
@@ -76,7 +77,7 @@ function PollForMessageAndHandle()
         response = UnserializeMessage(response)
 
         if HandlerTable[response.code] == nil then
-            print("Received unidentified code " .. tostring(response.code))
+            Print("Received unidentified code " .. tostring(response.code))
         else
             HandlerTable[response.code](addr, response.payload)
         end
@@ -90,17 +91,21 @@ end
 -- Obtain the full bee graph from the attached adapter and apiary.
 -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
 --       We need more generous matching here to determine the correct component.
-print("Importing bee graph.")
+Print("Importing bee graph.")
 BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
 -- We will synchronize this with the robot later on via LogStreamHandler when it boots up.
 FoundSpecies = ReadSpeciesLogFromDisk(LOG_FILE_ONLINE)
 if FoundSpecies == nil then
-    print("Failed to get found species from logfile.")
+    Print("Failed to get found species from logfile.")
     Shutdown()
 end
 FoundSpecies = UnwrapNull(FoundSpecies)
+LeafSpeciesList = {}
+for spec, _ in pairs(FoundSpecies) do
+    table.insert(LeafSpeciesList, spec)
+end
 
 HandlerTable = {
     [MessageCode.PingRequest] = PingHandler,
@@ -112,30 +117,30 @@ HandlerTable = {
 
 ---------------------
 -- Main operation loop.
-print("Enter your target species to breed:")
+Print("Enter your target species to breed:")
 local input = nil
 while BreedPath == nil do
     ::continue::
     input = io.read()
 
     if (BeeGraph[input] == nil) then
-        print("Error: did not recognize species.")
+        Print("Error: did not recognize species.")
         goto continue
     end
 
-    BreedPath = QueryBreedingPath(BeeGraph, FoundSpecies, input)
+    BreedPath = QueryBreedingPath(BeeGraph, LeafSpeciesList, input)
     if BreedPath == nil then
-        print("Error: Could not find breeding path for species " .. tostring(input))
+        Print("Error: Could not find breeding path for species " .. tostring(input))
         goto continue
     end
 end
 
-print("Breeding " .. input .. " bees. Full breeding order:")
+Print("Breeding " .. input .. " bees. Full breeding order:")
 for _ ,v in ipairs(BreedPath) do
-    print(v)
+    Print(v)
 end
 
-print("Graph server is online to answer queries.")
+Print("Graph server is online to answer queries.")
 while true do
     PollForMessageAndHandle()
     -- TODO: Handle cancelling and selecting a different species without restarting.

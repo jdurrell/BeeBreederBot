@@ -186,7 +186,7 @@ local function unloadIntoChest()
         local dropped = Robot.dropDown()
         if not dropped then
             -- TODO: Deal with the possibility of the chest becoming full.
-            print("Failed to drop items.")
+            Print("Failed to drop items.")
             return false
         end
     end

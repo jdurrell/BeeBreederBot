@@ -86,7 +86,7 @@ StorageInfo.chestArray = UnwrapNull(StorageInfo.chestArray)
 local retval
 retval = SyncLogWithServer(ServerAddress, StorageInfo.chestArray)
 if retval ~= E_NOERROR then
-    print("Got error while attempting to sync log with server.")
+    Print("Got error while attempting to sync log with server.")
     Shutdown()
 end
 
@@ -109,7 +109,7 @@ for i, v in ipairs(BreedPath) do
         local breedInfoParent1
         retval, breedInfoParent1 = GetBreedInfoFromServer(ServerAddress, v.parent1)
         if retval == E_TIMEDOUT then
-            print("Error: Lost communication with the server.")
+            Print("Error: Lost communication with the server.")
 
             ServerAddress = EstablishComms()
             goto retryparent1
@@ -134,7 +134,7 @@ for i, v in ipairs(BreedPath) do
             -- Otherwise, just hang out for a little while.
             Sleep(5.0)
         else
-            print("Got unknown return code from the princess-drone matcher.")
+            Print("Got unknown return code from the princess-drone matcher.")
         end
     end
 
@@ -147,7 +147,7 @@ for i, v in ipairs(BreedPath) do
         local breedInfoParent2
         retval, breedInfoParent2 = GetBreedInfoFromServer(ServerAddress, v.parent2)
         if retval == E_TIMEDOUT then
-            print("Error: Lost communication with the server.")
+            Print("Error: Lost communication with the server.")
 
             ServerAddress = EstablishComms()
             goto retryparent2
@@ -172,7 +172,7 @@ for i, v in ipairs(BreedPath) do
             -- Otherwise, just hang out for a little while.
             Sleep(5.0)
         else
-            print("Got unknown return code from the princess-drone matcher.")
+            Print("Got unknown return code from the princess-drone matcher.")
         end
     end
 
@@ -195,7 +195,7 @@ for i, v in ipairs(BreedPath) do
         local breedInfoTarget
         retval, breedInfoTarget = GetBreedInfoFromServer(ServerAddress, v.target)
         if retval == E_TIMEDOUT then
-            print("Error: Lost communication with the server.")
+            Print("Error: Lost communication with the server.")
 
             ServerAddress = EstablishComms()
             goto retrytarget
@@ -219,7 +219,7 @@ for i, v in ipairs(BreedPath) do
             -- Otherwise, just hang out for a little while.
             Sleep(5.0)
         else
-            print("Got unknown return code from the princess-drone matcher.")
+            Print("Got unknown return code from the princess-drone matcher.")
         end
     end
 end
