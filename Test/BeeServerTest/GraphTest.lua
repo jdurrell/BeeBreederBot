@@ -169,7 +169,7 @@ TestGraphParse = {}
         AssertGraphsEquivalent(graph, expected)
     end
 
-    function TestAddMutationAddMoreParents()
+    function TestGraphParse:TestAddMutationAddMoreParents()
         local expected = {
             Forest={
                 speciesName="Forest",
@@ -215,7 +215,7 @@ TestGraphParse = {}
         AssertGraphsEquivalent(graph, expected)
     end
 
-    function TestAddMutationTestMultiStepLine()
+    function TestGraphParse:TestAddMutationTestMultiStepLine()
         local expected = {
             Forest={
                 speciesName="Forest",
@@ -297,7 +297,7 @@ TestGraphParse = {}
     end
 
 TestGraphQuery = {}
-    function TestGraphQueryLeafNode()
+    function TestGraphQuery:TestGraphQueryLeafNode()
         local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
         for _, spec in ipairs(Res.MundaneBees) do
             local path = QueryBreedingPath(graph, Res.MundaneBees, spec)
@@ -305,19 +305,19 @@ TestGraphQuery = {}
         end
     end
 
-    function TestGraphQueryNoExist()
+    function TestGraphQuery:TestGraphQueryNoExist()
         local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
         local path = QueryBreedingPath(graph, Res.MundaneBees, "shouldntexist")
         Luaunit.assertIsNil(path)
     end
 
-    function TestGraphQueryBasic()
+    function TestGraphQuery:TestGraphQueryBasic()
         local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
         local path = QueryBreedingPath(graph, Res.MundaneBees, "Common")
         AssertPathIsValidInGraph(graph, path, "Common")
     end
 
-    function TestGraphQueryMultistep()
+    function TestGraphQuery:TestGraphQueryMultistep()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated:GetGraph()
         local path = QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
         AssertPathIsValidInGraph(graph, path, "Cultivated")
