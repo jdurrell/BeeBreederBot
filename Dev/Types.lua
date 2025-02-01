@@ -1,11 +1,7 @@
 -- This file contains types for easy reference and external Intellisense.
 -- It isn't needed on the in-game devices since it provides no direct functionality.
 
----@class BFSQueue
----@field queue string[]                      Queue of species for the BFS search.
----@field seen table<string, integer>
----@field pathlookup table<string, string[]>  Table to lookup the path later.
-
+---@meta
 
 ---@class SpeciesNode
 ---@field speciesName string          The name of this species.
