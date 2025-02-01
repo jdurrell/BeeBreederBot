@@ -10,11 +10,11 @@ Component = require("component")
 Event = require("event")
 Serial = require("serialization")
 Modem = Component.modem
--- TODO: Should the below be 'require()' statements instead?
-dofile("/home/BeeBreederBot/Shared.lua")
-dofile("/home/BeeBreederBot/MutationMath.lua")
-dofile("/home/BeeBreederBot/GraphParse.lua")
-dofile("/home/BeeBreederBot/GraphQuery.lua")
+
+require("Shared.Shared")
+MutationMath = require("BeeServer.MutationMath")
+GraphParse = require("BeeServer.GraphParse")
+GraphQuery = require("BeeServer.GraphQuery")
 Sleep(0.5)
 
 LOG_FILE_ONLINE = "/home/BeeBreederBot/DroneLocations.log"
@@ -32,7 +32,7 @@ end
 ---@param data BreedInfoRequestPayload
 function BreedInfoHandler(addr, data)
     -- Calculate mutation chances and send them back to the robot.
-    local payload = {breedInfo=CalculateBreedInfo(data.target, BeeGraph)}
+    local payload = {breedInfo=MutationMath.CalculateBreedInfo(data.target, BeeGraph)}
     SendMessage(addr, MessageCode.BreedInfoResponse, payload)
 end
 
@@ -57,9 +57,8 @@ end
 ---@param addr string
 ---@param data LogStreamRequestPayload
 function LogStreamHandler(addr, data)
-    --- Disabled warning because we check this for nil already.
-    ---@diagnostic disable-next-line: param-type-mismatch
-    for species, node in pairs(FoundSpecies) do
+    -- We check this for nil already.
+    for species, node in pairs(UnwrapNull(FoundSpecies)) do
         local payload = {species=species, node=node}
         SendMessage(addr, MessageCode.LogStreamResponse, payload)
 
@@ -92,7 +91,7 @@ end
 -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
 --       We need more generous matching here to determine the correct component.
 Print("Importing bee graph.")
-BeeGraph = ImportBeeGraph(Component.tile_for_apiculture_0_name)
+BeeGraph = GraphParse.ImportBeeGraph(Component.tile_for_apiculture_0_name)
 
 -- Read our local logfile to figure out which species we already have (and where they're stored).
 -- We will synchronize this with the robot later on via LogStreamHandler when it boots up.
@@ -128,7 +127,7 @@ while BreedPath == nil do
         goto continue
     end
 
-    BreedPath = QueryBreedingPath(BeeGraph, LeafSpeciesList, input)
+    BreedPath = GraphQuery.QueryBreedingPath(BeeGraph, LeafSpeciesList, input)
     if BreedPath == nil then
         Print("Error: Could not find breeding path for species " .. tostring(input))
         goto continue

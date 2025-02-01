@@ -12,12 +12,14 @@ local function createNodeInGraph(graph, species)
     }
 end
 
+local M = {}
+
 ---@param graph SpeciesGraph
 ---@param result string
 ---@param allele1 string
 ---@param allele2 string
 ---@param chance number
-function AddMutationToGraph(graph, allele1, allele2, result, chance)
+function M.AddMutationToGraph(graph, allele1, allele2, result, chance)
     -- Do setup for graph nodes if they don't already exist.
     if graph[allele1] == nil then
         createNodeInGraph(graph, allele1)
@@ -44,15 +46,17 @@ function AddMutationToGraph(graph, allele1, allele2, result, chance)
 end
 
 ---@return SpeciesGraph
-function ImportBeeGraph(beehouseComponent)
+function M.ImportBeeGraph(beehouseComponent)
     ---@type SpeciesGraph
     local graph = {}
 
     ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
     local breedingData = beehouseComponent.getBeeBreedingData()
     for i, mutation in ipairs(breedingData) do
-        AddMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
+        M.AddMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
     end
 
     return graph
 end
+
+return M

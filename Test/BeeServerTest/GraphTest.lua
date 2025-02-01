@@ -1,7 +1,8 @@
 Luaunit = require("Test.luaunit")
-require("BeeServer.GraphParse")
-require("BeeServer.GraphQuery")
+GraphParse = require("BeeServer.GraphParse")
+GraphQuery = require("BeeServer.GraphQuery")
 require("Shared.Shared")
+Res = require("Test.Resources")
 
 -- Helper function to verify equivalence of two SpeciesGraphs. Since Luaunit's `assertItemsEquals()`
 -- is not fully recursive, this is needed to properly compare the unordered lists deeper in the graph.
@@ -165,7 +166,7 @@ TestGraphParse = {}
             }
         }
         local graph = {}
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         AssertGraphsEquivalent(graph, expected)
     end
 
@@ -202,16 +203,16 @@ TestGraphParse = {}
             }
         }
         local graph = {}
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
         AssertGraphsEquivalent(graph, expected)
 
         -- Now try it again, but in a different order.
         graph = {}
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
         AssertGraphsEquivalent(graph, expected)
     end
 
@@ -262,63 +263,63 @@ TestGraphParse = {}
             }
         }
         local graph = {}
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
-        AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
+        GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
         AssertGraphsEquivalent(graph, expected)
 
         -- Now try it again in some different orders.
         graph = {}
-        AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)        
+        GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)        
         AssertGraphsEquivalent(graph, expected)
 
 
         graph = {}
-        AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
-        AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
+        GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
         AssertGraphsEquivalent(graph, expected)
 
         graph = {}
-        AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
-        AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
-        AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
+        GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
+        GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
         AssertGraphsEquivalent(graph, expected)
     end
 
 TestGraphQuery = {}
     function TestGraphQuery:TestGraphQueryLeafNode()
-        local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
+        local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         for _, spec in ipairs(Res.MundaneBees) do
-            local path = QueryBreedingPath(graph, Res.MundaneBees, spec)
+            local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, spec)
             Luaunit.assertEquals(path, {{target=spec, parent1=nil, parent2=nil}})
         end
     end
 
     function TestGraphQuery:TestGraphQueryNoExist()
-        local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
-        local path = QueryBreedingPath(graph, Res.MundaneBees, "shouldntexist")
+        local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
+        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "shouldntexist")
         Luaunit.assertIsNil(path)
     end
 
     function TestGraphQuery:TestGraphQueryBasic()
-        local graph = Res.BeeGraphMundaneIntoCommon:GetGraph()
-        local path = QueryBreedingPath(graph, Res.MundaneBees, "Common")
+        local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
+        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Common")
         AssertPathIsValidInGraph(graph, path, "Common")
     end
 
     function TestGraphQuery:TestGraphQueryMultistep()
-        local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated:GetGraph()
-        local path = QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
+        local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
+        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
         AssertPathIsValidInGraph(graph, path, "Cultivated")
     end

@@ -1,8 +1,10 @@
 -- This program handles querying the tree for the bee breeding path.
 -- TODO: Consider using numeric IDs instead of string names for indexing to reduce memory usage.
 
+local M = {}
+
 ---@return BFSQueue
-function BFSQueueCreate()
+local function BFSQueueCreate()
     local bfsQueue = {
         queue={},
         seen={},
@@ -15,7 +17,7 @@ end
 ---@param name string
 ---@param count integer
 ---@param parents string[] | nil
-function BFSQueuePush(queue, name, count, parents)
+local function BFSQueuePush(queue, name, count, parents)
     table.insert(queue.queue, name)
     if parents ~= nil then
         queue.seen[name] = count
@@ -25,7 +27,7 @@ end
 
 ---@param queue BFSQueue
 ---@return string
-function BFSQueuePop(queue)
+local function BFSQueuePop(queue)
     return table.remove(queue.queue, 1)
 end
 
@@ -33,7 +35,7 @@ end
 ---@param leafSpecies string[]
 ---@param target string
 ---@return BreedPathNode[] | nil
-function QueryBreedingPath(graph, leafSpecies, target)
+function M.QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueueCreate()
     for _, spec in ipairs(leafSpecies) do
@@ -114,3 +116,5 @@ function QueryBreedingPath(graph, leafSpecies, target)
 
     return path
 end
+
+return M
