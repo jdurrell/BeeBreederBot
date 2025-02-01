@@ -13,14 +13,14 @@ local BFSQueue = {
 
 -- Create a new BFS queue.
 --- @return BFSQueue
-function BFSQueue:Create(o)
-    local O = o or {}
-    setmetatable(O, self)
+function BFSQueue:Create()
+    local obj = {}
+    setmetatable(obj, self)
     self.__index = self
-    O.queue = {}
-    O.seen = {}
-    O.pathlookup = {}
-    return O
+    obj.queue = {}
+    obj.seen = {}
+    obj.pathlookup = {}
+    return obj
 end
 
 -- Push an item onto the BFS queue.
