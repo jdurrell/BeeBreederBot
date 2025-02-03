@@ -1,26 +1,6 @@
 -- This file sets up constants that are used by both the robot and server.
 
--- Variables for communication between robot and server.
-COM_PORT = 34000
-SIGNAL_STRENGTH = 16  -- TODO: Determine a good strength.
-MODEM_EVENT_NAME = "modem_message"
 IS_TEST = false  -- Backdoor for testing to suppress print statements.
-
----@enum MessageCodes
-MessageCode = {
-    PingRequest = 0,
-    PingResponse = 1,
-    PathRequest = 2,
-    PathResponse = 3,
-    CancelRequest = 4,
-    -- CancelResponse = 5,        -- Do we really need to send an ACK for this?
-    SpeciesFoundRequest = 6,
-    -- SpeciesFoundResponse = 7,  -- Do we really need to send an ACK for this?
-    BreedInfoRequest = 8,
-    BreedInfoResponse = 9,
-    LogStreamRequest = 10,
-    LogStreamResponse = 11
-}
 
 function GetCurrentTimestamp()
     return math.floor(os.time())
@@ -157,9 +137,12 @@ function DebugPromptForKeyPress(message)
     Event.pull("key_up")
 end
 
+-- TODO: This should really have specific logic for server vs. field robot.
+-- For right now, it has a hardcoded port, but this function will probably disappear entirely.
 function Shutdown()
-    if (Modem ~= nil) and (Modem.isOpen(COM_PORT)) then
-        Modem.close(COM_PORT)
+    Modem = require("component").modem
+    if (Modem ~= nil) and (Modem.isOpen(34000)) then
+        Modem.close(34000)
     end
     os.exit(0)
 end
@@ -177,37 +160,6 @@ function Print(str)
     if not IS_TEST then
         print(str)
     end
-end
-
----@param addr string | nil
----@param messageCode integer
----@param payload table | nil
-function SendMessage(addr, messageCode, payload)
-    local message = {code=messageCode, payload=payload}
-
-    local sent
-    if addr == nil then
-        sent = Modem.broadcast(COM_PORT, Serial.serialize(message))
-    else
-        sent = Modem.send(addr, COM_PORT, Serial.serialize(message))
-    end
-
-    if not sent then
-        -- Report this exception in case it happens, but don't handle it because I'm still not sure what it truly indicates or how to handle it.
-        Print("Error: Failed to send message code " .. tostring(messageCode) .. ".")
-    end
-end
-
----@param message string
----@return Message
-function UnserializeMessage(message)
-    if message == nil then
--- Disable this because this condition is likely better checked by checking for `event` == nil.
----@diagnostic disable-next-line: return-type-mismatch
-        return nil
-    end
-
-    return Serial.unserialize(message)
 end
 
 function ActivateTestMode()

@@ -4,18 +4,18 @@ function EstablishComms()
 
     local tid = math.floor(math.random(65535))
     local payload = {transactionId=tid}
-    SendMessage(nil, MessageCode.PingRequest, payload)
+    Comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
 
     while true do
-        local event, _, addr, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
+        local event, _, addr, _, _, response = Event.pull(10, CommLayer.ModemEventName)
         ---@type Message
-        response = UnserializeMessage(response)
+        response = Comm:DeserializeMessage(response)
         if event == nil then
             return nil
-        elseif response.code == MessageCode.PingResponse then
+        elseif response.code == CommLayer.MessageCode.PingResponse then
             ---@type PingResponsePayload
             local data = response.payload
-            if (response.code == MessageCode.PingResponse) and (data.transactionId == tid) then
+            if (response.code == CommLayer.MessageCode.PingResponse) and (data.transactionId == tid) then
                 return addr
             end
         end
@@ -29,18 +29,18 @@ end
 ---@param addr string
 ---@return integer, BreedPathNode[]
 function GetBreedPathFromServer(addr)
-    SendMessage(addr, MessageCode.PathRequest, nil)
+    Comm:SendMessage(addr, CommLayer.MessageCode.PathRequest, nil)
 
-    local event, _, _, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
+    local event, _, _, _, _, response = Event.pull(10, CommLayer.ModemEventName)
     if event == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
-    UnserializeMessage(response)
+    Comm:DeserializeMessage(response)
 
-    if response.code == MessageCode.CancelRequest then
+    if response.code == CommLayer.MessageCode.CancelRequest then
         return E_CANCELLED, {}
-    elseif response.code ~= MessageCode.PathResponse then
+    elseif response.code ~= CommLayer.MessageCode.PathResponse then
         Print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(response.code))
     end
 
@@ -57,18 +57,18 @@ end
 ---@return integer, table<string, table<string, number>>
 function GetBreedInfoFromServer(addr, target)
     local payload = {target=target}
-    SendMessage(addr, MessageCode.BreedInfoRequest, payload)
+    Comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
-    local event, _, _, _, _, response = Event.pull(10, MODEM_EVENT_NAME)
+    local event, _, _, _, _, response = Event.pull(10, CommLayer.ModemEventName)
     if event == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
-    response = UnserializeMessage(response)
+    response = Comm:DeserializeMessage(response)
 
-    if response.code == MessageCode.CancelRequest then
+    if response.code == CommLayer.MessageCode.CancelRequest then
         return E_CANCELLED, {}
-    elseif response.code ~= MessageCode.BreedInfoResponse then
+    elseif response.code ~= CommLayer.MessageCode.BreedInfoResponse then
         return E_CANCELLED, {}
     end
 
@@ -81,7 +81,7 @@ end
 ---@param node StorageNode
 function ReportSpeciesFinishedToServer(addr, node)
     -- Report the update to the server.
-    SendMessage(addr, MessageCode.SpeciesFoundRequest, node)
+    Comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundRequest, node)
 
     -- TODO: Do we need an ACK for this?
 end
@@ -89,10 +89,10 @@ end
 ---@param addr string
 ---@return boolean
 function PollForCancel(addr)
-    local event, _, _, _, _, response = Event.pull(0, MODEM_EVENT_NAME)
+    local event, _, _, _, _, response = Event.pull(0, CommLayer.ModemEventName)
     if event ~= nil then
-        response = UnserializeMessage(response)
-        return response.code == MessageCode.CancelRequest
+        response = Comm:DeserializeMessage(response)
+        return response.code == CommLayer.MessageCode.CancelRequest
     end
 
     return false
@@ -105,28 +105,28 @@ function SyncLogWithServer(addr, foundSpecies)
     -- Stream our log to the server.
     for species, storageNode in pairs(foundSpecies) do
         local payload = {species=species, node=storageNode}
-        SendMessage(addr, MessageCode.SpeciesFoundRequest, payload)
+        Comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
         -- Give the server time to actually process instead of just blowing up its buffer.
         Sleep(0.2)
     end
 
     -- Now request the server's log and update our local state.
-    SendMessage(addr, MessageCode.LogStreamRequest, nil)
+    Comm:SendMessage(addr, CommLayer.MessageCode.LogStreamRequest, nil)
 
     while true do
-        local event, _, _, _, _, response = Event.pull(2.0, MODEM_EVENT_NAME)
+        local event, _, _, _, _, response = Event.pull(2.0, CommLayer.ModemEventName)
         if event == nil then
             return E_TIMEDOUT
         end
-        response = UnserializeMessage(response)
+        response = Comm:DeserializeMessage(response)
 
         if response == nil then
             -- End of the stream.
             break
-        elseif response.code == MessageCode.CancelRequest then
+        elseif response.code == CommLayer.MessageCode.CancelRequest then
             return E_CANCELLED
-        elseif response.code ~= MessageCode.LogStreamResponse then
+        elseif response.code ~= CommLayer.MessageCode.LogStreamResponse then
             Print("Unrecognized message code while attempting to process logs.")
             return E_CANCELLED
         end

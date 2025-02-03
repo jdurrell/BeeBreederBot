@@ -4,6 +4,7 @@
 
 -- Import BeeBreederBot libraries.
 require("Shared.Shared")
+local CommLayer = require("Shared.CommLayer")
 local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
 local MutationMath = require("BeeServer.MutationMath")
@@ -11,9 +12,9 @@ local MutationMath = require("BeeServer.MutationMath")
 ---@class BeeServer
 ---@field component any
 ---@field event any
----@field serial any
 ---@field beeGraph SpeciesGraph
 ---@field breedPath BreedPathNode[]
+---@field comm CommLayer
 ---@field foundSpecies table<string, StorageNode>
 ---@field handlerTable table<integer, function>
 ---@field leafSpeciesList string[]
@@ -25,7 +26,7 @@ local BeeServer = {}
 function BeeServer:PingHandler(addr, data)
     -- Just respond with our own ping, echoing back the transaction id.
     local payload = {transactionId=data.transactionId}
-    SendMessage(addr, MessageCode.PingResponse, payload)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
 end
 
 ---@param addr string
@@ -33,14 +34,14 @@ end
 function BeeServer:BreedInfoHandler(addr, data)
     -- Calculate mutation chances and send them back to the robot.
     local payload = {breedInfo=MutationMath.CalculateBreedInfo(data.target, self.beeGraph)}
-    SendMessage(addr, MessageCode.BreedInfoResponse, payload)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
 end
 
 ---@param addr string
 ---@param data PathRequestPayload
 function BeeServer:PathHandler(addr, data)
     -- Send the calculated breed path to the robot.
-    SendMessage(addr, MessageCode.PathResponse, self.breedPath)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PathResponse, self.breedPath)
 end
 
 ---@param addr string
@@ -60,20 +61,20 @@ function BeeServer:LogStreamHandler(addr, data)
     -- We check this for nil already.
     for species, node in pairs(UnwrapNull(self.foundSpecies)) do
         local payload = {species=species, node=node}
-        SendMessage(addr, MessageCode.LogStreamResponse, payload)
+        self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, payload)
 
         -- Give the robot time to actually process these instead of just blowing up its event queue.
         Sleep(0.2)
     end
 
     -- Send an empty response to indicate that the stream has ended.
-    SendMessage(addr, MessageCode.LogStreamResponse, nil)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, nil)
 end
 
 function BeeServer:PollForMessageAndHandle()
-    local event, _, addr, _, _, response = self.event.pull(2.0, MODEM_EVENT_NAME)
+    local event, _, addr, _, _, response = self.event.pull(2.0, CommLayer.ModemEventName)
     if event ~= nil then
-        response = UnserializeMessage(response)
+        response = self.comm:DeserializeMessage(response)
 
         if self.handlerTable[response.code] == nil then
             Print("Received unidentified code " .. tostring(response.code))
@@ -89,8 +90,9 @@ end
 ---@param eventLib any
 ---@param serialLib any
 ---@param logFilepath string
+---@param port integer
 ---@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath)
+function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -100,15 +102,16 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath)
     -- own system libraries for testing.
     obj.component = componentLib
     obj.event = eventLib
-    obj.serial = serialLib
     obj.logFilepath = logFilepath
 
-    -- Set up request handlers.
+    obj.comm = CommLayer:Open(obj.component.modem, serialLib, port)
+
+    -- Register request handlers.
     obj.handlerTable = {
-        [MessageCode.PingRequest] = BeeServer.PingHandler,
-        [MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
-        [MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler
+        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
+        [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
+        [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler
     }
 
     -- Obtain the full bee graph from the attached adapter and apiary.
@@ -165,6 +168,9 @@ function BeeServer:RunServer()
         self:PollForMessageAndHandle()
         -- TODO: Handle cancelling and selecting a different species without restarting.
     end
+
+    -- TODO: Currently, this never gets called, but we should revamp error-handling to return up the stack and have standardized handling here.
+    self.comm:Close()
 end
 
 return BeeServer

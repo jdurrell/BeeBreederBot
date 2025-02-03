@@ -17,9 +17,10 @@ BK = Component.beekeeper
 IC = Component.inventory_controller
 Modem = Component.modem
 
-dofile("/home/BeeBreederBot/Shared.lua")
-dofile("/home/BeeBreederBot/BreederOperation.lua")
-dofile("/home/BeeBreederBot/RobotComms.lua")
+require("Shared.Shared")
+require("BeeBot.BreederOperation")
+require("BeeBot.RobotComms.lua")
+CommLayer = require("Shared.CommLayer")
 
 
 ServerAddress = nil
@@ -60,12 +61,7 @@ StorageInfo = {
 
 ---------------------
 -- Initial Setup.
-print("Opening port " .. COM_PORT .. " for communications.")
-local listenPortOpened = Modem.open(COM_PORT)
-if not listenPortOpened then
-    print("Error: Failed to open communication port.")
-    Shutdown()
-end
+Comm = CommLayer:Open(Component.modem, Serial, CommLayer.DefaultComPort)
 
 math.randomseed(os.time())
 ServerAddress = EstablishComms()
@@ -223,3 +219,5 @@ for i, v in ipairs(BreedPath) do
         end
     end
 end
+
+Comm:Close()
