@@ -59,12 +59,12 @@ function WalkApiariesAndStartBreeding()
     end
 end
 
----@param target string
+-- TODO: Finish implementing this.
 ---@param princess AnalyzedBeeStack
 ---@param drone AnalyzedBeeStack
----@param breedInfo table<string, table<string, number>>
+---@param breedInfo BreedInfo
 ---@return number
-local function calculateTargetMutationChance(target, princess, drone, breedInfo)
+local function calculateTargetMutationChance(princess, drone, breedInfo)
 
     -- Mutations can only happen between a primary species of one bee and the secondary of the other.
     -- Simply checking the item name (primary species) is insufficient because mutation isn't chosen between primaries.
@@ -74,10 +74,6 @@ local function calculateTargetMutationChance(target, princess, drone, breedInfo)
     local droneSecondarySpecies = ""
     local breedChancePrincessPrimaryDroneSecondary = breedInfo[princessPrimarySpecies][droneSecondarySpecies]
     local breedChancePrincessSecondaryDronePrimary = breedInfo[princessSecondarySpecies][dronePrimarySpecies]
-
-    -- TODO: Account for multiple possible mutations and order shuffling logic.
-    -- TODO: Account for escritoire reseach. - Probably won't do this. If you're doing escritoire, you would probably just do everything else by hand.
-    -- TODO: Perhaps the above TODOs should be calculated by the server and baked into the breedInfo received by the robot...
 
     local breedChance = 0.5 * (breedChancePrincessPrimaryDroneSecondary + breedChancePrincessSecondaryDronePrimary)
 
@@ -90,7 +86,7 @@ local function calculateTargetMutationChance(target, princess, drone, breedInfo)
 end
 
 ---@param target string
----@param breedInfo table<string, table<string, number>>  -- map of parent to otherParent to breed chance (basically a lookup matrix for breeding chance)
+---@param breedInfo BreedInfo  -- map of parent to otherParent to breed chance (basically a lookup matrix for breeding chance)
 ---@return integer  -- returns 0 if this succeeded, -1 if it timed out before finding some valid pairing, or 1 if it failed because we have enough drones of the target to move on.
 function PickUpBees(target, breedInfo)
 
@@ -147,7 +143,7 @@ function PickUpBees(target, breedInfo)
     local maxChanceDroneSlotInChest = -1
     local maxChance = 0.0
     for i, drone in ipairs(drones) do
-        local chance = calculateTargetMutationChance(target, princess, drone, breedInfo)
+        local chance = calculateTargetMutationChance(princess, drone, breedInfo)
         if chance > maxChance then
             maxChanceDroneSlotInChest = drone.slotInChest
             maxChance = chance

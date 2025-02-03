@@ -9,7 +9,7 @@
 ---@field childMutations table<string, {parent: string, chance: number}[]>    Mapping of results to other parents that combo to yield that result.
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
-
+---@alias BreedInfo table<string, table<string, number>>
 
 ---@class BreedPathNode
 ---@field target string
@@ -102,7 +102,7 @@
 ---@class CodedMessage<T>: {code: integer, payload: T}
 
 
----@alias BreedInfoResponsePayload table<string, table<string, number>>
+---@alias BreedInfoResponsePayload BreedInfo
 ---@alias BreedInfoRequestPayload {target: string}
 ---@alias CancelRequestPayload nil
 ---@alias LogStreamResponsePayload {species: string, node: StorageNode}

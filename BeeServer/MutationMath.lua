@@ -79,6 +79,8 @@ end
 ---@param siblingChances number[]
 ---@return number
 function M.CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
+    -- TODO: Account for escritoire reseach. - Probably won't do this. If you're doing escritoire, you would probably just do everything else by hand.
+
     -- In theory, this algorithm runs in factorial time because it takes every permutation of the mutation shuffle.
     -- In practice, though, there are usually very few mutations (< 3) for a given set of parents, so this doesn't take very long.
 
@@ -110,7 +112,7 @@ end
 
 ---@param target string
 ---@param beeGraph SpeciesGraph
----@return table<string, table<string, number>>
+---@return BreedInfo
 function M.CalculateBreedInfo(target, beeGraph)
     -- TODO: Refactor breedInfo to be a mapping of unique key (probably something like "<parent1>-<parent2>") instead of a 2D matrix
     --       to prevent duplicating data and achieve lower memory usage.
