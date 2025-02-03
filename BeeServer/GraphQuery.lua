@@ -5,11 +5,7 @@
 ---@field queue string[]                      Queue of species for the BFS search.
 ---@field seen table<string, integer>
 ---@field pathlookup table<string, string[]>  Table to lookup the path later.
-local BFSQueue = {
-    queue={},
-    seen={},
-    pathlookup={}
-}
+local BFSQueue = {}
 
 -- Create a new BFS queue.
 --- @return BFSQueue
@@ -17,6 +13,7 @@ function BFSQueue:Create()
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
+
     obj.queue = {}
     obj.seen = {}
     obj.pathlookup = {}

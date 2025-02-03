@@ -133,8 +133,8 @@ function SyncLogWithServer(addr, foundSpecies)
 
         ---@type LogStreamResponsePayload
         local data = response.payload
-        if (FoundSpecies[data.species] == nil) or (FoundSpecies[data.species].timestamp < data.node.timestamp) then
-            FoundSpecies[data.species] = data.node
+        if (foundSpecies[data.species] == nil) or (foundSpecies[data.species].timestamp < data.node.timestamp) then
+            foundSpecies[data.species] = data.node
             LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
         end
     end
