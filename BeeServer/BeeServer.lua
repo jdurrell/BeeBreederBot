@@ -68,18 +68,16 @@ function BeeServer:LogStreamHandler(addr, data)
     end
 
     -- Send an empty response to indicate that the stream has ended.
-    self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, nil)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, {})
 end
 
 function BeeServer:PollForMessageAndHandle()
-    local event, _, addr, _, _, response = self.event.pull(2.0, CommLayer.ModemEventName)
-    if event ~= nil then
-        response = self.comm:DeserializeMessage(response)
-
+    local response, addr = self.comm:GetIncoming(2.0)
+    if response ~= nil then
         if self.handlerTable[response.code] == nil then
             Print("Received unidentified code " .. tostring(response.code))
         else
-            self.handlerTable[response.code](self, addr, response.payload)
+            self.handlerTable[response.code](self, UnwrapNull(addr), response.payload)
         end
     end
 end

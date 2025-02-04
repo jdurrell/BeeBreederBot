@@ -69,6 +69,18 @@ function CommLayer:SendMessage(addr, messageCode, payload)
     end
 end
 
+-- Checks for an incoming message. Returns nil if no message was received before the timeout.
+---@param timeout number
+---@return Message | nil, string | nil
+function CommLayer:GetIncoming(timeout)
+    local event, _, _, _, _, response = Event.pull(timeout, CommLayer.ModemEventName)
+    if event == nil then
+        return nil, nil
+    end
+
+    response = Comm:DeserializeMessage(response)
+end
+
 ---@param message string
 ---@return Message
 function CommLayer:DeserializeMessage(message)

@@ -7,10 +7,8 @@ function EstablishComms()
     Comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
 
     while true do
-        local event, _, addr, _, _, response = Event.pull(10, CommLayer.ModemEventName)
-        ---@type Message
-        response = Comm:DeserializeMessage(response)
-        if event == nil then
+        local response, addr = Comm:GetIncoming(10)
+        if response == nil then
             return nil
         elseif response.code == CommLayer.MessageCode.PingResponse then
             ---@type PingResponsePayload
@@ -31,12 +29,11 @@ end
 function GetBreedPathFromServer(addr)
     Comm:SendMessage(addr, CommLayer.MessageCode.PathRequest, nil)
 
-    local event, _, _, _, _, response = Event.pull(10, CommLayer.ModemEventName)
-    if event == nil then
+    local response, _ = Comm:GetIncoming(10)
+    if response == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
-    Comm:DeserializeMessage(response)
 
     if response.code == CommLayer.MessageCode.CancelRequest then
         return E_CANCELLED, {}
@@ -59,12 +56,11 @@ function GetBreedInfoFromServer(addr, target)
     local payload = {target=target}
     Comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
-    local event, _, _, _, _, response = Event.pull(10, CommLayer.ModemEventName)
-    if event == nil then
+    local response, _ = Comm:GetIncoming(10)
+    if response == nil then
         -- Timed out.
         return E_TIMEDOUT, {}
     end
-    response = Comm:DeserializeMessage(response)
 
     if response.code == CommLayer.MessageCode.CancelRequest then
         return E_CANCELLED, {}
@@ -89,9 +85,8 @@ end
 ---@param addr string
 ---@return boolean
 function PollForCancel(addr)
-    local event, _, _, _, _, response = Event.pull(0, CommLayer.ModemEventName)
-    if event ~= nil then
-        response = Comm:DeserializeMessage(response)
+    local response, _ Comm:GetIncoming(0)
+    if response ~= nil then
         return response.code == CommLayer.MessageCode.CancelRequest
     end
 
@@ -115,16 +110,12 @@ function SyncLogWithServer(addr, foundSpecies)
     Comm:SendMessage(addr, CommLayer.MessageCode.LogStreamRequest, nil)
 
     while true do
-        local event, _, _, _, _, response = Event.pull(2.0, CommLayer.ModemEventName)
-        if event == nil then
+        local response, _ = Comm:GetIncoming(2.0)
+        if response == nil then
             return E_TIMEDOUT
         end
-        response = Comm:DeserializeMessage(response)
 
-        if response == nil then
-            -- End of the stream.
-            break
-        elseif response.code == CommLayer.MessageCode.CancelRequest then
+        if response.code == CommLayer.MessageCode.CancelRequest then
             return E_CANCELLED
         elseif response.code ~= CommLayer.MessageCode.LogStreamResponse then
             Print("Unrecognized message code while attempting to process logs.")
@@ -133,11 +124,15 @@ function SyncLogWithServer(addr, foundSpecies)
 
         ---@type LogStreamResponsePayload
         local data = response.payload
+        if data == {} then
+            return E_NOERROR
+        end
         if (foundSpecies[data.species] == nil) or (foundSpecies[data.species].timestamp < data.node.timestamp) then
             foundSpecies[data.species] = data.node
             LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
         end
     end
 
+    -- Should be unreachable.
     return E_NOERROR
 end
