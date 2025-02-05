@@ -40,7 +40,7 @@ function CommLayer:Open(modemLib, serializationLib, port)
     obj.serial = serializationLib
 
     -- Open port.
-    local opened = Modem.open(port)
+    local opened = modemLib.open(port)
     if not opened then
         Print("Error: Failed to open communication port.")
         Shutdown()
