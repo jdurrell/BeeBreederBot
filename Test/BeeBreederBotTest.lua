@@ -3,5 +3,5 @@ require("Test.BeeServerTest.MutationMathTest")
 require("Test.BeeServerTest.GraphTest")
 require("Shared.Shared")
 
-ActivateTestMode()
+__ActivateTestMode()
 Luaunit.LuaUnit.run()

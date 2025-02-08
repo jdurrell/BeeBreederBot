@@ -28,7 +28,7 @@ CommLayer.ModemEventName = "modem_message"
 ---@param modemLib any
 ---@param serializationLib any
 ---@param port integer
----@return CommLayer
+---@return CommLayer | nil
 function CommLayer:Open(modemLib, serializationLib, port)
     local obj = {}
     setmetatable(obj, self)
@@ -43,7 +43,7 @@ function CommLayer:Open(modemLib, serializationLib, port)
     local opened = modemLib.open(port)
     if not opened then
         Print("Error: Failed to open communication port.")
-        Shutdown()
+        return nil
     end
     obj.port = port
 

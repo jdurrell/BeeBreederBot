@@ -103,6 +103,14 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     obj.logFilepath = logFilepath
 
     obj.comm = CommLayer:Open(componentLib.modem, serialLib, port)
+    if obj.comm == nil then
+        Print("Failed to open communication layer.")
+
+        -- TODO: Verify whether it is valid to call obj:Shutdown() here.
+        --       In theory, it should be fine since we already set the metatable,
+        --       but that should be verified.
+        obj:Shutdown(1)
+    end
 
     -- Register request handlers.
     obj.handlerTable = {
@@ -116,6 +124,10 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
     --       We need more generous matching here to determine the correct component.
     Print("Importing bee graph.")
+    if componentLib.tile_for_apiculture_0_name == nil then
+        Print("Couldn't find attached apiculture tile in the component library.")
+        obj:Shutdown()
+    end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
 
     -- Read our local logfile to figure out which species we already have (and where they're stored).
@@ -123,9 +135,8 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     obj.foundSpecies = ReadSpeciesLogFromDisk(logFilepath)
     if obj.foundSpecies == nil then
         Print("Failed to get found species from logfile.")
-        Shutdown()
+        obj:Shutdown()
     end
-    obj.foundSpecies = UnwrapNull(obj.foundSpecies)
     obj.leafSpeciesList = {}
     for spec, _ in pairs(obj.foundSpecies) do
         table.insert(obj.leafSpeciesList, spec)
@@ -169,6 +180,18 @@ function BeeServer:RunServer()
 
     -- TODO: Currently, this never gets called, but we should revamp error-handling to return up the stack and have standardized handling here.
     self.comm:Close()
+end
+
+-- Shuts down the server.
+-- TODO: Currently, this is only used for testing code, but it should be accessible from
+--       the server's command line interface whenever that's implemented.
+---@param code integer
+function BeeServer:Shutdown(code)
+    if self.comm ~= nil then
+        self.comm:Close()
+    end
+
+    ExitProgram(code)
 end
 
 return BeeServer

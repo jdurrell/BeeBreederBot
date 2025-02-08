@@ -67,7 +67,7 @@ math.randomseed(os.time())
 ServerAddress = EstablishComms()
 if ServerAddress == nil then
     print("Timed out while attempting to establish comms with server.")
-    Shutdown()
+    ExitProgram(1)
 end
 ServerAddress = UnwrapNull(ServerAddress)
 print("Received ping response from bee-graph server at " .. ServerAddress)
@@ -75,7 +75,7 @@ print("Received ping response from bee-graph server at " .. ServerAddress)
 StorageInfo.chestArray = ReadSpeciesLogFromDisk(LOG_FILE)
 if StorageInfo.chestArray == nil then
     print("Got nil when reading species Log.")
-    Shutdown()
+    ExitProgram(1)
 end
 StorageInfo.chestArray = UnwrapNull(StorageInfo.chestArray)
 
@@ -83,7 +83,7 @@ local retval
 retval = SyncLogWithServer(ServerAddress, StorageInfo.chestArray)
 if retval ~= E_NOERROR then
     Print("Got error while attempting to sync log with server.")
-    Shutdown()
+    ExitProgram(1)
 end
 
 retval, BreedPath = GetBreedPathFromServer(ServerAddress)

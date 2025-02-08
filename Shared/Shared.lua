@@ -1,6 +1,6 @@
--- This file sets up constants that are used by both the robot and server.
+-- This file sets up constants and functionality that are used by both the robot and server.
 
-IS_TEST = false  -- Backdoor for testing to suppress print statements.
+IS_TEST = false  -- Backdoor for testing to suppress print statements, sleeps, and other things.
 
 function GetCurrentTimestamp()
     return math.floor(os.time())
@@ -8,6 +8,10 @@ end
 
 ---@param time number Time to sleep in seconds
 function Sleep(time)
+    if IS_TEST then
+        return
+    end
+
     -- os.sleep() only exists inside OpenComputers, so outside IntelliSense doesn't recognize it.
     ---@diagnostic disable-next-line: undefined-field
     os.sleep(time)
@@ -137,16 +141,6 @@ function DebugPromptForKeyPress(message)
     Event.pull("key_up")
 end
 
--- TODO: This should really have specific logic for server vs. field robot.
--- For right now, it has a hardcoded port, but this function will probably disappear entirely.
-function Shutdown()
-    Modem = require("component").modem
-    if (Modem ~= nil) and (Modem.isOpen(34000)) then
-        Modem.close(34000)
-    end
-    os.exit(0)
-end
-
 --- This helps keep Intellisense happy.
 ---@generic T
 ---@param value T | nil
@@ -157,11 +151,24 @@ end
 
 ---@param str any
 function Print(str)
-    if not IS_TEST then
-        print(str)
+    if IS_TEST then
+        return
+    end
+
+    print(str)
+end
+
+---@param code integer
+function ExitProgram(code)
+    if IS_TEST then
+        -- If we're running in the test environment, then don't take down the whole Lua instance
+        -- because the tests are still running.
+        coroutine.yield("exit", code)
+    else
+        os.exit(code)
     end
 end
 
-function ActivateTestMode()
+function __ActivateTestMode()
     IS_TEST = true
 end
