@@ -63,7 +63,7 @@ function LogSpeciesToDisk(filepath, species, location, timestamp)
     local restOfFile = logfile:read("a")  -- TODO: Will we always have enough memory for this?
     Print("rest of file:\n" .. restOfFile)
 
-    -- OpenComputers does not support the "r+"" file mode, so we have to close the log, then reopen in "append" mode.
+    -- OpenComputers does not support the "r+" file mode, so we have to close the log, then reopen in "append" mode.
     logfile:close()
     logfile = nil
     logfile = io.open(filepath, "a")
