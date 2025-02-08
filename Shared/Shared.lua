@@ -101,7 +101,7 @@ function ReadSpeciesLogFromDisk(filepath)
             table.insert(fields, stringfield)
         end
 
-        -- We should get 4 fields from each line. If we don't then we don't know what we're reading.
+        -- We should get 4 fields from each line. If we don't, then we don't know what we're reading.
         if #fields ~= 4 then
             logfile:close()
             Print("Error: failed to parse logfile on line " .. tostring(count) .. ": " .. line)
@@ -133,12 +133,6 @@ function ReadSpeciesLogFromDisk(filepath)
     end
 
     return log
-end
-
-function DebugPromptForKeyPress(message)
-    Print(tostring(message))
-    Sleep(0.25)
-    Event.pull("key_up")
 end
 
 --- This helps keep Intellisense happy.
