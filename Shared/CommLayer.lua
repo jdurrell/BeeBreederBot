@@ -73,12 +73,14 @@ end
 ---@param timeout number
 ---@return Message | nil, string | nil
 function CommLayer:GetIncoming(timeout)
-    local event, _, _, _, _, response = Event.pull(timeout, CommLayer.ModemEventName)
+    local event, _, addr, _, _, response = Event.pull(timeout, CommLayer.ModemEventName)
     if event == nil then
         return nil, nil
     end
 
     response = Comm:DeserializeMessage(response)
+
+    return response, addr
 end
 
 ---@param message string

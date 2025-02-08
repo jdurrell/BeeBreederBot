@@ -102,7 +102,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     obj.event = eventLib
     obj.logFilepath = logFilepath
 
-    obj.comm = CommLayer:Open(obj.component.modem, serialLib, port)
+    obj.comm = CommLayer:Open(componentLib.modem, serialLib, port)
 
     -- Register request handlers.
     obj.handlerTable = {
