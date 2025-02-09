@@ -12,13 +12,15 @@ local MutationMath = require("BeeServer.MutationMath")
 ---@class BeeServer
 ---@field component any
 ---@field event any
+---@field term any
 ---@field beeGraph SpeciesGraph
 ---@field breedPath BreedPathNode[]
 ---@field comm CommLayer
 ---@field foundSpecies table<string, StorageNode>
----@field handlerTable table<integer, function>
+---@field messageHandlerTable table<integer, function>
 ---@field leafSpeciesList string[]
 ---@field logFilepath string
+---@field terminalHandlerTable table<string, function>
 local BeeServer = {}
 
 ---@param addr string
@@ -71,14 +73,70 @@ function BeeServer:LogStreamHandler(addr, data)
     self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, {})
 end
 
-function BeeServer:PollForMessageAndHandle()
-    local response, addr = self.comm:GetIncoming(2.0)
+---@param timeout number
+function BeeServer:PollForMessageAndHandle(timeout)
+    local response, addr = self.comm:GetIncoming(timeout)
     if response ~= nil then
-        if self.handlerTable[response.code] == nil then
+        if self.messageHandlerTable[response.code] == nil then
             Print("Received unidentified code " .. tostring(response.code))
         else
-            self.handlerTable[response.code](self, UnwrapNull(addr), response.payload)
+            self.messageHandlerTable[response.code](self, UnwrapNull(addr), response.payload)
         end
+    end
+end
+
+---@param argv string[]
+function BeeServer:ShutdownCommandHandler(argv)
+    self:Shutdown(0)
+end
+
+---@param argv string[]
+function BeeServer:BreedCommandHandler(argv)
+    local species = argv[2]
+    if species == nil then
+        Print("Error: expected a species name.")
+        return
+    end
+
+    if self.beeGraph[species] == nil then
+        Print("Error: could not find species '" .. species .. "' in breeding graph.")
+    end
+
+    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species)
+    if path == nil then
+        Print("Error: Could not find breeding path for species '" .. species .. "'.")
+    end
+
+    -- We computed a valid path for this species. Save it to the current breed path and print it out for the user.
+    self.breedPath = UnwrapNull(path)
+    Print("Breeding " .. species .. " bees. Full breeding order:")
+    for _, v in ipairs(self.breedPath) do
+        Print(v)
+    end
+end
+
+---@param timeout number
+function BeeServer:PollForTerminalInputAndHandle(timeout)
+    local event, command = self.term.pull(timeout)
+    if event == nil then
+        return
+    end
+
+    -- Separate command line options.
+    local argv = {}
+    for arg in string.gmatch(command, "[%w]+") do
+        table.insert(argv, arg)
+    end
+
+    -- We could theoretically get no commands if the user gave us a blank line.
+    if #argv == 0 then
+        return
+    end
+
+    if self.terminalHandlerTable[argv[1]] == nil then
+        Print("Unrecognized command.")
+    else
+        self.terminalHandlerTable[argv[1]](self, argv)
     end
 end
 
@@ -87,10 +145,11 @@ end
 ---@param componentLib any
 ---@param eventLib any
 ---@param serialLib any
+---@param termLib any
 ---@param logFilepath string
 ---@param port integer
 ---@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
+function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepath, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -100,6 +159,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     -- own system libraries for testing.
     obj.component = componentLib
     obj.event = eventLib
+    obj.term = termLib
     obj.logFilepath = logFilepath
 
     obj.comm = CommLayer:Open(componentLib.modem, serialLib, port)
@@ -113,11 +173,17 @@ function BeeServer:Create(componentLib, eventLib, serialLib, logFilepath, port)
     end
 
     -- Register request handlers.
-    obj.handlerTable = {
+    obj.messageHandlerTable = {
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
         [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler
+    }
+
+    -- Register command line handlers
+    obj.terminalHandlerTable = {
+        ["shutdown"] = BeeServer.ShutdownCommandHandler,
+        ["breed"] = BeeServer.BreedCommandHandler
     }
 
     -- Obtain the full bee graph from the attached adapter and apiary.
@@ -149,42 +215,13 @@ end
 
 -- Runs the main BeeServer operation loop.
 function BeeServer:RunServer()
-    Print("Enter your target species to breed:")
-    local input = nil
-    while self.breedPath == nil do
-        ::continue::
-        input = io.read()
-
-        if (self.beeGraph[input] == nil) then
-            Print("Error: did not recognize species.")
-            goto continue
-        end
-
-        self.breedPath = UnwrapNull(GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, input))
-        if self.breedPath == nil then
-            Print("Error: Could not find breeding path for species " .. tostring(input))
-            goto continue
-        end
-    end
-
-    Print("Breeding " .. input .. " bees. Full breeding order:")
-    for _ , v in ipairs(BreedPath) do
-        Print(v)
-    end
-
-    Print("Graph server is online to answer queries.")
     while true do
-        self:PollForMessageAndHandle()
-        -- TODO: Handle cancelling and selecting a different species without restarting.
+        self:PollForMessageAndHandle(0.2)
+        self:PollForTerminalInputAndHandle(0.2)
     end
-
-    -- TODO: Currently, this never gets called, but we should revamp error-handling to return up the stack and have standardized handling here.
-    self.comm:Close()
 end
 
 -- Shuts down the server.
--- TODO: Currently, this is only used for testing code, but it should be accessible from
---       the server's command line interface whenever that's implemented.
 ---@param code integer
 function BeeServer:Shutdown(code)
     if self.comm ~= nil then

@@ -2,6 +2,7 @@
 local component = require("component")
 local event = require("event")
 local serial = require("serialization")
+local term = require("term")
 
 local BeeServer = require("BeeServer.BeeServer")
 local CommLayer = require("Shared.CommLayer")
@@ -10,5 +11,5 @@ local CommLayer = require("Shared.CommLayer")
 local logFilepath = "/home/BeeBreederBot/DroneLocations.log"
 local comPort = CommLayer.DefaultComPort
 
-local server = BeeServer:Create(component, event, serial, logFilepath, comPort)
+local server = BeeServer:Create(component, event, serial, term, logFilepath, comPort)
 server:RunServer()
