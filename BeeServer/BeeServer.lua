@@ -216,8 +216,8 @@ end
 -- Runs the main BeeServer operation loop.
 function BeeServer:RunServer()
     while true do
-        self:PollForMessageAndHandle(0.2)
         self:PollForTerminalInputAndHandle(0.2)
+        self:PollForMessageAndHandle(0.2)
     end
 end
 

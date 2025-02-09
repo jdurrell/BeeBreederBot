@@ -1,14 +1,15 @@
 -- This is a module that simulates the OpenComputers modem component.
-local M = {}
-
 -- It is admittedly a little odd to have asserts embedded directly into the
 -- test fixture, but there's not a fantastic better way to test this.
 local Luaunit = require("Test.luaunit")
 local Coroutine = require("coroutine")
 local Event = require("Test.SimulatorModules.Event")
 
+---@class Modem
+---@field __openPorts table<integer, thread[]>
+local M = {}
+
 -- Semi-private table that stores the currently open ports from 
----@type table<integer, thread[]>
 M.__openPorts = {}
 
 -- Testing-only function to initialize this to a common state.
@@ -18,6 +19,7 @@ end
 
 -- Opens a communication port on the modem.
 ---@param port integer
+---@return boolean
 function M.open(port)
     local thread = Coroutine.running()
 
@@ -27,8 +29,9 @@ function M.open(port)
 
     -- Can't open a port that has already been opened.
     Luaunit.assertNotTableContains(M.__openPorts[port], thread)
-
     table.insert(M.__openPorts[port], thread)
+
+    return true
 end
 
 -- Closes a communication port on the modem.

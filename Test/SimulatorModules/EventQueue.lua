@@ -6,6 +6,7 @@
 ---@field trailingIdx integer
 local M = {}
 
+---@return Queue
 function M:Create()
     local obj = {}
     setmetatable(obj, self)
@@ -14,6 +15,8 @@ function M:Create()
     self.leadingIdx = 1
     self.trailingIdx = 1
     self.arr = {}
+
+    return obj
 end
 
 ---@return boolean
