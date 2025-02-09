@@ -53,7 +53,8 @@ function M.ImportBeeGraph(beehouseComponent)
     ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
     local breedingData = beehouseComponent.getBeeBreedingData()
     for i, mutation in ipairs(breedingData) do
-        M.AddMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance)
+        -- OpenComputers/Forestry specify the chance in percentage, so divide by 100 to get the decimal probability.
+        M.AddMutationToGraph(graph, mutation.allele1, mutation.allele2, mutation.result, mutation.chance / 100.0)
     end
 
     return graph
