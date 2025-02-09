@@ -2,7 +2,7 @@ Luaunit = require("Test.luaunit")
 GraphParse = require("BeeServer.GraphParse")
 GraphQuery = require("BeeServer.GraphQuery")
 require("Shared.Shared")
-Res = require("Test.Resources")
+Res = require("Test.Resources.TestData")
 
 -- Helper function to verify equivalence of two SpeciesGraphs. Since Luaunit's `assertItemsEquals()`
 -- is not fully recursive, this is needed to properly compare the unordered lists deeper in the graph.
