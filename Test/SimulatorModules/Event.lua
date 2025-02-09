@@ -10,45 +10,7 @@ local M = {}
 -- each one because some messages are sent without waiting for a response,
 -- and the server constantly waits for a message until it gets one.
 local Coroutine = require("coroutine")
-
----@class Queue
----@field arr table<integer, any>
----@field leadingIdx integer
----@field trailingIdx integer
-local Queue = {}
-
-function Queue:Create()
-    local obj = {}
-    setmetatable(obj, self)
-    self.__index = self
-
-    self.leadingIdx = 1
-    self.trailingIdx = 1
-    self.arr = {}
-end
-
----@return boolean
-function Queue:IsEmpty()
-    return (self.leadingIdx == self.trailingIdx)
-end
-
----@param element any
-function Queue:Push(element)
-    self.arr[self.leadingIdx] = element
-    self.leadingIdx = self.leadingIdx + 1
-end
-
----@return any | nil
-function Queue:Pull()
-    if self:IsEmpty() then
-        return nil
-    end
-
-    local element = self.arr[self.trailingIdx]
-    self.arr[self.trailingIdx] = nil  -- Allow the garbage collector to reclaim it eventually.
-    self.trailingIdx = self.trailingIdx + 1
-    return element
-end
+local Queue = require("Test.SimulatorModules.EventQueue")
 
 -- Testing-only function to initialize this to a common state.
 function M.__Initialize()
@@ -56,7 +18,7 @@ function M.__Initialize()
 end
 
 -- Static private queue of events. This is implementation-specific,
--- so it can't be exposed to the BeeServer or BeeBot.
+-- so it can't be exposed to production code.
 ---@type table<thread, table<string, Queue>>
 M.__events = {}
 
@@ -83,6 +45,8 @@ end
 ---@param key string
 ---@return any | nil, ...
 function M.pull(timeout, key)
+    -- We actually ignore the timeout since it's largely pointless in the testing environment.
+
     -- Yield in case we want something to respond here.
     Coroutine.yield("pull")
     local thread = Coroutine.running()
@@ -91,14 +55,10 @@ function M.pull(timeout, key)
         return nil
     end
 
-    -- TODO: Consider whether this timeout functionality is worth keeping.
-    --       It doesn't really do anything in our testing environment.
-    local startTime = os.time()
-    while os.difftime(os.time(), startTime) <= timeout do
-        local event = M.__events[thread][key]:Pull()
-        if event ~= nil then
-            return 1, table.unpack(event)
-        end
+
+    local event = M.__events[thread][key]:Pull()
+    if event ~= nil then
+        return 1, table.unpack(event)
     end
 
     return nil
