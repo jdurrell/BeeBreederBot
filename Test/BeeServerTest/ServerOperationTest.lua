@@ -1,13 +1,17 @@
 Coroutine = require("coroutine")
-
 Luaunit = require("Test.luaunit")
-BeeServer = require("BeeServer.BeeServer")
+
 Component = require("Test.SimulatorModules.Component.Component")
 Event = require("Test.SimulatorModules.Event")
+Res = require("Test.Resources.TestData")
 Serialization = require("Test.SimulatorModules.Serialization")
 Term = require("Test.SimulatorModules.Term")
+
+BeeServer = require("BeeServer.BeeServer")
 CommLayer = require("Shared.CommLayer")
 
+
+SEED_LOG_DIR = "./Test/Resources/LogfileSeeds/"
 OPERATIONAL_LOG_DIR = "./Test/out_data/"
 DEFAULT_LOG_NAME = OPERATIONAL_LOG_DIR .. "BeeBreederBot.log"
 
@@ -29,7 +33,7 @@ function CreateServerLogfile(seedPath, operationalPath)
     -- Lua's standard library doesn't have a way to copy a file,
     -- so we have to copy the seed to the target on our own.
     if seedPath ~= nil then
-        local seedFilepath = OPERATIONAL_LOG_DIR .. seedPath
+        local seedFilepath = SEED_LOG_DIR .. seedPath
         local seedFile, err2 = io.open(seedFilepath, "r")
         if seedFile == nil then
             errMsg = err2
@@ -37,8 +41,7 @@ function CreateServerLogfile(seedPath, operationalPath)
         end
         seedFile = UnwrapNull(io.open(seedFilepath, "r"))
         for line in seedFile:lines("l") do
-            -- TODO: Do we need to write the newline character as well?
-            newFile:write(line)
+            newFile:write(line .. "\n")
         end
         seedFile:close()
     end
@@ -56,6 +59,22 @@ function CreateServerLogfile(seedPath, operationalPath)
     return newFilepath
 end
 
+---@param thread thread
+---@return ... -- Returns the response from the thread.
+function RunThreadAndVerifyRan(thread)
+    local responses = table.pack(Coroutine.resume(thread))
+    Luaunit.assertTrue(responses[1])
+    Luaunit.assertEquals(Coroutine.status(thread), "suspended")
+    return table.unpack(responses, 2)
+end
+
+---@param thread thread
+---@param expectedResponse string
+function RunThreadAndVerifyResponse(thread, expectedResponse)
+    local actualResponse = RunThreadAndVerifyRan(thread)
+    Luaunit.assertEquals(actualResponse, expectedResponse)
+end
+
 ---@param logfile string
 ---@param port integer
 function CreateServerInstance(logfile, port)
@@ -68,8 +87,7 @@ function CreateServerInstance(logfile, port)
     Event.__registerThread(thread)
     Term.__registerThread(thread)
 
-    local ran, response = Coroutine.resume(thread)
-    Luaunit.assertIsTrue(ran)
+    local response = RunThreadAndVerifyRan(thread)
     Luaunit.assertEquals(response, "startup success")
     return thread, server
 end
@@ -99,6 +117,32 @@ function VerifyModemStateAfterServerShutdown()
     end
 end
 
+---@param logfile string
+---@param port integer
+---@return thread, BeeServer
+function StartServerAndVerifyStartup(logfile, port)
+    -- Start the server and verify that it started correctly.
+    local serverThread, server = CreateServerInstance(logfile, port)
+    Luaunit.assertNotIsNil(server)
+    Luaunit.assertEquals(Coroutine.status(serverThread), "suspended")
+    local response = RunThreadAndVerifyRan(serverThread)
+    Luaunit.assertEquals(response, "term_pull")
+    VerifyModemStateAfterServerStart(port, serverThread)
+
+    return serverThread, UnwrapNull(server)
+end
+
+---@param serverThread thread
+function StopServerAndVerifyShutdown(serverThread)
+    -- Now command the server to shut down and verify that it did so correctly.
+    Term.__write(serverThread, "shutdown")
+    local ran, response, exitCode = Coroutine.resume(serverThread)
+    Luaunit.assertIsTrue(ran)
+    Luaunit.assertEquals(response, "exit")
+    Luaunit.assertEquals(exitCode, 0)
+    VerifyModemStateAfterServerShutdown()
+end
+
 TestBeeServerStandalone = {}
     function TestBeeServerStandalone:Setup()
         Event.__Initialize()
@@ -107,23 +151,29 @@ TestBeeServerStandalone = {}
     end
 
     function TestBeeServerStandalone:TestLaunchAndShutdown()
-        local ran, response, exitCode
-        local logfile = CreateServerLogfile(nil, nil)
+        local logFilepath = CreateServerLogfile(nil, nil)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        StopServerAndVerifyShutdown(serverThread)
+    end
 
-        -- Start the server and verify that it started correctly.
-        local serverThread, server = CreateServerInstance(logfile, CommLayer.DefaultComPort)
-        Luaunit.assertNotIsNil(server)
-        Luaunit.assertEquals(Coroutine.status(serverThread), "suspended")
-        ran, response = Coroutine.resume(serverThread)
-        Luaunit.assertIsTrue(ran)
-        Luaunit.assertEquals(response, "term_pull")
-        VerifyModemStateAfterServerStart(CommLayer.DefaultComPort, serverThread)
+    function TestBeeServerStandalone:TestLaunchIdleShutdown()
+        local logFilepath = CreateServerLogfile(nil, nil)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
 
-        -- Now command the server to shut down and verify that it did so correctly.
-        Term.__write(serverThread, "shutdown")
-        ran, response, exitCode = Coroutine.resume(serverThread)
-        Luaunit.assertIsTrue(ran)
-        Luaunit.assertEquals(response, "exit")
-        Luaunit.assertEquals(exitCode, 0)
-        VerifyModemStateAfterServerShutdown()
+        -- Let the server idle for a while, then shut it down.
+        for i=1, 10 do
+            RunThreadAndVerifyResponse(serverThread, "event_pull")
+            RunThreadAndVerifyResponse(serverThread, "term_pull")
+        end
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestLaunchWithLogAndShutdown()
+        local logFilepath = CreateServerLogfile("BasicLog.log", nil)
+        Component.tile_for_apiculture_0_name.__Initialize(Res.BeeGraphMundaneIntoCommon)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+
+        -- Verify that the server read the log correctly.
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical"})
+        StopServerAndVerifyShutdown(serverThread)
     end

@@ -123,6 +123,7 @@ function BeeServer:PollForTerminalInputAndHandle(timeout)
     end
 
     -- Separate command line options.
+    -- TODO provide a way for a single argument to have a space in it.
     local argv = {}
     for arg in string.gmatch(command, "[%w]+") do
         table.insert(argv, arg)

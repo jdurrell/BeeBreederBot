@@ -16,6 +16,13 @@
 ---@field parent1 string
 ---@field parent2 string
 
+---@class ForestryMutation
+---@field allele1 string
+---@field allele2 string
+---@field chance number
+---@field result string
+---@field specialConditions string[]
+
 
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.

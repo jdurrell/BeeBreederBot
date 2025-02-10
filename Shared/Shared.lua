@@ -61,7 +61,6 @@ function LogSpeciesToDisk(filepath, species, location, timestamp)
         logfile:seek("set", pos)
     end
     local restOfFile = logfile:read("a")  -- TODO: Will we always have enough memory for this?
-    Print("rest of file:\n" .. restOfFile)
 
     -- OpenComputers does not support the "r+" file mode, so we have to close the log, then reopen in "append" mode.
     logfile:close()
@@ -96,7 +95,7 @@ function ReadSpeciesLogFromDisk(filepath)
     for line in logfile:lines("l") do
         count = count + 1
         local fields = {}
-        for field in string.gmatch(line, "[%w]+") do
+        for field in string.gmatch(line, "[%w]+") do  -- TODO: Handle species with spaces in their name.
             local stringfield = string.gsub(field, ",", "")
             table.insert(fields, stringfield)
         end
@@ -165,4 +164,34 @@ end
 
 function __ActivateTestMode()
     IS_TEST = true
+end
+
+-- This function taken from http://lua-users.org/wiki/CopyTable.
+-- Save copied tables in `copies`, indexed by original table.
+local function deepcopy(orig, copies)
+    copies = copies or {}
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        if copies[orig] then
+            copy = copies[orig]
+        else
+            copy = {}
+            copies[orig] = copy
+            for orig_key, orig_value in next, orig, nil do
+                copy[deepcopy(orig_key, copies)] = deepcopy(orig_value, copies)
+            end
+            setmetatable(copy, deepcopy(getmetatable(orig), copies))
+        end
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+---@generic T
+---@param original T
+---@return T
+function Copy(original)
+    return deepcopy(original, nil)
 end

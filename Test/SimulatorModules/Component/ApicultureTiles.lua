@@ -3,16 +3,18 @@
 -- actual component implements other functionality as well.
 local M = {}
 
+---@type ForestryMutation[]
 local mutations = {}
 
 -- Testing-only function to initialize the apiculture data for different test cases.
 -- This *must* be called before actually using this module in a test.
+---@param mutationSet ForestryMutation[]
 function M.__Initialize(mutationSet)
     mutations = mutationSet
 end
 
 -- Imports the list of mutations from an apiculture tile.
----@return {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
+---@return ForestryMutation[]
 function M.getBeeBreedingData()
     return mutations
 end

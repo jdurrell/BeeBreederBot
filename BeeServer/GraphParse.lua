@@ -50,7 +50,7 @@ function M.ImportBeeGraph(beehouseComponent)
     ---@type SpeciesGraph
     local graph = {}
 
-    ---@type {allele1: string, allele2: string, result: string, chance: number, specialConditions: string[]}[]
+    ---@type ForestryMutation[]
     local breedingData = beehouseComponent.getBeeBreedingData()
     for i, mutation in ipairs(breedingData) do
         -- OpenComputers/Forestry specify the chance in percentage, so divide by 100 to get the decimal probability.
