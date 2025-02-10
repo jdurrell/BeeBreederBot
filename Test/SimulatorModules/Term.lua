@@ -46,12 +46,17 @@ function M.pull(timeout)
     -- We actually ignore the timeout since it's largely pointless in the testing environment.
     local thread = Coroutine.running()
     if M.__events[thread] == nil then
-        return nil, nil
+        return nil
+    end
+
+    local command = M.__events[thread]:Pull()
+    if command == nil then
+        return nil
     end
 
     -- TODO: Technically, I don't actually know the right name of this event.
     --       It shouldn't really matter for testing though since we only care whether it's nil or not.
-    return "term", M.__events[thread]:Pull()
+    return "term", command
 end
 
 return M

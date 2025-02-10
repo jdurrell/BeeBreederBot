@@ -62,13 +62,12 @@ function M.pull(timeout, key)
         return nil
     end
 
-
     local event = M.__events[thread][key]:Pull()
-    if event ~= nil then
-        return key, table.unpack(event)
+    if event == nil then
+        return nil
     end
 
-    return nil
+    return key, table.unpack(event)
 end
 
 return M
