@@ -24,13 +24,9 @@ local MutationMath = require("BeeServer.MutationMath")
 ---@field terminalHandlerTable table<string, function>
 local BeeServer = {}
 
----@param addr string
----@param data PingRequestPayload
-function BeeServer:PingHandler(addr, data)
-    -- Just respond with our own ping, echoing back the transaction id.
-    local payload = {transactionId=data.transactionId}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
-end
+
+---------------------
+--- Modem handling:
 
 ---@param addr string
 ---@param data BreedInfoRequestPayload
@@ -38,24 +34,6 @@ function BeeServer:BreedInfoHandler(addr, data)
     -- Calculate mutation chances and send them back to the robot.
     local payload = {breedInfo=MutationMath.CalculateBreedInfo(data.target, self.beeGraph)}
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
-end
-
----@param addr string
----@param data PathRequestPayload
-function BeeServer:PathHandler(addr, data)
-    -- Send the calculated breed path to the robot.
-    self.comm:SendMessage(addr, CommLayer.MessageCode.PathResponse, self.breedPath)
-end
-
----@param addr string
----@param data SpeciesFoundRequestPayload
-function BeeServer:SpeciesFoundHandler(addr, data)
-    -- Record the species that was found by the robot to our own disk.
-    if (self.foundSpecies[data.species] == nil) or (self.foundSpecies[data.species].timestamp < data.node.timestamp) then
-        self.foundSpecies[data.species] = data.node
-        table.insert(self.leafSpeciesList, data.species)
-        Logger.LogSpeciesToDisk(self.logFilepath, data.species, data.node.loc, data.node.timestamp)
-    end
 end
 
 ---@param addr string
@@ -73,6 +51,32 @@ function BeeServer:LogStreamHandler(addr, data)
     self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, {})
 end
 
+---@param addr string
+---@param data PathRequestPayload
+function BeeServer:PathHandler(addr, data)
+    -- Send the calculated breed path to the robot.
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PathResponse, self.breedPath)
+end
+
+---@param addr string
+---@param data PingRequestPayload
+function BeeServer:PingHandler(addr, data)
+    -- Just respond with our own ping, echoing back the transaction id.
+    local payload = {transactionId=data.transactionId}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
+end
+
+---@param addr string
+---@param data SpeciesFoundRequestPayload
+function BeeServer:SpeciesFoundHandler(addr, data)
+    -- Record the species that was found by the robot to our own disk.
+    if (self.foundSpecies[data.species] == nil) or (self.foundSpecies[data.species].timestamp < data.node.timestamp) then
+        self.foundSpecies[data.species] = data.node
+        table.insert(self.leafSpeciesList, data.species)
+        Logger.LogSpeciesToDisk(self.logFilepath, data.species, data.node.loc, data.node.timestamp)
+    end
+end
+
 ---@param timeout number
 function BeeServer:PollForMessageAndHandle(timeout)
     local response, addr = self.comm:GetIncoming(timeout)
@@ -85,10 +89,9 @@ function BeeServer:PollForMessageAndHandle(timeout)
     end
 end
 
----@param argv string[]
-function BeeServer:ShutdownCommandHandler(argv)
-    self:Shutdown(0)
-end
+
+---------------------
+--- Terminal handling:
 
 ---@param argv string[]
 function BeeServer:BreedCommandHandler(argv)
@@ -117,6 +120,11 @@ function BeeServer:BreedCommandHandler(argv)
     end
 end
 
+---@param argv string[]
+function BeeServer:ShutdownCommandHandler(argv)
+    self:Shutdown(0)
+end
+
 ---@param timeout number
 function BeeServer:PollForTerminalInputAndHandle(timeout)
     local event, command = self.term.pull(timeout)
@@ -142,6 +150,24 @@ function BeeServer:PollForTerminalInputAndHandle(timeout)
         self.terminalHandlerTable[argv[1]](self, argv)
     end
 end
+
+
+---------------------
+--- Other instance functions.
+
+-- Shuts down the server.
+---@param code integer
+function BeeServer:Shutdown(code)
+    if self.comm ~= nil then
+        self.comm:Close()
+    end
+
+    ExitProgram(code)
+end
+
+
+---------------------
+--- Main entry points.
 
 -- Creates a BeeServer and does initial setup (importing the bee graph, etc.).
 -- Requires system libraries as an input.
@@ -177,17 +203,17 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
 
     -- Register request handlers.
     obj.messageHandlerTable = {
-        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
-        [CommLayer.MessageCode.PathRequest] = BeeServer.PathHandler,
-        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler
+        [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler,
+        [CommLayer.MessageCode.PathRequest] = BeeServer.PathHandler,
+        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler
     }
 
     -- Register command line handlers
     obj.terminalHandlerTable = {
-        ["shutdown"] = BeeServer.ShutdownCommandHandler,
-        ["breed"] = BeeServer.BreedCommandHandler
+        ["breed"] = BeeServer.BreedCommandHandler,
+        ["shutdown"] = BeeServer.ShutdownCommandHandler
     }
 
     -- Obtain the full bee graph from the attached adapter and apiary.
@@ -223,16 +249,6 @@ function BeeServer:RunServer()
         self:PollForTerminalInputAndHandle(0.2)
         self:PollForMessageAndHandle(0.2)
     end
-end
-
--- Shuts down the server.
----@param code integer
-function BeeServer:Shutdown(code)
-    if self.comm ~= nil then
-        self.comm:Close()
-    end
-
-    ExitProgram(code)
 end
 
 return BeeServer
