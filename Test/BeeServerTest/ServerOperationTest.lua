@@ -115,6 +115,11 @@ local function VerifyModemResponse(receiverExpected, senderExpected, portExpecte
     return message.payload
 end
 
+local function VerifyNoModemResponse()
+    local event = Event.__pullNoYield("modem_message")
+    Luaunit.assertIsNil(event)
+end
+
 TestBeeServerStandalone = {}
     function TestBeeServerStandalone:Setup()
         Event.__Initialize()
@@ -174,8 +179,8 @@ TestBeeServerStandalone = {}
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
         Luaunit.assertEquals(response, {transactionId=456789})
-        Modem.close(CommLayer.DefaultComPort)
 
+        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(serverThread)
     end
@@ -195,14 +200,178 @@ TestBeeServerStandalone = {}
         Term.__write(serverThread, "breed Cultivated")
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
+        Util.AssertPathIsValidInGraph(server.beeGraph, server.breedPath, "Cultivated")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.PathRequest})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PathResponse)
         Luaunit.assertNotIsNil(response)
-
         Util.AssertPathIsValidInGraph(server.beeGraph, response, "Cultivated")
-        Modem.close(CommLayer.DefaultComPort)
 
+        Modem.close(CommLayer.DefaultComPort)
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestBreedInfo()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", nil)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.BreedInfoRequest, payload={target="Industrious"}})  -- Pick a simple species that's easy to verify.
+        RunThreadAndVerifyResponse(serverThread, "modem_send")
+        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
+        Luaunit.assertEquals(response.breedInfo, {["Diligent"]={["Unweary"]=0.08}, ["Unweary"]={["Diligent"]=0.08}})
+
+        Modem.close(CommLayer.DefaultComPort)
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestSpeciesFoundNewSpecies()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        local industriousNode = {loc={x=6, y=9}, timestamp=345678}
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
+            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="Industrious", node=industriousNode}
+        })
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        VerifyNoModemResponse()
+
+        local expectedFoundSpecies = {
+            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Industrious"]=industriousNode
+        }
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical", "Industrious"})
+        Luaunit.assertEquals(server.foundSpecies, expectedFoundSpecies)
+        Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
+        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+
+        Modem.close(CommLayer.DefaultComPort)
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestSpeciesFoundTimestamps()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+
+        -- Send new event and verify that it gets logged.
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        local industriousNodeMiddleTimestamp = {loc={x=6, y=9}, timestamp=222222}
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
+            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="Industrious", node=industriousNodeMiddleTimestamp}
+        })
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        VerifyNoModemResponse()
+
+        local expectedFoundSpecies = {
+            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Industrious"]=industriousNodeMiddleTimestamp
+        }
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical", "Industrious"})
+        Luaunit.assertEquals(server.foundSpecies, expectedFoundSpecies)
+        Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
+        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+
+        -- Send version with an earlier timestamp and assert that it doesn't get logged.
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        local industriousNodeLowTimestamp = {loc={x=2, y=7}, timestamp=111111}
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
+            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="Industrious", node=industriousNodeLowTimestamp}
+        })
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        VerifyNoModemResponse()
+
+        expectedFoundSpecies = {
+            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Industrious"]=industriousNodeMiddleTimestamp
+        }
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical", "Industrious"})
+        Luaunit.assertEquals(server.foundSpecies, expectedFoundSpecies)
+        Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
+        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+
+        -- Send version with a later timestamp and assert that it does get logged.
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        local industriousNodeHighTimestamp = {loc={x=3, y=1}, timestamp=333333}
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
+            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="Industrious", node=industriousNodeHighTimestamp}
+        })
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        VerifyNoModemResponse()
+
+        expectedFoundSpecies = {
+            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Industrious"]=industriousNodeHighTimestamp
+        }
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical", "Industrious"})
+        Luaunit.assertEquals(server.foundSpecies, expectedFoundSpecies)
+        Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
+        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+
+        Modem.close(CommLayer.DefaultComPort)
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestLogStream()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.LogStreamRequest})
+        local expectedResults = {
+            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2}, timestamp=123456}
+        }
+        local results = {}
+        for i = 1,3 do
+            RunThreadAndVerifyResponse(serverThread, "modem_send")
+            local payload = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LogStreamResponse)
+            Luaunit.assertNotIsNil(payload)
+            Luaunit.assertNotIsNil(payload.species)
+            Luaunit.assertNotIsNil(payload.node)
+            results[payload.species] = payload.node
+        end
+        RunThreadAndVerifyResponse(serverThread, "modem_send")
+        local payload = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LogStreamResponse)
+        Luaunit.assertEquals(payload, {})
+        Luaunit.assertEquals(results, expectedResults)
+
+        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(serverThread)
     end
