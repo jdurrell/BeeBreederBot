@@ -7,6 +7,7 @@ require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
+local Logger = require("Shared.Logger")
 local MutationMath = require("BeeServer.MutationMath")
 
 ---@class BeeServer
@@ -53,7 +54,7 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     if (self.foundSpecies[data.species] == nil) or (self.foundSpecies[data.species].timestamp < data.node.timestamp) then
         self.foundSpecies[data.species] = data.node
         table.insert(self.leafSpeciesList, data.species)
-        LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
+        Logger.LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
     end
 end
 
@@ -199,9 +200,9 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
 
     -- Read our local logfile to figure out which species we already have (and where they're stored).
     -- We will synchronize this with the robot later on via LogStreamHandler when it boots up.
-    obj.foundSpecies = ReadSpeciesLogFromDisk(logFilepath)
+    obj.foundSpecies = Logger.ReadSpeciesLogFromDisk(logFilepath)
     if obj.foundSpecies == nil then
-        Print("Failed to get found species from logfile.")
+        Print("Got an error while reading logfile.")
         obj:Shutdown()
     end
     obj.leafSpeciesList = {}

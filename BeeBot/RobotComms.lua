@@ -129,7 +129,7 @@ function SyncLogWithServer(addr, foundSpecies)
         end
         if (foundSpecies[data.species] == nil) or (foundSpecies[data.species].timestamp < data.node.timestamp) then
             foundSpecies[data.species] = data.node
-            LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
+            Logger.LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
         end
     end
 

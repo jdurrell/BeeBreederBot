@@ -6,61 +6,14 @@ Event = require("Test.SimulatorModules.Event")
 Res = require("Test.Resources.TestData")
 Serialization = require("Test.SimulatorModules.Serialization")
 Term = require("Test.SimulatorModules.Term")
+Util = require("Test.Utilities")
 
 BeeServer = require("BeeServer.BeeServer")
 CommLayer = require("Shared.CommLayer")
 
 
-SEED_LOG_DIR = "./Test/Resources/LogfileSeeds/"
-OPERATIONAL_LOG_DIR = "./Test/out_data/"
-DEFAULT_LOG_NAME = OPERATIONAL_LOG_DIR .. "BeeBreederBot.log"
-
----@param seedPath string | nil
----@param operationalPath string | nil
----@return string
-function CreateServerLogfile(seedPath, operationalPath)
-    local errMsg = nil
-
-    -- Overwrite whatever file might have existed from a previous test.
-    local newFilepath = (operationalPath ~= nil) and (OPERATIONAL_LOG_DIR .. DEFAULT_LOG_NAME) or DEFAULT_LOG_NAME
-    local newFile, err = io.open(newFilepath, "w")
-    if newFile == nil then
-        errMsg = err
-        goto cleanup
-    end
-    newFile = UnwrapNull(newFile)
-
-    -- Lua's standard library doesn't have a way to copy a file,
-    -- so we have to copy the seed to the target on our own.
-    if seedPath ~= nil then
-        local seedFilepath = SEED_LOG_DIR .. seedPath
-        local seedFile, err2 = io.open(seedFilepath, "r")
-        if seedFile == nil then
-            errMsg = err2
-            goto cleanup
-        end
-        seedFile = UnwrapNull(io.open(seedFilepath, "r"))
-        for line in seedFile:lines("l") do
-            newFile:write(line .. "\n")
-        end
-        seedFile:close()
-    end
-
-    ::cleanup::
-    if newFile ~= nil then
-        newFile:flush()
-        newFile:close()
-    end
-
-    if errMsg ~= nil then
-        Luaunit.fail(errMsg)
-    end
-
-    return newFilepath
-end
-
----@param thread thread
----@return ... -- Returns the response from the thread.
+ ---@param thread thread
+---@return ... Returns the response from the thread.
 function RunThreadAndVerifyRan(thread)
     local responses = table.pack(Coroutine.resume(thread))
     Luaunit.assertTrue(responses[1])
@@ -151,13 +104,13 @@ TestBeeServerStandalone = {}
     end
 
     function TestBeeServerStandalone:TestLaunchAndShutdown()
-        local logFilepath = CreateServerLogfile(nil, nil)
+        local logFilepath = Util.CreateLogfileSeed(nil, nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
         StopServerAndVerifyShutdown(serverThread)
     end
 
     function TestBeeServerStandalone:TestLaunchIdleShutdown()
-        local logFilepath = CreateServerLogfile(nil, nil)
+        local logFilepath = Util.CreateLogfileSeed(nil, nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
 
         -- Let the server idle for a while, then shut it down.
@@ -169,7 +122,7 @@ TestBeeServerStandalone = {}
     end
 
     function TestBeeServerStandalone:TestLaunchWithLogAndShutdown()
-        local logFilepath = CreateServerLogfile("BasicLog.log", nil)
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", nil)
         Component.tile_for_apiculture_0_name.__Initialize(Res.BeeGraphMundaneIntoCommon)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
 

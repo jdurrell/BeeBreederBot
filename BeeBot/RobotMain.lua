@@ -21,6 +21,7 @@ require("Shared.Shared")
 require("BeeBot.BreederOperation")
 require("BeeBot.RobotComms.lua")
 CommLayer = require("Shared.CommLayer")
+Logger = require("Shared.Logger")
 
 
 ServerAddress = nil
@@ -72,7 +73,7 @@ end
 ServerAddress = UnwrapNull(ServerAddress)
 print("Received ping response from bee-graph server at " .. ServerAddress)
 
-StorageInfo.chestArray = ReadSpeciesLogFromDisk(LOG_FILE)
+StorageInfo.chestArray = Logger.ReadSpeciesLogFromDisk(LOG_FILE)
 if StorageInfo.chestArray == nil then
     print("Got nil when reading species Log.")
     ExitProgram(1)

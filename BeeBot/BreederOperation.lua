@@ -240,7 +240,7 @@ function StoreSpecies(species, filepath, storageInfo)
         storageInfo.chestArray[species] = chestNode
 
         -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-        LogSpeciesToDisk(filepath, species, chestNode.loc, chestNode.timestamp)
+        Logger.LogSpeciesToDisk(filepath, species, chestNode.loc, chestNode.timestamp)
     end
 
     moveToChest(chestNode.loc)
