@@ -1,8 +1,10 @@
 Coroutine = require("coroutine")
 Luaunit = require("Test.luaunit")
 
+ApicultureTiles = require("Test.SimulatorModules.Component.ApicultureTiles")
 Component = require("Test.SimulatorModules.Component.Component")
 Event = require("Test.SimulatorModules.Event")
+Modem = require("Test.SimulatorModules.Component.Modem")
 Res = require("Test.Resources.TestData")
 Serialization = require("Test.SimulatorModules.Serialization")
 Term = require("Test.SimulatorModules.Term")
@@ -14,7 +16,7 @@ CommLayer = require("Shared.CommLayer")
 
  ---@param thread thread
 ---@return ... Returns the response from the thread.
-function RunThreadAndVerifyRan(thread)
+local function RunThreadAndVerifyRan(thread)
     local responses = table.pack(Coroutine.resume(thread))
     Luaunit.assertTrue(responses[1])
     Luaunit.assertEquals(Coroutine.status(thread), "suspended")
@@ -23,14 +25,14 @@ end
 
 ---@param thread thread
 ---@param expectedResponse string
-function RunThreadAndVerifyResponse(thread, expectedResponse)
+local function RunThreadAndVerifyResponse(thread, expectedResponse)
     local actualResponse = RunThreadAndVerifyRan(thread)
     Luaunit.assertEquals(actualResponse, expectedResponse)
 end
 
 ---@param logfile string
 ---@param port integer
-function CreateServerInstance(logfile, port)
+local function CreateServerInstance(logfile, port)
     local server = nil
     local thread = Coroutine.create(function ()
         server = BeeServer:Create(Component, Event, Serialization, Term, logfile, port)
@@ -48,7 +50,7 @@ end
 -- Verifies that the state of the modem is correct directly after server start.
 ---@param port integer
 ---@param thread thread
-function VerifyModemStateAfterServerStart(port, thread)
+local function VerifyModemStateAfterServerStart(port, thread)
     -- After starting the server normally, the modem should have only
     -- one port open (the port we gave it) and that port should have
     -- only one receiver (the thread we started the server on).
@@ -61,7 +63,7 @@ function VerifyModemStateAfterServerStart(port, thread)
 end
 
 -- Verifies that the state of the modem is correct directly after server shutdown.
-function VerifyModemStateAfterServerShutdown()
+local function VerifyModemStateAfterServerShutdown()
     -- After shutting down normally, the modem should have been closed.
     -- Since the server object in the test is the only object accessing the
     -- modem in these tests, no port should have any receivers at this point.
@@ -73,7 +75,7 @@ end
 ---@param logfile string
 ---@param port integer
 ---@return thread, BeeServer
-function StartServerAndVerifyStartup(logfile, port)
+local function StartServerAndVerifyStartup(logfile, port)
     -- Start the server and verify that it started correctly.
     local serverThread, server = CreateServerInstance(logfile, port)
     Luaunit.assertNotIsNil(server)
@@ -86,7 +88,7 @@ function StartServerAndVerifyStartup(logfile, port)
 end
 
 ---@param serverThread thread
-function StopServerAndVerifyShutdown(serverThread)
+local function StopServerAndVerifyShutdown(serverThread)
     -- Now command the server to shut down and verify that it did so correctly.
     Term.__write(serverThread, "shutdown")
     local ran, response, exitCode = Coroutine.resume(serverThread)
@@ -94,6 +96,23 @@ function StopServerAndVerifyShutdown(serverThread)
     Luaunit.assertEquals(response, "exit")
     Luaunit.assertEquals(exitCode, 0)
     VerifyModemStateAfterServerShutdown()
+end
+
+---@param receiverExpected thread
+---@param senderExpected thread
+---@param portExpected integer
+---@param codeExpected MessageCode
+---@return any -- The payload of the message. Verifying this is caller-specific.
+local function VerifyModemResponse(receiverExpected, senderExpected, portExpected, codeExpected)
+    local event, receiverActual, senderActual, portActual, _, message = Event.__pullNoYield("modem_message")
+    Luaunit.assertNotIsNil(event)
+    Luaunit.assertEquals(receiverActual, receiverExpected)
+    Luaunit.assertEquals(senderActual, senderExpected)
+    Luaunit.assertEquals(portActual, portExpected)
+    Luaunit.assertNotIsNil(message)
+    Luaunit.assertEquals(message.code, codeExpected)
+
+    return message.payload
 end
 
 TestBeeServerStandalone = {}
@@ -128,5 +147,62 @@ TestBeeServerStandalone = {}
 
         -- Verify that the server read the log correctly.
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"Forest", "Meadows", "Tropical"})
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestLaunchWithEmptyLogAndShutdown()
+        local logFilepath = Util.CreateLogfileSeed(nil, nil)
+        Component.tile_for_apiculture_0_name.__Initialize(Res.BeeGraphMundaneIntoCommon)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+
+        -- Verify that the server didn't fail on an empty log.
+        Luaunit.assertItemsEquals(server.leafSpeciesList, {})
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestPing()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+
+        local logFilepath = Util.CreateLogfileSeed(nil, nil)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.PingRequest, payload={transactionId=456789}})
+        RunThreadAndVerifyResponse(serverThread, "modem_send")
+        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
+        Luaunit.assertEquals(response, {transactionId=456789})
+        Modem.close(CommLayer.DefaultComPort)
+
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        StopServerAndVerifyShutdown(serverThread)
+    end
+
+    function TestBeeServerStandalone:TestPath()
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local logFilepath = Util.CreateLogfileSeed("BasicLog.log", nil)
+        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success)
+
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        Term.__write(serverThread, "breed Cultivated")
+
+        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.PathRequest})
+        RunThreadAndVerifyResponse(serverThread, "modem_send")
+        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PathResponse)
+        Luaunit.assertNotIsNil(response)
+
+        Util.AssertPathIsValidInGraph(server.beeGraph, response, "Cultivated")
+        Modem.close(CommLayer.DefaultComPort)
+
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(serverThread)
     end

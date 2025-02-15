@@ -1,6 +1,5 @@
 -- This is a module that simulates OC's event API for testing.
--- Mostly, this is used for simulating communication between
--- robot and server.
+-- Mostly, this is used for simulating communication between robot and server.
 -- We yield immediately before polling for an event. We could also yield
 -- directly after publishing an event, but we will do that at the modem
 -- layer instead of in here because broadcasting could publish several times.
@@ -54,8 +53,16 @@ end
 function M.pull(timeout, key)
     -- We actually ignore the timeout since it's largely pointless in the testing environment.
 
-    -- Yield in case we want something to respond here.
+    -- Yield from code under test in case we want something to respond here.
     Coroutine.yield("event_pull")
+    return M.__pullNoYield(key)
+end
+
+-- Attempts to pull an event of the given key from the event queue. Returns nil if nothing was found.
+-- This does not yield the coroutine so that it can be called from test verification code.
+---@param key string
+---@return string | nil, ...
+function M.__pullNoYield(key)
     local thread = Coroutine.running()
 
     if (M.__events[thread] == nil) or M.__events[thread][key] == nil then

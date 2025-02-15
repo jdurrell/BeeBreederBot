@@ -61,8 +61,7 @@ end
 ---@param addr string
 ---@param data LogStreamRequestPayload
 function BeeServer:LogStreamHandler(addr, data)
-    -- We check this for nil already.
-    for species, node in pairs(UnwrapNull(self.foundSpecies)) do
+    for species, node in pairs(self.foundSpecies) do
         local payload = {species=species, node=node}
         self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, payload)
 
@@ -101,11 +100,13 @@ function BeeServer:BreedCommandHandler(argv)
 
     if self.beeGraph[species] == nil then
         Print("Error: could not find species '" .. species .. "' in breeding graph.")
+        return
     end
 
     local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species)
     if path == nil then
         Print("Error: Could not find breeding path for species '" .. species .. "'.")
+        return
     end
 
     -- We computed a valid path for this species. Save it to the current breed path and print it out for the user.
@@ -177,6 +178,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     -- Register request handlers.
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.PathRequest] = BeeServer.PathHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
         [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler

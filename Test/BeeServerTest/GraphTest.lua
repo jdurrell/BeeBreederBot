@@ -1,8 +1,11 @@
 Luaunit = require("Test.luaunit")
+
+Res = require("Test.Resources.TestData")
+Util = require("Test.Utilities")
+
 GraphParse = require("BeeServer.GraphParse")
 GraphQuery = require("BeeServer.GraphQuery")
 require("Shared.Shared")
-Res = require("Test.Resources.TestData")
 
 -- Helper function to verify equivalence of two SpeciesGraphs. Since Luaunit's `assertItemsEquals()`
 -- is not fully recursive, this is needed to properly compare the unordered lists deeper in the graph.
@@ -97,53 +100,6 @@ function ArrayContains(arr, value)
     end
 
     return false
-end
-
----@param graph SpeciesGraph
----@param path BreedPathNode[] | nil
----@param target string
-function AssertPathIsValidInGraph(graph, path, target)
-    local speciesInPath = {}
-
-    Luaunit.assertNotIsNil(path)
-    path = UnwrapNull(path)
-
-    for _, pathNode in ipairs(path) do
-        local graphNode = graph[pathNode.target]
-        Luaunit.assertNotIsNil(graphNode)
-
-        if pathNode.parent1 == nil then
-            -- It doesn't make sense to have a single parent.
-            Luaunit.assertIsNil(pathNode.parent2)
-
-            -- If there are no parents, then assert that this is a leaf node.
-            Luaunit.assertIsTrue(#graphNode.parentMutations == 0)
-        else
-            -- TODO: Is there any case of a species mutation that can arise from breeding with itself?
-            Luaunit.assertIsTrue(pathNode.parent1 ~= pathNode.parent2)
-            Luaunit.assertNotIsNil(pathNode.parent2)
-
-            -- Assert that the parents listed in the node are also in the graph.
-            local parentMutation = nil
-            for _, mut in ipairs(graphNode.parentMutations) do
-                if ArrayContains(mut.parents, pathNode.parent1) and ArrayContains(mut.parents, pathNode.parent2) then
-                    parentMutation = mut
-                    break;
-                end
-            end
-            Luaunit.assertNotIsNil(parentMutation)
-
-            -- Assert that both of the parents appeared before this in the path.
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent1))
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent2))
-        end
-
-        table.insert(speciesInPath, pathNode.target)
-    end
-
-    -- Assert that the path actually ends at the target.
-    Luaunit.assertIsTrue(speciesInPath[#speciesInPath] == target)
-    Luaunit.assertIsTrue(speciesInPath[#speciesInPath] == path[#path].target)
 end
 
 TestGraphParse = {}
@@ -315,11 +271,11 @@ TestGraphQuery = {}
     function TestGraphQuery:TestGraphQueryBasic()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Common")
-        AssertPathIsValidInGraph(graph, path, "Common")
+        Util.AssertPathIsValidInGraph(graph, path, "Common")
     end
 
     function TestGraphQuery:TestGraphQueryMultistep()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
         local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
-        AssertPathIsValidInGraph(graph, path, "Cultivated")
+        Util.AssertPathIsValidInGraph(graph, path, "Cultivated")
     end

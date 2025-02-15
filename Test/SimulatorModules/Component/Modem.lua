@@ -73,7 +73,7 @@ function M.broadcast(port, message)
     -- We must yield here to give receivers a chance to respond to this.
     -- Because we have (possibly) multiple receivers, we do this here instead
     -- of in the event layer.
-    Coroutine.yield("modem.broadcast")
+    Coroutine.yield("modem_broadcast")
 end
 
 -- Transmits the given message to the receiver identified by addr.
@@ -81,6 +81,23 @@ end
 ---@param port integer
 ---@param message string
 function M.send(addr, port, message)
+
+    M.__sendNoYield(addr, port, message)
+
+    -- We must yield here to give receivers a chance to respond to this.
+    -- Because broadcast messages have (possibly) multiple receivers, we
+    --  do this here instead of in the event layer.
+    Coroutine.yield("modem_send")
+
+    return true
+end
+
+-- Transmits the given message to the receiver identified by addr.
+-- This does not yield the coroutine so that it can be called from test verification code.
+---@param addr any
+---@param port integer
+---@param message any
+function M.__sendNoYield(addr, port, message)
     local thread = Coroutine.running()
     Luaunit.assertNotIsNil(M.__openPorts[port])
 
@@ -92,15 +109,18 @@ function M.send(addr, port, message)
     -- TODO: Refactor M.__openPorts[port] to be a set instead of a list so we don't have to do this nonsense.
     for _, receiver in ipairs(M.__openPorts[port]) do
         if receiver == addr then
-            local eventToPush = {receiver, thread, port, 0, message}
-            Event.__push(receiver, "modem_message", eventToPush)
+            Event.__push(receiver, "modem_message", M.__CreateModemEvent(receiver, thread, port, message))
         end
     end
+end
 
-    -- We must yield here to give receivers a chance to respond to this.
-    -- Because broadcast messages have (possibly) multiple receivers, we
-    --  do this here instead of in the event layer.
-    Coroutine.yield("modem.send")
+---@param receiver thread
+---@param sender thread
+---@param port integer
+---@param message any
+---@return any
+function M.__CreateModemEvent(receiver, sender, port, message)
+    return {receiver, sender, port, 0, message}
 end
 
 return M

@@ -50,4 +50,51 @@ function M.CreateLogfileSeed(seedPath, operationalPath)
     return newFilepath
 end
 
+---@param graph SpeciesGraph
+---@param path BreedPathNode[] | nil
+---@param target string
+function M.AssertPathIsValidInGraph(graph, path, target)
+    local speciesInPath = {}
+
+    Luaunit.assertNotIsNil(path)
+    path = UnwrapNull(path)
+
+    for _, pathNode in ipairs(path) do
+        local graphNode = graph[pathNode.target]
+        Luaunit.assertNotIsNil(graphNode)
+
+        if pathNode.parent1 == nil then
+            -- It doesn't make sense to have a single parent.
+            Luaunit.assertIsNil(pathNode.parent2)
+
+            -- If there are no parents, then assert that this is a leaf node.
+            Luaunit.assertIsTrue(#graphNode.parentMutations == 0)
+        else
+            -- TODO: Is there any case of a species mutation that can arise from breeding with itself?
+            Luaunit.assertIsTrue(pathNode.parent1 ~= pathNode.parent2)
+            Luaunit.assertNotIsNil(pathNode.parent2)
+
+            -- Assert that the parents listed in the node are also in the graph.
+            local parentMutation = nil
+            for _, mut in ipairs(graphNode.parentMutations) do
+                if ArrayContains(mut.parents, pathNode.parent1) and ArrayContains(mut.parents, pathNode.parent2) then
+                    parentMutation = mut
+                    break;
+                end
+            end
+            Luaunit.assertNotIsNil(parentMutation)
+
+            -- Assert that both of the parents appeared before this in the path.
+            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent1))
+            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent2))
+        end
+
+        table.insert(speciesInPath, pathNode.target)
+    end
+
+    -- Assert that the path actually ends at the target.
+    Luaunit.assertIsTrue(speciesInPath[#speciesInPath] == target)
+    Luaunit.assertIsTrue(speciesInPath[#speciesInPath] == path[#path].target)
+end
+
 return M
