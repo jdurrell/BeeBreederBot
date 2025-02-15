@@ -89,11 +89,7 @@ function M.LogSpeciesToDisk(filepath, species, location, timestamp)
             return false
         end
 
-        logfile, errMsg = io.open(filepath, "r")
-        if logfile == nil then
-            Print("Failed to open new logfile for reading: " .. errMsg .. "\n")
-            return false
-        end
+        return true
     end
 
     -- We want to keep the file alphabetical so that it's easier for a human to use.

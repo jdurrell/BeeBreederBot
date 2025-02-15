@@ -138,7 +138,7 @@ TestBeeServerStandalone = {}
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
 
         -- Let the server idle for a while, then shut it down.
-        for i=1, 10 do
+        for i = 1,10 do
             RunThreadAndVerifyResponse(serverThread, "event_pull")
             RunThreadAndVerifyResponse(serverThread, "term_pull")
         end
