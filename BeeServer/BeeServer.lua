@@ -54,7 +54,7 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     if (self.foundSpecies[data.species] == nil) or (self.foundSpecies[data.species].timestamp < data.node.timestamp) then
         self.foundSpecies[data.species] = data.node
         table.insert(self.leafSpeciesList, data.species)
-        Logger.LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
+        Logger.LogSpeciesToDisk(self.logFilepath, data.species, data.node.loc, data.node.timestamp)
     end
 end
 
