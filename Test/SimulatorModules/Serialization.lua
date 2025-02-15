@@ -15,7 +15,7 @@ end
 -- Deserializes the given string into the original table.
 ---@param str string
 ---@return any
-function M.deserialize(str)
+function M.unserialize(str)
     return str
 end
 

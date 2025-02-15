@@ -78,7 +78,7 @@ function CommLayer:GetIncoming(timeout)
         return nil, nil
     end
 
-    response = Comm:DeserializeMessage(response)
+    response = self:DeserializeMessage(response)
 
     return response, addr
 end
