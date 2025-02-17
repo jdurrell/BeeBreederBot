@@ -11,7 +11,6 @@ local Logger = require("Shared.Logger")
 local MutationMath = require("BeeServer.MutationMath")
 
 ---@class BeeServer
----@field component any
 ---@field event any
 ---@field term any
 ---@field beeGraph SpeciesGraph
@@ -186,7 +185,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     -- Store away system libraries.
     -- Do this in the constructor instead of statically so that we can inject our
     -- own system libraries for testing.
-    obj.component = componentLib
     obj.event = eventLib
     obj.term = termLib
     obj.logFilepath = logFilepath
@@ -222,7 +220,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     Print("Importing bee graph.")
     if componentLib.tile_for_apiculture_0_name == nil then
         Print("Couldn't find attached apiculture tile in the component library.")
-        obj:Shutdown()
+        obj:Shutdown(1)
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
 
@@ -231,7 +229,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     obj.foundSpecies = Logger.ReadSpeciesLogFromDisk(logFilepath)
     if obj.foundSpecies == nil then
         Print("Got an error while reading logfile.")
-        obj:Shutdown()
+        obj:Shutdown(1)
     end
     obj.leafSpeciesList = {}
     for spec, _ in pairs(obj.foundSpecies) do

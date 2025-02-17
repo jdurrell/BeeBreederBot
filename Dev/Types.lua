@@ -115,9 +115,11 @@
 ---@alias LogStreamResponsePayload {species: string, node: StorageNode}
 ---@alias LogStreamRequestPayload nil
 ---@alias PathRequestPayload nil
----@alias PathResponsePayload {breedInfo: BreedPathNode[]}
+---@alias PathResponsePayload BreedPathNode[]
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}
+---@alias LocationRequestPayload {species: string}
+---@alias LocationResponsePayload {loc: Point}
 
 ---@class Set<T>: table<T, boolean>

@@ -47,34 +47,34 @@ function M.__push(thread, key, event)
 end
 
 -- Attempts to pull an event of the given key from the event queue. Returns nil if nothing was found.
----@param timeout number
----@param key string
+---@param timeout? number
+---@param name string
 ---@return string | nil, ...
-function M.pull(timeout, key)
+function M.pull(timeout, name)
     -- We actually ignore the timeout since it's largely pointless in the testing environment.
 
     -- Yield from code under test in case we want something to respond here.
     Coroutine.yield("event_pull")
-    return M.__pullNoYield(key)
+    return M.__pullNoYield(name)
 end
 
 -- Attempts to pull an event of the given key from the event queue. Returns nil if nothing was found.
 -- This does not yield the coroutine so that it can be called from test verification code.
----@param key string
+---@param name string
 ---@return string | nil, ...
-function M.__pullNoYield(key)
+function M.__pullNoYield(name)
     local thread = Coroutine.running()
 
-    if (M.__events[thread] == nil) or M.__events[thread][key] == nil then
+    if (M.__events[thread] == nil) or M.__events[thread][name] == nil then
         return nil
     end
 
-    local event = M.__events[thread][key]:Pull()
+    local event = M.__events[thread][name]:Pull()
     if event == nil then
         return nil
     end
 
-    return key, table.unpack(event)
+    return name, table.unpack(event)
 end
 
 return M

@@ -1,138 +1,205 @@
----@return string | nil addr  The address of the server that responded to the ping.
-function EstablishComms()
+-- This module encapsulates various common operations that involve the robot communicating with the server.
+
+require("Shared.Shared")
+
+---@class RobotComms
+---@field comm CommLayer
+---@field serverAddr string
+local RobotComms = {}
+
+---@param expectedCode MessageCode
+---@param response any
+---@param shouldHavePayload boolean
+---@return boolean
+function RobotComms:ValidateExpectedResponse(expectedCode, response, shouldHavePayload)
+    if response == nil then
+        Print("Got unexpected nil response when expecting response of type " .. tostring(expectedCode) .. ".")
+        return false
+    end
+
+    if response.code == CommLayer.MessageCode.CancelRequest then
+        Print("Received cancellation request.")
+        return false
+    end
+
+    if response.code ~= expectedCode then
+        Print("Got unexpected response of type " .. tostring(response.code) .. ". Expected response of type " .. tostring(expectedCode) .. ".")
+        return false
+    end
+
+    if shouldHavePayload and (response.payload == nil) then
+        Print("Got unexpected nil payload in response of type " .. tostring(response.code) .. ".")
+        return false
+    end
+
+    return true
+end
+
+---@return string addr  The address of the server that responded to the ping.
+function RobotComms:EstablishComms()
     Print("Establishing conection to server...")
 
     local tid = math.floor(math.random(65535))
     local payload = {transactionId=tid}
-    Comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
+    self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
 
     while true do
-        local response, addr = Comm:GetIncoming(10)
-        if response == nil then
-            return nil
-        elseif response.code == CommLayer.MessageCode.PingResponse then
-            ---@type PingResponsePayload
-            local data = response.payload
-            if (response.code == CommLayer.MessageCode.PingResponse) and (data.transactionId == tid) then
-                return addr
+        local response, addr = self.comm:GetIncoming(nil)
+        if self:ValidateExpectedResponse(CommLayer.MessageCode.PingResponse, response, true) then
+            response = UnwrapNull(response)
+            if response.payload.transactionId == tid then
+                return UnwrapNull(addr)
+            else
+                Print("Got unexpected ping response with transaction id " .. tostring(response.payload.transactionId) .. ".")
             end
         end
 
         -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
         -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous instance of this program.
-        -- If we timed out, then just continue.
     end
 end
 
----@param addr string
----@return integer, BreedPathNode[]
-function GetBreedPathFromServer(addr)
-    Comm:SendMessage(addr, CommLayer.MessageCode.PathRequest, nil)
+---@return BreedPathNode[] | nil
+function RobotComms:GetBreedPathFromServer()
+    ::restart::
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PathRequest, nil)
 
-    local response, _ = Comm:GetIncoming(10)
+    local response, _ = self.comm:GetIncoming(5.0)
     if response == nil then
-        -- Timed out.
-        return E_TIMEDOUT, {}
+        self:EstablishComms()
+        goto restart
+    elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.PathResponse, response, true) then
+        return nil
     end
 
-    if response.code == CommLayer.MessageCode.CancelRequest then
-        return E_CANCELLED, {}
-    elseif response.code ~= CommLayer.MessageCode.PathResponse then
-        Print("Error: Got unexpected code from the server during BreedPath query: " .. tostring(response.code))
-    end
-
-    ---@type PathResponsePayload
-    local data = response.payload
-
-    -- TODO: Check if it's possible for breedInfo to be more than the 8kB message limit.
-    --       If so, then we will need to sequence these responses to build the full table before returning it.
-    return E_NOERROR, data.breedInfo
+    return UnwrapNull(response).payload
 end
 
----@param addr string
+---@param species string
+---@return Point | nil
+function RobotComms:GetStorageLocationFromServer(species)
+    ::restart::
+    local payload = {species=species}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LocationRequest, payload)
+
+    local response, _ = self.comm:GetIncoming(5.0)
+    if response == nil then
+        self:EstablishComms()
+        goto restart
+    elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.LocationResponse, response, true) then
+        return nil
+    end
+
+    return UnwrapNull(response).payload.loc
+end
+
 ---@param target string
----@return integer, table<string, table<string, number>>
-function GetBreedInfoFromServer(addr, target)
+---@return table<string, table<string, number>> | nil
+function RobotComms:GetBreedInfoFromServer(target)
+    ::restart::
     local payload = {target=target}
-    Comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoRequest, payload)
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
-    local response, _ = Comm:GetIncoming(10)
+    local response, _ = self.comm:GetIncoming(5.0)
     if response == nil then
-        -- Timed out.
-        return E_TIMEDOUT, {}
+        self:EstablishComms()
+        goto restart
+    end
+    if not self:ValidateExpectedResponse(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
+        return nil
     end
 
-    if response.code == CommLayer.MessageCode.CancelRequest then
-        return E_CANCELLED, {}
-    elseif response.code ~= CommLayer.MessageCode.BreedInfoResponse then
-        return E_CANCELLED, {}
-    end
-
-    ---@type BreedInfoResponsePayload
-    local breedInfo = response.payload
-    return E_NOERROR, breedInfo
+    return UnwrapNull(response).payload
 end
 
----@param addr string
 ---@param node StorageNode
-function ReportSpeciesFinishedToServer(addr, node)
+function RobotComms:ReportSpeciesFinishedToServer(node)
     -- Report the update to the server.
-    Comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundRequest, node)
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, node)
 
     -- TODO: Do we need an ACK for this?
 end
 
----@param addr string
+-- TODO: Find a replacement for this concept. Using this function is probably architecturally unsound since it could cause us to drop another message.
 ---@return boolean
-function PollForCancel(addr)
-    local response, _ Comm:GetIncoming(0)
-    if response ~= nil then
-        return response.code == CommLayer.MessageCode.CancelRequest
+function RobotComms:PollForCancel()
+    local response, _ self.comm:GetIncoming(0)
+    if response == nil then
+        return false
     end
 
-    return false
+    return response.code == CommLayer.MessageCode.CancelRequest
 end
 
----@param addr string
----@param foundSpecies table<string, StorageNode> in/out parameter
----@return integer
-function SyncLogWithServer(addr, foundSpecies)
-    -- Stream our log to the server.
-    for species, storageNode in pairs(foundSpecies) do
+---@param chestArray table<string, StorageNode>
+function RobotComms:SendLogToServer(chestArray)
+    for species, storageNode in pairs(chestArray) do
         local payload = {species=species, node=storageNode}
-        Comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
+        self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
         -- Give the server time to actually process instead of just blowing up its buffer.
         Sleep(0.2)
     end
+end
 
-    -- Now request the server's log and update our local state.
-    Comm:SendMessage(addr, CommLayer.MessageCode.LogStreamRequest, nil)
+-- Fetches the server's entire log.
+---@return StorageInfo | nil
+function RobotComms:RetrieveLogFromServer()
+    ::restart::
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LogStreamRequest, nil)
 
+    local serverLog = {}
     while true do
-        local response, _ = Comm:GetIncoming(2.0)
+        local response, _ = self.comm:GetIncoming(5.0)
         if response == nil then
-            return E_TIMEDOUT
+            self:EstablishComms()
+            goto restart
+        elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.LogStreamResponse, response, true) then
+            return nil
         end
 
-        if response.code == CommLayer.MessageCode.CancelRequest then
-            return E_CANCELLED
-        elseif response.code ~= CommLayer.MessageCode.LogStreamResponse then
-            Print("Unrecognized message code while attempting to process logs.")
-            return E_CANCELLED
+        if response.payload == {} then
+            -- This is the last message, so we are done.
+            break
         end
 
         ---@type LogStreamResponsePayload
         local data = response.payload
-        if data == {} then
-            return E_NOERROR
-        end
-        if (foundSpecies[data.species] == nil) or (foundSpecies[data.species].timestamp < data.node.timestamp) then
-            foundSpecies[data.species] = data.node
-            Logger.LogSpeciesToDisk(LOG_FILE, data.species, data.node.loc, data.node.timestamp)
-        end
+        serverLog[data.species] = data.node
     end
 
-    -- Should be unreachable.
-    return E_NOERROR
+    return serverLog
 end
+
+-- Closes the communications to the server.
+function RobotComms:Shutdown()
+    -- TODO: Should we fire off a "shutting down" message to the server?
+
+    if self.comm ~= nil then
+        self.comm:Close()
+    end
+end
+
+-- Creates a RobotComms object.
+---@param modemLib any
+---@param serializationLib any
+---@param port integer
+---@return RobotComms | nil
+function RobotComms:Create(modemLib, serializationLib, port)
+    local obj = {}
+    setmetatable(obj, self)
+    self.__index = self
+
+    local comm = CommLayer:Open(modemLib, serializationLib, port)
+    if comm == nil then
+        Print("Failed to open CommLayer during RobotComms initialization.")
+        return nil
+    end
+    obj.comm = comm
+
+    obj.serverAddr = obj:EstablishComms()
+
+    return obj
+end
+
+return RobotComms

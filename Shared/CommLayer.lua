@@ -19,7 +19,9 @@ CommLayer.MessageCode = {
     BreedInfoRequest = 8,
     BreedInfoResponse = 9,
     LogStreamRequest = 10,
-    LogStreamResponse = 11
+    LogStreamResponse = 11,
+    LocationRequest = 12,
+    LocationResponse = 13
 }
 
 CommLayer.DefaultComPort = 34000
@@ -70,7 +72,7 @@ function CommLayer:SendMessage(addr, messageCode, payload)
 end
 
 -- Checks for an incoming message. Returns nil if no message was received before the timeout.
----@param timeout number
+---@param timeout number | nil
 ---@return Message | nil, string | nil
 function CommLayer:GetIncoming(timeout)
     local event, _, addr, _, _, response = Event.pull(timeout, CommLayer.ModemEventName)
