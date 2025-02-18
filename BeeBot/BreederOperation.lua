@@ -92,11 +92,12 @@ function BreedOperator:swapBees(side)
     self.bk.swapDrone(side)
 end
 
+-- Returns whether the bee represented by the given stack is a pure bred version of the given species.
 ---@param beeStack AnalyzedBeeStack
 ---@param species string
 ---@return boolean
 local function isPureBred(beeStack, species)
-    return (beeStack.individual.active.species == beeStack.individual.inactive.species)
+    return (beeStack.individual.active.species == species) and (beeStack.individual.active.species == beeStack.individual.inactive.species)
 end
 
 -- Robot walks the apiary row and starts an empty apiary with the bees in its internal inventory.
