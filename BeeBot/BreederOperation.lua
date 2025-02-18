@@ -15,8 +15,6 @@ local BreedOperator = {}
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT = 1
 local DRONE_SLOT    = 2
-local PARENT1_HOLD_SLOT = 3
-local PARENT2_HOLD_SLOT = 4
 local NUM_INTERNAL_SLOTS = 16
 
 -- TODO: There's an existing conflict between this location and the drone storage.
@@ -350,12 +348,11 @@ end
 
 ---@param loc Point
 ---@param number integer
----@param intoSlot integer
 ---@return integer
-function BreedOperator:RetrieveDronesFromChest(loc, number, intoSlot)
+function BreedOperator:RetrieveDronesFromChest(loc, number)
     -- Go to the storage and pull drones out of the chest.
     self:moveToChest(loc)
-    self.robot.select(intoSlot)
+    self.robot.select(0)
     self.robot.suckDown(number)
 
     -- Return to the breeding station and place the drones into the drone chest.
@@ -392,7 +389,7 @@ function BreedOperator:ReplicateSpecies(species)
     storagePoint = UnwrapNull(storagePoint)
 
     -- Move starter bees to their respective chests.
-    self:RetrieveDronesFromChest(storagePoint, 32, PARENT1_HOLD_SLOT)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
+    self:RetrieveDronesFromChest(storagePoint, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
     self:RetrieveStockPrincessesFromChest({species})
 
     -- Replicate extras to replace the drones we took from the chest.
