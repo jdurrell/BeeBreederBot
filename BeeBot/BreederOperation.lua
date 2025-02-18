@@ -232,6 +232,7 @@ function BreedOperator:PickUpBees(target, breedInfo)
     -- TODO: We will accumulate more drones than we use during the operation of this breeder, so we need to garbage-collect the chest at some point.
 
     -- Actually pick up the bees.
+    -- TODO: Should we even do this here, or just return the selections?
     self.robot.select(PRINCESS_SLOT)
     self.ic.suckFromSlot(ANALYZED_PRINCESS_CHEST, princessSlotInChest, 1)
     self.robot.select(DRONE_SLOT)
@@ -293,45 +294,46 @@ function BreedOperator:returnToBreederStationFromChest(chestLoc)
     self:moveDistance(3, self.sides.down)
 end
 
----@param species string
----@return StorageNode
-function BreedOperator:StoreSpecies(species)
-    local chestNode = self.storageInfo.chestArray[species]
-    if chestNode == nil then
-        -- No pre-existing store for this species. Pick the next open one.
-        -- Copy by value so that we can update nextChest here as well.
-        chestNode = {
-            loc = {
-                x = self.storageInfo.nextChest.x,
-                y = self.storageInfo.nextChest.y
-            },
-            timestamp = GetCurrentTimestamp()
-        }
-
-        self.storageInfo.nextChest.x = self.storageInfo.nextChest.x + 1
-        if self.storageInfo.nextChest.x > 2 then
-            self.storageInfo.nextChest.x = 0
-            self.storageInfo.nextChest.y = self.storageInfo.nextChest.y + 1
-        end
-
-        self.storageInfo.chestArray[species] = chestNode
-
-        -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-        Logger.LogSpeciesToDisk(self.logFilepath, species, chestNode.loc, chestNode.timestamp)
-    end
-
-    self:moveToChest(chestNode.loc)
+-- Stores the drones on the robot in the chest at the given point.
+-- Starts and ends at the default position in the breeder station.
+---@param point Point
+function BreedOperator:StoreDrones(point)
+    self:moveToChest(point)
     -- TODO: Deal with the possibility of the chest having been broken/moved.
     self:unloadIntoChest()
-    self:returnToBreederStationFromChest(chestNode.loc)
+    self:returnToBreederStationFromChest(point)
+end
 
-    return chestNode
+---@param species string
+---@return Point
+function BreedOperator:ReportNewSpecies(species)
+    -- Pick the next open one store for this species.
+    local chestNode = {
+        loc = Copy(self.storageInfo.nextChest),
+        timestamp = GetCurrentTimestamp()
+    }
+
+    self.storageInfo.nextChest.y = self.storageInfo.nextChest.y + 1
+    if self.storageInfo.nextChest.y >= 5 then
+        self.storageInfo.nextChest.y = 0
+        self.storageInfo.nextChest.x = self.storageInfo.nextChest.x + 1
+    end
+
+    self.storageInfo.chestArray[species] = chestNode
+
+    -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
+    -- TODO: Does this concept even make any sense??? We might get rid of this, especially if we plan to
+    -- support multiple bots at some point (since they will all need to sync with the server).
+    Logger.LogSpeciesToDisk(self.logFilepath, species, chestNode.loc, chestNode.timestamp)
+    self.robotComms:ReportSpeciesFinishedToServer(species, chestNode)
+
+    return chestNode.loc
 end
 
 ---@param preferences string[]
 ---@return integer
 function BreedOperator:RetrieveStockPrincessesFromChest(preferences)
-    -- Go to he storage and pull princesses out of the stock chest.
+    -- Go to the storage and pull princesses out of the stock chest.
     self:moveToChest(BREEDING_STOCK_PRINCESSES_LOC)
     -- TODO: Analyze the inventory and try to choose princesses according to the given species preferences.
     self.robot.suckDown(1)  -- TODO: Number of retrieved princesses should be equal to the number of apiaries in use, which itself should be a config option.
@@ -408,13 +410,12 @@ function BreedOperator:ReplicateSpecies(species)
     -- but this is a mostly trivial way to recover from at least some possible bad behavior.
     storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
-        Print("Error getting storage location of " .. species .. " from server.")
-        return false
+        storagePoint = self.storageInfo.chestArray[species].loc
+    else
+        storagePoint = UnwrapNull(storagePoint)
     end
-    storagePoint = UnwrapNull(storagePoint)
 
-    -- TODO: Refactor StoreSpecies() to actually use storagePoint.
-    self:StoreSpecies(species)
+    self:StoreDrones(storagePoint)
 end
 
 -- Breeds the target species from the two given parents.
@@ -463,9 +464,8 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     storagePoint = UnwrapNull(storagePoint)
 
     -- If we have enough of the target species now, then clean up and break out.
-    -- TODO: Refactor StoreSpecies() to actually use storagePoint.
-    local node = self:StoreSpecies(target)
-    self.robotComms:ReportSpeciesFinishedToServer(node)
+    local point = self:ReportNewSpecies(target)
+    self:StoreDrones(point)
 end
 
 -- Retrieves the first two stacks from the holdovers chest and places them in the analyzed drone chest.

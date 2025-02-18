@@ -112,10 +112,12 @@ function RobotComms:GetBreedInfoFromServer(target)
     return UnwrapNull(response).payload
 end
 
+---@param species string
 ---@param node StorageNode
-function RobotComms:ReportSpeciesFinishedToServer(node)
+function RobotComms:ReportSpeciesFinishedToServer(species, node)
     -- Report the update to the server.
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, node)
+    local payload = {species = species, node = node}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
     -- TODO: Do we need an ACK for this?
 end
