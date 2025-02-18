@@ -7,7 +7,6 @@
 require("Shared.Shared")
 local BreederOperation = require("BeeBot.BreederOperation")
 local RobotComms = require("BeeBot.RobotComms")
-local Logger = require("Shared.Logger")
 
 ---@class BeeBot
 ---@field beekeeper any
@@ -87,7 +86,7 @@ function BeeBot:Create(componentLib, eventLib, serialLib, sidesLib, logFilepath,
     end
     obj.robotComms = UnwrapNull(robotComms)
 
-    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, sidesLib, obj.robotComms)
+    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, sidesLib, obj.robotComms, logFilepath)
     if breeder == nil then
         Print("Failed to initialize breeding operator.")
         obj:Shutdown(1)

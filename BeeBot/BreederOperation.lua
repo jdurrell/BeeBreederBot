@@ -1,5 +1,7 @@
 -- This module contains logic used by the breeder robot to manipulate bees and the apiaries.
 
+local Logger = require("Shared.Logger")
+
 ---@class BreedOperator
 ---@field bk any beekeeper library
 ---@field ic any inventory controller library
@@ -17,8 +19,17 @@ local PARENT1_HOLD_SLOT = 3
 local PARENT2_HOLD_SLOT = 4
 local NUM_INTERNAL_SLOTS = 16
 
-local ANALYZED_PRINCESS_CHEST
-local ANALYZED_DRONE_CHEST
+-- TODO: There's an existing conflict between this location and the drone storage.
+--       Either force the drone storage to not use this value, or physically separate
+--       this chest (2nd option probably better because user will likely have to manipulate
+--       it manually because princesses will need to enter and leave the system).
+---@type Point
+local BREEDING_STOCK_PRINCESSES_LOC = {x = 0, y = 0}
+
+local ANALYZED_DRONE_CHEST     -- directly to the right of the breeder station.
+local ANALYZED_PRINCESS_CHEST  -- directly to the left of the breeder station.
+local HOLDOVER_CHEST           -- to the right of the breeder station, 2 blocks up vertically.
+local OUTPUT_CHEST             -- to the left of the breeder station, 2 blocks up vertically.
 
 -- Info for chests for analyzed bees at the start of the apiary row.
 local BASIC_CHEST_INVENTORY_SLOTS = 27
@@ -34,7 +45,12 @@ function BreedOperator:SyncLogWithServer()
         return
     end
 
-    self.storageInfo = UnwrapNull(newInfo)
+    -- TODO: Adjust nextChest here as well. Alternatively, perhaps the server should own the concept of nextChest...
+    self.storageInfo.chestArray = UnwrapNull(newInfo)
+    for species, entry in pairs(self.storageInfo.chestArray) do
+        -- TODO: Overwrite the log in bulk.
+        Logger.LogSpeciesToDisk(self.logFilepath, species, entry.loc, entry.timestamp)
+    end
 end
 
 function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, sidesLib, robotComms, logFilepath)
@@ -175,15 +191,10 @@ function BreedOperator:PickUpBees(target, breedInfo)
             end
         end
 
-        -- If we don't have a princess right now, then sleep a little to give time to get one.
-        -- No point in consuming resources by checking constantly.
-        if princess == nil then
-            return E_NOPRINCESS
-        end
+        -- Sleep a little. If we don't have a princess, then no point in consuming resources by checking constantly.
+        -- If we do, then sleep a little longer to ensure we have all (or at least several of) the drones.
+        Sleep(2.0)
     end
-
-    -- Sleep a little longer to ensure we have all (or at least several of) the drones
-    Sleep(2.0)
 
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     ---@type AnalyzedBeeStack[]
@@ -261,9 +272,9 @@ end
 ---@param chestLoc Point
 function BreedOperator:moveToChest(chestLoc)
     --- Move to the chest row.
-    self.robot.move(self.sides.up)
+    self:moveDistance(3, self.sides.up)
     self:moveDistance(5, self.sides.right)
-    self.robot.move(self.sides.down)
+    self:moveDistance(3, self.sides.down)
 
     -- Move to the given chest.
     self:moveDistance(self.sides.right, chestLoc.x)
@@ -271,52 +282,67 @@ function BreedOperator:moveToChest(chestLoc)
 end
 
 ---@param chestLoc Point
-function BreedOperator:returnToStartFromChest(chestLoc)
+function BreedOperator:returnToBreederStationFromChest(chestLoc)
     -- Retrace to the beginning of the row.
     self:moveDistance(self.sides.back, chestLoc.y)
     self:moveDistance(self.sides.left, chestLoc.x)
 
     -- Return to the start from the chest row.
-    self.robot.move(self.sides.up)
+    self:moveDistance(3, self.sides.up)
     self:moveDistance(5, self.sides.left)
-    self.robot.move(self.sides.down)
+    self:moveDistance(3, self.sides.down)
 end
 
 ---@param species string
----@param filepath string
----@param storageInfo StorageInfo
 ---@return StorageNode
-function BreedOperator:StoreSpecies(species, filepath, storageInfo)
-    local chestNode = storageInfo.chestArray[species]
+function BreedOperator:StoreSpecies(species)
+    local chestNode = self.storageInfo.chestArray[species]
     if chestNode == nil then
         -- No pre-existing store for this species. Pick the next open one.
         -- Copy by value so that we can update nextChest here as well.
         chestNode = {
             loc = {
-                x = storageInfo.nextChest.x,
-                y = storageInfo.nextChest.y
+                x = self.storageInfo.nextChest.x,
+                y = self.storageInfo.nextChest.y
             },
             timestamp = GetCurrentTimestamp()
         }
 
-        storageInfo.nextChest.x = storageInfo.nextChest.x + 1
-        if storageInfo.nextChest.x > 2 then
-            storageInfo.nextChest.x = 0
-            storageInfo.nextChest.y = storageInfo.nextChest.y + 1
+        self.storageInfo.nextChest.x = self.storageInfo.nextChest.x + 1
+        if self.storageInfo.nextChest.x > 2 then
+            self.storageInfo.nextChest.x = 0
+            self.storageInfo.nextChest.y = self.storageInfo.nextChest.y + 1
         end
 
-        storageInfo.chestArray[species] = chestNode
+        self.storageInfo.chestArray[species] = chestNode
 
         -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-        Logger.LogSpeciesToDisk(filepath, species, chestNode.loc, chestNode.timestamp)
+        Logger.LogSpeciesToDisk(self.logFilepath, species, chestNode.loc, chestNode.timestamp)
     end
 
     self:moveToChest(chestNode.loc)
     -- TODO: Deal with the possibility of the chest having been broken/moved.
     self:unloadIntoChest()
-    self:returnToStartFromChest(chestNode.loc)
+    self:returnToBreederStationFromChest(chestNode.loc)
 
     return chestNode
+end
+
+---@param preferences string[]
+---@return integer
+function BreedOperator:RetrieveStockPrincessesFromChest(preferences)
+    -- Go to he storage and pull princesses out of the stock chest.
+    self:moveToChest(BREEDING_STOCK_PRINCESSES_LOC)
+    -- TODO: Analyze the inventory and try to choose princesses according to the given species preferences.
+    self.robot.suckDown(1)  -- TODO: Number of retrieved princesses should be equal to the number of apiaries in use, which itself should be a config option.
+
+    -- Return to the breeding station and place the princesses into the princess chest.
+    self:returnToBreederStationFromChest(BREEDING_STOCK_PRINCESSES_LOC)
+    self.robot.turnLeft()
+    self.robot.drop()
+    self.robot.select(0)
+
+    return E_NOERROR
 end
 
 ---@param loc Point
@@ -324,13 +350,13 @@ end
 ---@param intoSlot integer
 ---@return integer
 function BreedOperator:RetrieveDronesFromChest(loc, number, intoSlot)
+    -- Go to the storage and pull drones out of the chest.
     self:moveToChest(loc)
-
     self.robot.select(intoSlot)
     self.robot.suckDown(number)
 
-    self:returnToStartFromChest(loc)
-
+    -- Return to the breeding station and place the drones into the drone chest.
+    self:returnToBreederStationFromChest(loc)
     self.robot.turnRight()
     self.robot.drop()
     self.robot.select(0)
@@ -339,6 +365,7 @@ function BreedOperator:RetrieveDronesFromChest(loc, number, intoSlot)
 end
 
 -- Replicates drones of the given species.
+-- Places outputs into the holdover chest.
 ---@param species string
 ---@return boolean
 function BreedOperator:ReplicateSpecies(species)
@@ -347,13 +374,6 @@ function BreedOperator:ReplicateSpecies(species)
     -- This system currently only supports breeding a stack of drones that somebody could then
     -- use to very simply turn a different princess into a pure-bred production one.
 
-    local storagePoint = self.robotComms:GetStorageLocationFromServer(species)
-    if storagePoint == nil then
-        Print("Error getting storage location of " .. species .. " from server.")
-        return false
-    end
-    storagePoint = UnwrapNull(storagePoint)
-
     local breedInfo = self.robotComms:GetBreedInfoFromServer(species)
     if breedInfo == nil then
         Print("Unexpected error when retrieving breed info of species " .. species .. " from server.")
@@ -361,28 +381,30 @@ function BreedOperator:ReplicateSpecies(species)
     end
     breedInfo = UnwrapNull(breedInfo)
 
-    -- Move drones to the breeding chest.
-    self:RetrieveDronesFromChest(storagePoint, 32, PARENT1_HOLD_SLOT)
+    local storagePoint = self.robotComms:GetStorageLocationFromServer(species)
+    if storagePoint == nil then
+        Print("Error getting storage location of " .. species .. " from server.")
+        return false
+    end
+    storagePoint = UnwrapNull(storagePoint)
+
+    -- Move starter bees to their respective chests.
+    self:RetrieveDronesFromChest(storagePoint, 32, PARENT1_HOLD_SLOT)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
+    self:RetrieveStockPrincessesFromChest({species})
 
     -- Replicate extras to replace the drones we took from the chest.
     while true do
         local retval = self:PickUpBees(species, breedInfo)
-        if retval == E_NOERROR then
-            self:WalkApiariesAndStartBreeding()
-        elseif retval == E_GOTENOUGH_DRONES then
+        if retval == E_GOTENOUGH_DRONES then
             -- We have enough drones now, so break out.
             break
-        elseif retval == E_NOPRINCESS then
-            -- Otherwise, just hang out for a little while.
-            Sleep(5.0)
-        else
-            Print("Got unknown return code from the princess-drone matcher.")
-            return false
+        elseif retval == E_NOERROR then
+            self:WalkApiariesAndStartBreeding()
         end
     end
 
     -- Double check with the server about the location in case the user changed it during operation.
-    -- The user shouldn't really do this, and there's no way to eliminate this possibility entirely,
+    -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
     -- but this is a mostly trivial way to recover from at least some possible bad behavior.
     storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
@@ -392,9 +414,12 @@ function BreedOperator:ReplicateSpecies(species)
     storagePoint = UnwrapNull(storagePoint)
 
     -- TODO: Refactor StoreSpecies() to actually use storagePoint.
-    self:StoreSpecies(species, self.logFilepath, self.storageInfo)
+    self:StoreSpecies(species)
 end
 
+-- Breeds the target species from the two given parents.
+-- Requires drones of each species as inputs already in the holdover chest.
+-- Places outputs in the holdover chest.
 ---@param target string
 ---@param parent1 string
 ---@param parent2 string
@@ -405,31 +430,92 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     --   to one of the two parents. In this case, it could be impossible to get a drone that
     --   has a non-zero chance to breed the target. For now, we will just rely on random
     --   chance to eventually get us out of this scenario instead of detecting it outright.
-    while true do
-        ::retrytarget::
-        local breedInfoTarget = self.robotComms:GetBreedInfoFromServer(target)
-        if breedInfoTarget == nil then
-            Print("Unexpected error when retrieving target's breed info from server.")
-            return nil
-        end
-        breedInfoTarget = UnwrapNull(breedInfoTarget)
+    --   To solve the above, we will probably just have PickUpBees prioritize breeding
+    --   one of the parents if breeding the target has 0 chance with all princesses/drones.
+    local breedInfoTarget = self.robotComms:GetBreedInfoFromServer(target)
+    if breedInfoTarget == nil then
+        Print("Unexpected error when retrieving target's breed info from server.")
+        return nil
+    end
+    breedInfoTarget = UnwrapNull(breedInfoTarget)
 
+    -- Move starter bees to their respective chests.
+    self:ImportHoldoversToDroneChest()
+    self:RetrieveStockPrincessesFromChest({parent1, parent2})
+
+    while true do
         local retval = self:PickUpBees(target, breedInfoTarget)
-        if retval == E_NOERROR then
-            self:WalkApiariesAndStartBreeding()
-        elseif retval == E_GOTENOUGH_DRONES then
-            -- If we have enough of the target species now, then clean up and break out.
-            -- TODO: Refactor StoreSpecies() to actually use storagePoint.
-            local node = self:StoreSpecies(target, self.logFilepath, self.storageInfo)
-            self.robotComms:ReportSpeciesFinishedToServer(node)
+        if retval == E_GOTENOUGH_DRONES then
             break
-        elseif retval == E_NOPRINCESS then
-            -- Otherwise, just hang out for a little while.
-            Sleep(5.0)
-        else
-            Print("Got unknown return code from the princess-drone matcher.")
+        elseif retval == E_NOERROR then
+            self:WalkApiariesAndStartBreeding()
         end
     end
+
+    -- Double check with the server about the location in case the user changed it during operation.
+    -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
+    -- but this is a mostly trivial way to recover from at least some possible bad behavior.
+    local storagePoint = self.robotComms:GetStorageLocationFromServer(target)
+    if storagePoint == nil then
+        Print("Error getting storage location of " .. target .. " from server.")
+        return false
+    end
+    storagePoint = UnwrapNull(storagePoint)
+
+    -- If we have enough of the target species now, then clean up and break out.
+    -- TODO: Refactor StoreSpecies() to actually use storagePoint.
+    local node = self:StoreSpecies(target)
+    self.robotComms:ReportSpeciesFinishedToServer(node)
+end
+
+-- Retrieves the first two stacks from the holdovers chest and places them in the analyzed drone chest.
+-- Starts and ends at the breeder station.
+function BreedOperator:ImportHoldoversToDroneChest()
+    -- Holdover chest is 2 blocks vertical from the robot's default position at the breeder station.
+    self:moveDistance(2, self.sides.up)
+    self.robot.turnRight()
+
+    for i = 0, 1 do  -- TODO: Are these slots one-indexed?
+        self.robot.select(i)
+        self.ic.suckFromSlot(self.sides.front, i)
+    end
+
+    self:moveDistance(2, self.sides.down)
+    for i = 0, 1 do
+        self.robot.select(i)
+        self.robot.drop()
+    end
+    self.robot.select(0)
+    self.robot.turnLeft()
+end
+
+-- Moves every item in the holdover chest to the output chest.
+-- This should be used to finish a transaction and provide user output.
+function BreedOperator:ExportHoldoversToOutput()
+    -- Holdover and output chests are both 2 blocks vertical from the robot's default position at the breeder station.
+    self:moveDistance(2, self.sides.up)
+
+    self.robot.turnRight()  -- Face the holdover chest.
+    for i = 0, 26 do  -- TODO: Account for inventories with more than 27 slots. This should be a config option. Also TODO: are these slots one-indexed?
+        self.ic.suckFromSlot(self.sides.front, i)
+        self.robot.turnAround()
+        self.robot.drop()
+
+        if not self.robot.count() == 0 then
+            -- We couldn't transfer items from the holdover inventory to the output.
+            -- Most likely, this would be caused by the output inventory being full.
+            -- Turn around and attempt to drop them back into the holdover inventory.
+            self.robot.turnAround()
+            self.robot.drop()
+            -- It's possible that somebody altered the holdover chest during this operation, which would cause another error.
+            -- For now, we won't deal with that unlikely possibility.
+            Print("Unable to transfer all items from holdover to output inventory.")
+            break
+        end
+    end
+    self.robot.turnLeft()  -- Face front.
+
+    self:moveDistance(2, self.sides.down)
 end
 
 return BreedOperator

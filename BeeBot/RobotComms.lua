@@ -143,11 +143,12 @@ function RobotComms:SendLogToServer(chestArray)
 end
 
 -- Fetches the server's entire log.
----@return StorageInfo | nil
+---@return ChestArray | nil
 function RobotComms:RetrieveLogFromServer()
     ::restart::
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LogStreamRequest, nil)
 
+    ---@type ChestArray
     local serverLog = {}
     while true do
         local response, _ = self.comm:GetIncoming(5.0)
