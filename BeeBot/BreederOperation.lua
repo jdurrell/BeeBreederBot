@@ -97,9 +97,18 @@ local function isPureBred(beeStack, species)
     return (beeStack.individual.active.species == species) and (beeStack.individual.active.species == beeStack.individual.inactive.species)
 end
 
--- Robot walks the apiary row and starts an empty apiary with the bees in its internal inventory.
+-- Robot walks the apiary row and starts an empty apiary with the bees in the inventories in the given slots.
+-- Starts at the breeding station and ends at the breeding station.
 -- TODO: Deal with the possibility of foundation blocks or special "flowers" being required and tracking which apiaries have them.
-function BreedOperator:WalkApiariesAndStartBreeding()
+---@param princessSlot integer
+---@param droneSlot integer
+function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
+    -- Pick up the specified bees.
+    self.robot.select(PRINCESS_SLOT)
+    self.ic.suckFromSlot(self.sides.left, princessSlot, 1)
+    self.robot.select(DRONE_SLOT)
+    self.ic.suckFromSlot(self.sides.right, droneSlot, 1)
+
     local distFromStart = 0
     local placed = false
     local scanDirection = self.sides.front
@@ -134,11 +143,8 @@ function BreedOperator:WalkApiariesAndStartBreeding()
         end
     end
 
-    -- Return to the output chests.
-    while distFromStart > 0 do
-        self.robot.move(self.sides.back)
-        distFromStart = distFromStart - 1
-    end
+    -- Return to the breeder station.
+    self:moveDistance(self.sides.back, distFromStart)
 end
 
 -- TODO: Finish implementing this.
@@ -391,11 +397,7 @@ function BreedOperator:ReplicateSpecies(species)
             -- We have enough drones now, so break out.
             break
         else
-            self.robot.select(PRINCESS_SLOT)
-            self.ic.suckFromSlot(self.sides.left, princessSlot)
-            self.robot.select(DRONE_SLOT)
-            self.ic.suckFromSlot(self.sides.right, droneSlot)
-            self:WalkApiariesAndStartBreeding()
+            self:InitiateBreeding(princessSlot, droneSlot)
         end
     end
 
@@ -455,7 +457,7 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
             self.ic.suckFromSlot(self.sides.left, princessSlot)
             self.robot.select(DRONE_SLOT)
             self.ic.suckFromSlot(self.sides.right, droneSlot)
-            self:WalkApiariesAndStartBreeding()
+            self:InitiateBreeding(princessSlot, droneSlot)
         end
     end
 
