@@ -1,7 +1,4 @@
 -- This module contains logic used by the breeder robot to manipulate bees and the apiaries.
-
-local Logger = require("Shared.Logger")
-
 ---@class BreedOperator
 ---@field bk any beekeeper library
 ---@field ic any inventory controller library
@@ -11,6 +8,8 @@ local Logger = require("Shared.Logger")
 ---@field robotComms RobotComms
 ---@field storageInfo StorageInfo
 local BreedOperator = {}
+
+local Logger = require("Shared.Logger")
 
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT = 1
@@ -170,15 +169,15 @@ end
 
 ---@param target string
 ---@param breedInfo BreedInfo  -- map of parent to otherParent to breed chance (basically a lookup matrix for breeding chance)
----@return integer  -- returns 0 if this succeeded, -1 if it timed out before finding some valid pairing, or 1 if it failed because we have enough drones of the target to move on.
-function BreedOperator:PickUpBees(target, breedInfo)
+---@return integer, integer  -- princessSlot, droneSlot.  If princessSlot is -1, then we have enough drones, and droneSlot contains the finished stack.
+function BreedOperator:MatchPrincessToDrone(target, breedInfo)
 
     -- Spin until we have a princess to use.
     ---@type AnalyzedBeeStack
     local princess = nil
     local princessSlotInChest = -1
     while princess == nil do
-        for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
+        for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
             if self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i) ~= nil then
                 princess = self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i)
 
@@ -198,7 +197,7 @@ function BreedOperator:PickUpBees(target, breedInfo)
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     ---@type AnalyzedBeeStack[]
     local drones = {}
-    for i = 0, BASIC_CHEST_INVENTORY_SLOTS do
+    for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
         ---@type AnalyzedBeeStack
         local droneStack = self.ic.getStackInSlot(i)
         if droneStack ~= nil then
@@ -208,9 +207,8 @@ function BreedOperator:PickUpBees(target, breedInfo)
             -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
             --       or just force them to stack up. For now, it is simplest to force them to stack.
             if isPureBred(droneStack, target) and droneStack.size == 64 then
-                -- If we have a full stack of our target, then we are done. Pick up the drones into the output slot.
-                self.robot.select(DRONE_SLOT)
-                self.ic.suckFromSlot(i, 64)
+                -- If we have a full stack of our target, then we are done.
+                return -1, i
             end
         end
     end
@@ -220,7 +218,7 @@ function BreedOperator:PickUpBees(target, breedInfo)
     -- Being efficient with their use lowers the numbers of other princesses we have to manually load into the system.
     local maxChanceDroneSlotInChest = -1
     local maxChance = 0.0
-    for i, drone in ipairs(drones) do
+    for _, drone in ipairs(drones) do
         local chance = calculateTargetMutationChance(princess, drone, breedInfo)
         if chance > maxChance then
             maxChanceDroneSlotInChest = drone.slotInChest
@@ -230,14 +228,7 @@ function BreedOperator:PickUpBees(target, breedInfo)
 
     -- TODO: We will accumulate more drones than we use during the operation of this breeder, so we need to garbage-collect the chest at some point.
 
-    -- Actually pick up the bees.
-    -- TODO: Should we even do this here, or just return the selections?
-    self.robot.select(PRINCESS_SLOT)
-    self.ic.suckFromSlot(ANALYZED_PRINCESS_CHEST, princessSlotInChest, 1)
-    self.robot.select(DRONE_SLOT)
-    self.ic.suckFromSlot(ANALYZED_DRONE_CHEST, maxChanceDroneSlotInChest, 1)
-
-    return 0
+    return princessSlotInChest, maxChanceDroneSlotInChest
 end
 
 ---@param dist integer
@@ -393,12 +384,17 @@ function BreedOperator:ReplicateSpecies(species)
     self:RetrieveStockPrincessesFromChest({species})
 
     -- Replicate extras to replace the drones we took from the chest.
+    local princessSlot, droneSlot
     while true do
-        local retval = self:PickUpBees(species, breedInfo)
-        if retval == E_GOTENOUGH_DRONES then
+        princessSlot, droneSlot = self:MatchPrincessToDrone(species, breedInfo)
+        if princessSlot == -1 then
             -- We have enough drones now, so break out.
             break
-        elseif retval == E_NOERROR then
+        else
+            self.robot.select(PRINCESS_SLOT)
+            self.ic.suckFromSlot(self.sides.left, princessSlot)
+            self.robot.select(DRONE_SLOT)
+            self.ic.suckFromSlot(self.sides.right, droneSlot)
             self:WalkApiariesAndStartBreeding()
         end
     end
@@ -412,6 +408,14 @@ function BreedOperator:ReplicateSpecies(species)
     else
         storagePoint = UnwrapNull(storagePoint)
     end
+
+    -- Store one half of the drone stack in the holdover chest.
+    self.robot.select(DRONE_SLOT)
+    self.ic.suckFromSlot(self.sides.right)
+    self:moveDistance(2, self.sides.up)
+    self.robot.turnLeft()
+    self.robot.drop(32)
+    self:moveDistance(2, self.sides.down)
 
     self:StoreDrones(storagePoint)
 end
@@ -434,7 +438,6 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     local breedInfoTarget = self.robotComms:GetBreedInfoFromServer(target)
     if breedInfoTarget == nil then
         Print("Unexpected error when retrieving target's breed info from server.")
-        return nil
     end
     breedInfoTarget = UnwrapNull(breedInfoTarget)
 
@@ -442,11 +445,16 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     self:ImportHoldoversToDroneChest()
     self:RetrieveStockPrincessesFromChest({parent1, parent2})
 
+    local princessSlot, droneSlot
     while true do
-        local retval = self:PickUpBees(target, breedInfoTarget)
-        if retval == E_GOTENOUGH_DRONES then
+        princessSlot, droneSlot = self:MatchPrincessToDrone(target, breedInfoTarget)
+        if princessSlot == -1 then
             break
-        elseif retval == E_NOERROR then
+        else
+            self.robot.select(PRINCESS_SLOT)
+            self.ic.suckFromSlot(self.sides.left, princessSlot)
+            self.robot.select(DRONE_SLOT)
+            self.ic.suckFromSlot(self.sides.right, droneSlot)
             self:WalkApiariesAndStartBreeding()
         end
     end
@@ -457,7 +465,6 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     local storagePoint = self.robotComms:GetStorageLocationFromServer(target)
     if storagePoint == nil then
         Print("Error getting storage location of " .. target .. " from server.")
-        return false
     end
     storagePoint = UnwrapNull(storagePoint)
 

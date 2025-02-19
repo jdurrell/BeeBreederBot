@@ -41,7 +41,7 @@ local ForestryMutation = {}
 ---@field outputs {} -- Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
----@field slotInChest? integer
+---@field slotInChest integer
 local AnalyzedBeeStack = {}
 
 ---@class AnalyzedBeeIndividual
