@@ -30,8 +30,12 @@ local BeeServer = {}
 ---@param addr string
 ---@param data BreedInfoRequestPayload
 function BeeServer:BreedInfoHandler(addr, data)
-    -- Calculate mutation chances and send them back to the robot.
-    local payload = {breedInfo=MutationMath.CalculateBreedInfo(data.target, self.beeGraph)}
+    if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) then
+        return
+    end
+
+    local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
+    local payload = {targetMutChance=targetMutChance, nonTargetMutChance=nonTargetMutChance}
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
 end
 

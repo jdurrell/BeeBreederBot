@@ -101,7 +101,7 @@ function M.__sendNoYield(addr, port, message)
     local thread = Coroutine.running()
     Luaunit.assertNotIsNil(M.__openPorts[port])
 
-    if M.__openPorts[port]  == nil then
+    if M.__openPorts[port] == nil then
         return nil
     end
 

@@ -94,7 +94,7 @@ function RobotComms:GetStorageLocationFromServer(species)
 end
 
 ---@param target string
----@return table<string, table<string, number>> | nil
+---@return BreedInfoResponsePayload | nil
 function RobotComms:GetBreedInfoFromServer(target)
     ::restart::
     local payload = {target=target}

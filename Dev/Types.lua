@@ -11,6 +11,7 @@ local Speciesnode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
 ---@alias BreedInfo table<string, table<string, number>>
+---@alias BreedInfo2 table<string, table<string, table<string, {targetMutChance: number, nonTargetMutChance: number}>>>
 
 ---@class BreedPathNode
 ---@field target string
@@ -112,8 +113,15 @@ local Message = {}
 ---@class CodedMessage<T>: {code: integer, payload: T}
 local CodedMessage = {}
 
----@alias BreedInfoResponsePayload BreedInfo
----@alias BreedInfoRequestPayload {target: string}
+-- Mapping of target to cached breed info elements.
+---@alias BreedInfoCache table<string, BreedInfoCacheElement>
+
+-- TODO: Refactor this to be a unique key like "parent1-parent2".
+-- Mapping of princess to drone to chance for parents to mutate into the target and chance for parents to mutate into a different species.
+---@alias BreedInfoCacheElement table<string, table<string, {targetMutChance: number, nonTargetMutChance: number}>>
+
+---@alias BreedInfoRequestPayload {parent1: string, parent2: string, target: string}
+---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
 ---@alias CancelRequestPayload nil
 ---@alias LogStreamResponsePayload {species: string, node: StorageNode}
 ---@alias LogStreamRequestPayload nil

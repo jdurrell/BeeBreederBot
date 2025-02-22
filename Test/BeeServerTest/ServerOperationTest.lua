@@ -223,10 +223,10 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.BreedInfoRequest, payload={target="Industrious"}})  -- Pick a simple species that's easy to verify.
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.BreedInfoRequest, payload={parent1="Diligent", parent2="Unweary", target="Industrious"}})  -- Pick a simple species that's easy to verify.
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
-        Luaunit.assertEquals(response.breedInfo, {["Diligent"]={["Unweary"]=0.08}, ["Unweary"]={["Diligent"]=0.08}})
+        Luaunit.assertEquals(response, {targetMutChance=0.08, nonTargetMutChance=0})
 
         Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")

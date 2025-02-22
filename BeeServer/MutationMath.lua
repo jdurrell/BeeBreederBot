@@ -63,18 +63,46 @@ function M.ComputePowerset(list)
     return combinations
 end
 
+---@generic T
+---@param list T[]
+---@return T[][]
+function M.ComputePermutations(list)
+    if #list == 1 then
+        return {{list[1]}}  -- In theory, we could just return list, but I'm a little scared of the reference being misused.
+    end
+
+    local permutationsList = {}
+
+    for i, val in ipairs(list) do
+        local subValues = {}
+        for j, subV in ipairs(list) do
+            if i ~= j then
+                table.insert(subValues, subV)
+            end
+        end
+
+        local subPermutations = M.ComputePermutations(subValues)
+        for _, subPermutation in ipairs(subPermutations) do
+            table.insert(subPermutation, val)
+            table.insert(permutationsList, subPermutation)
+        end
+    end
+
+    return permutationsList
+end
+
+-- TODO: Decide whether this function can be removed.
 -- Forestry provides a `chance` of getting a given mutation from a given set of parents (call this "p"). This is also viewable in NEI in-game.
 -- However, p is *not* the true chance of getting that mutation from that set of parents because multiple sets of mutations exist.
 -- Internally, if Forestry decides that a species mutation will occur, it shuffles the list of possible child mutations to a random order,
---   then iterates over this order. On each iteration, there is a chance p for that mutation to "succeed". The *first* mutation to "succeed"
---   is chosen as the resulting child, and no other mutations later in the list are evaluated.
+-- then iterates over this order. On each iteration, there is a chance p for that mutation to "succeed". The *first* mutation to "succeed"
+-- is chosen as the resulting child, and no other mutations later in the list are evaluated.
 -- Therefore, for a given permutation of the list, the chance of the target mutation actually resulting is equal to p times the chance of all
---   mutations evaluated *before* the target *not* occurring. Thus, the *true* chance of the target mutation occurring (given that a mutation
---   *is* occurring) is the sum of chances of occurence *in each permutation* times the probability of *that permutation actually appearing*.
+-- mutations evaluated *before* the target *not* occurring. Thus, the *true* chance of the target mutation occurring (given that a mutation
+-- *is* occurring) is the sum of chances of occurence *in each permutation* times the probability of *that permutation actually appearing*.
+--
 -- Just because each permutation of the evaluation order is equally likely (Forestry uses a Fisher-Yates shuffle), that does *not*
---   mean that p is equal to the true chance! (consider the simple example of a 0.25 target mutation and a 0.5 non-target mutation)
--- Technically, this function leaves out the chance of a species mutation occurring in the first place, but that's not relevant here
--- because our only purpose for this function is comparison between different species mutations.
+-- mean that p is equal to the true chance! (consider the simple example of a 0.25 target mutation and a 0.5 non-target mutation)
 ---@param chanceForTarget number
 ---@param siblingChances number[]
 ---@return number
@@ -110,62 +138,76 @@ function M.CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
     return weightedChanceSum / numPermutationsTotal
 end
 
+-- Forestry provides a chance of getting a given mutation from a given set of parents (call this "p"). This is also viewable in NEI in-game.
+-- However, p is *not* the true chance of getting that mutation from that set of parents because multiple sets of mutations exist.
+-- Internally, if Forestry decides that a species mutation will occur, it shuffles the list of possible child mutations to a random order,
+-- then iterates over this order. On each iteration, there is a chance p for that mutation to "succeed". The *first* mutation to "succeed"
+-- is chosen as the resulting child, and no other mutations later in the list are evaluated.
+-- Therefore, for a given permutation of the list, the chance of the target mutation actually resulting is equal to p times the chance of all
+-- mutations evaluated *before* the target *not* occurring. Thus, the *true* chance of the target mutation occurring (given that a mutation
+-- *is* occurring) is the sum of chances of occurence *in each permutation* times the probability of *that permutation actually appearing*.
+-- 
+-- Just because each permutation of the evaluation order is equally likely (Forestry uses a Fisher-Yates shuffle), that does *not*
+-- mean that p is equal to the true chance! (consider the simple example of a 0.25 target mutation and a 0.5 non-target mutation)
+---@param target string
+---@param siblings string[]
+---@param chances table<string, number>  Mappings of species to "NEI" mutation chance.
+---@return number, number  -- targetMutChance, nonTargetMutChance
+function M.CalculateMutationChances(target, siblings, chances)
+    if #siblings == 0 then
+        return 0.0, 0.0
+    end
+
+    local permutations = M.ComputePermutations(siblings)
+
+    -- For each permutation, calculate the probability of getting a target or non-target and add the probability to the total sum.
+    -- Then, divide that sum by the total number of permutations to get the true probability of that event happening.
+    -- TODO: Are there significant floating point problems here?
+    local targetMutChanceSum = 0.0
+    local nonTargetMutChanceSum = 0.0
+    for _, permutation in ipairs(permutations) do
+        local noPriorMutChance = 1.0
+        for _, species in ipairs(permutation) do
+            -- Chance of this mutation happening is equal to the chance that no prior mutation happened
+            -- times the chance that this mutation happens.
+            if species == target then
+                targetMutChanceSum = targetMutChanceSum + (noPriorMutChance * chances[species])
+            else
+                nonTargetMutChanceSum = nonTargetMutChanceSum + (noPriorMutChance * chances[species])
+            end
+
+            -- Update the no-prior-mutation chance for the next item with the chance that this mutation didn't happen.
+            noPriorMutChance = noPriorMutChance * (1.0 - chances[species])
+        end
+    end
+    targetMutChanceSum = targetMutChanceSum / #permutations
+    nonTargetMutChanceSum = nonTargetMutChanceSum / #permutations
+
+    return targetMutChanceSum, nonTargetMutChanceSum
+end
+
+-- Calculates the probability of the given parent alleles mutating into the target and mutating into a species that is not the target.
+---@param parent1 string
+---@param parent2 string
 ---@param target string
 ---@param beeGraph SpeciesGraph
----@return BreedInfo
-function M.CalculateBreedInfo(target, beeGraph)
-    -- TODO: Refactor breedInfo to be a mapping of unique key (probably something like "<parent1>-<parent2>") instead of a 2D matrix
-    --       to prevent duplicating data and achieve lower memory usage.
-    local breedInfo = {}
+---@return number, number  -- targetMutationProbability, nonTargetMutationProbability
+function M.CalculateBreedInfo(parent1, parent2, target, beeGraph)
+    local parent1Node = beeGraph[parent1]
 
-    -- For each mutation, calculate the chance of getting that mutation (taking into account the other possible mutations)
-    local targetNode = beeGraph[target]
-    if targetNode == nil then
-        return {}
-    end
-
-    for _, parentMut in ipairs(targetNode.parentMutations) do
-        -- Collect the chances for all other siblings this set of parents could possibly make.
-        ---@type number[]
-        local comboSiblings = {}
-        local targetChance = 0.0
-
-        local parent1Node = beeGraph[parentMut.parents[1]]
-        assert(parent1Node.childMutations[target] ~= nil)
-        for result, muts in pairs(parent1Node.childMutations) do
-            if result == target then
-                for _, mut in ipairs(muts) do
-                    if mut.parent == parentMut.parents[2] then
-                        targetChance = mut.chance
-                        break
-                    end
-                end
-            else
-                for _, mut in ipairs(muts) do
-                    if mut.parent == parentMut.parents[2] then
-                        table.insert(comboSiblings, mut.chance)
-                    end
-                end
+    -- Fetch each possible child mutation and their "NEI" chances from these parents.
+    local siblings = {}
+    local childMutationChances = {}
+    for result, info in pairs(parent1Node.childMutations) do
+        for _, v in ipairs(info) do
+            if v.parent == parent2 then
+                childMutationChances[result] = v.chance
+                table.insert(siblings, result)
             end
         end
-
-        assert(targetChance > 0.0, "Didn't find target in its parent mutations.")
-
-        -- Initialize breedInfo for each parent, if necessary.
-        if breedInfo[parentMut.parents[1]] == nil then
-            breedInfo[parentMut.parents[1]] = {}
-        end
-        if breedInfo[parentMut.parents[2]] == nil then
-            breedInfo[parentMut.parents[2]] = {}
-        end
-
-        -- Calculate the chance of this target being chosen over the other siblings, taking into account every possible genome shuffle permutation.
-        local mutationChance = M.CalculateMutationChanceForTarget(targetChance, comboSiblings)
-        breedInfo[parentMut.parents[1]][parentMut.parents[2]] = mutationChance
-        breedInfo[parentMut.parents[2]][parentMut.parents[1]] = mutationChance
     end
 
-    return breedInfo
+    return M.CalculateMutationChances(target, siblings, childMutationChances)
 end
 
 return M
