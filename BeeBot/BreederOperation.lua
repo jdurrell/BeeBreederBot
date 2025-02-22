@@ -10,6 +10,7 @@
 local BreedOperator = {}
 
 local Logger = require("Shared.Logger")
+local MatchingMath = require("BeeBot.MatchingMath")
 
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT = 1
@@ -147,165 +148,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self:moveDistance(self.sides.back, distFromStart)
 end
 
--- Calculates the chance that an abitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
----@param target string   -- TODO: This is only necessary because breedInfoCache is kinda hacked in here.
----@param princess AnalyzedBeeStack
----@param drone AnalyzedBeeStack
----@param breedInfoCache BreedInfoCache
----@return number
-function BreedOperator:CalculateChanceArbitraryOffspringIsPureBredtarget(target, princess, drone, breedInfoCache)
-    -- Mutations can only happen between a primary species of one bee and the secondary of the other.
-    -- Simply checking the item name (primary species) is insufficient because mutation isn't chosen between primaries.
-    local A = princess.individual.active.species.name
-    local B = princess.individual.inactive.species.name
-    local C = drone.individual.active.species.name
-    local D = drone.individual.inactive.species.name
-
-    if breedInfoCache[target] == nil then
-        breedInfoCache[target] = {}
-    end
-    local element = breedInfoCache[target]
-
-    -- Cache these numbers from the server response if we don't already have them.
-    for _, combo in ipairs({{A, D}, {B, C}}) do
-        if (element[combo[1]] == nil) or (element[combo[2]] == nil) or (element[combo[1]][combo[2]] == nil) or (element[combo[1]][combo[2]]) then
-            if element[combo[1]] == nil then
-                element[combo[1]] = {}
-            end
-            if element[combo[2]] == nil then
-                element[combo[2]] = {}
-            end
-
-            local breedInfo = self.robotComms:GetBreedInfoFromServer(target)
-            if breedInfo == nil then
-                Print("Unexpected error when retrieving target's breed info from server.")
-                return 0.0  -- TODO: This should probably return 'nil' and get propagated up.
-            end
-            breedInfo = UnwrapNull(breedInfo)
-
-            breedInfoCache[target][princess][drone] = breedInfo
-            breedInfoCache[target][drone][princess] = breedInfo
-        end
-    end
-
-    -- Forestry will attempt to do a mutation twice. If the first succeeds, then parent1 will be replaced by the default genome of the resulting
-    -- mutation before the Punnet Square. If the second succeeds, then parent2 will be replaced. Each mutation attempt will randomly try for a
-    -- mutation between either (1) the first parent's primary gene (A) and the second parent's secondary gene (D), or (2) the first parent's
-    -- secondary gene (B) and the second parent's primary gene (C). Put simpler, each mutation attempt has a 50% chance to try using A+D and a
-    -- 50% chance to try using B+C. These are disjoint, so the chance of a mutation event ocurring is equal to the sum of the probabilities of
-    -- each choice from AD vs. BC (50% for each) times the chance of the given mutation occurring from that choice of parent alleles.
-    -- There is an additional layer here that, for each mutation, Forestry iterates through the (shuffled) list of possible mutations from the
-    -- two parent species and tries for a mutation in that order. This complicates the math When a given set of parents can result in multiple
-    -- mutations. However, the server has already calculated for us (stored in `breedChanceAD` and `breedChanceBC`) the probability that this
-    -- set of parents mutates into the target species and the probability that this set of parents mutates into a non-target species. Therefore,
-    -- we don't need to worry about that layer here.
-    local breedChanceAD = element[A][D]
-    local breedChanceBC = element[B][C]
-
-    -- Each mutation attempt can result in three disjoint events: (1) the mutation fails, (2) the mutation results in the target, (3) the
-    -- mutation results in a species other than the target.
-    local probMutIsTarget = (0.5 * breedChanceAD.targetMutChance) + (0.5 * breedChanceBC.targetMutChance)
-    local probMutIsNonTarget = (0.5 * breedChanceAD.nonTargetMutChance) + (0.5 * breedChanceBC.nonTargetMutChance)
-    local probNoMut = 1.0 - (probMutIsTarget - probMutIsNonTarget)  -- Probability of no mutation is the complement of the probability of mutation.
-
-    -- Since there are two independent mutation attempts, we have 9 distinct possibilities before we get to the Punnet Squares: one for each
-    -- combination of outcomes from the two attempts. Punnet Squares select a combination of chromosomes by randomly picking one from each parent.
-    -- Since there are two chromosomes from each parent, each Punnet Square has 4 possible sets of alleles. This would appear to give us 36
-    -- total disjoint events.
-    -- However, if a mutation occurs, *both* chromosomes from that parent are replaced with the mutated species, which guarantees that particular
-    -- allele to be picked from that parent by the Punnet Square. This results in some repeated outcomes after the Punnet Square based on the
-    -- prior events:
-    --  * In 4 out of 9 mutation outcomes, both parents have mutated. In these scenarios, there is only one possible Punnet Square outcome.
-    --  * In another 4 out of 9 mutation outcomes, just one parent has mutated. In these scenarios, there are two possible Punnet Square outcomes.
-    --  * If neither parent mutates (which is most likely), then the resulting Punnet Square has four outcomes.
-    -- Thus, there are (4*1) + (4*2) + (1*4) = 16 distinct Punnet Square outcomes to consider.
-    -- Additionally, in the 5 out of 9 scenarios where either parent has mutated into a non-target species, the Punnet Square must result in an
-    -- offspring with at least one non-target chromosome, which eliminates any chance of getting a pure-bred drone. Thus, we ignore the 7
-    -- corresponding Punnet Square outcomes.
-    -- Therefore, to calculate the chance of getting a pure-bred drone, we only need to consider 9 final Punnet Square outcomes:
-    --  * When neither parent has been replaced:
-    --    (1) A + C
-    --    (2) A + D
-    --    (3) B + C
-    --    (4) B + D
-    --  * When only parent1 has been replaced:
-    --    (5) target + C
-    --    (6) target + D
-    --  * When only parent2 has been replaced:
-    --    (7) A + target
-    --    (8) B + target
-    --  * When both parents have been replaced:
-    --    (9) target + target
-    -- The outcomes listed above are disjoint. Therefore, we can obtain the possibility of this particular drone being pure-bred of the target
-    -- species by adding up the probability of each of the outcomes which result in a pure-bred drone of our target species (based on the
-    -- input alleles for A, B, C, and D).
-    -- Additionally, the randomness at each stage of this process is independent from previous stages, so the probability of a given outcome
-    -- is simply the product of the probability of each of the events that are required for it to occur.
-    local probPureBredTarget = 0.0
-
-    if A == target then
-        if C == target then
-            -- A + C (requires no mutations and has 1 valid Punnet Square outcome).
-            probPureBredTarget = probPureBredTarget + (probNoMut * probNoMut * 0.25)
-        end
-
-        if D == target then
-            -- A + D (requires no mutations and has 1 valid Punnet Square outcome).
-            probPureBredTarget = probPureBredTarget + (probNoMut * probNoMut * 0.25)
-        end
-
-        -- A + target (requires parent1 to not mutate and parent2 to mutate into the target, and has 2 valid Punnet Square outcomes)
-        probPureBredTarget = probPureBredTarget + (probNoMut * probMutIsTarget * 0.5)
-    end
-    if B == target then
-        if C == target then
-            -- B + C (requires no mutations and has 1 valid Punnet Square outcome).
-            probPureBredTarget = probPureBredTarget + (probNoMut * probNoMut * 0.25)
-        end
-
-        if D == target then
-            -- B + D (requires no mutations and has 1 valid Punnet Square outcome).
-            probPureBredTarget = probPureBredTarget + (probNoMut * probNoMut * 0.25)
-        end
-
-        -- B + target (requires parent1 to not mutate and parent2 to mutate into the target, and has 2 valid Punnet Square outcomes)
-        probPureBredTarget = probPureBredTarget + (probNoMut * probMutIsTarget * 0.5)
-    end
-
-    if C == target then
-        -- target + C (requires parent1 to mutate into the target and parent2 to not mutate, and has 2 valid Punnet Square outcomes)
-        probPureBredTarget = probPureBredTarget + (probMutIsTarget * probNoMut * 0.5)
-
-        -- Don't check A or B because we already did the A + C and B + C cases above.
-    end
-    if D == target then
-        -- target + D (requires parent1 to mutate into the target and parent2 to not mutate, and has 2 valid Punnet Square outcomes)
-        probPureBredTarget = probPureBredTarget + (probMutIsTarget * probNoMut * 0.5)
-
-        -- Don't check A or B because we already did the A + D and B + D cases above.
-    end
-
-    -- target + target (all 4 Punnet Square outcomes are valid).
-    probPureBredTarget = probPureBredTarget + (probMutIsTarget * probMutIsTarget * 1.0)
-
-    return probPureBredTarget
-end
-
--- Calculates the chance that the given princess and drone have of producing at least one pure-bred drone of the target species.
----@param target string   -- TODO: This is only necessary because breedInfoCache is kinda hacked in here.
----@param princess AnalyzedBeeStack
----@param drone AnalyzedBeeStack
----@param breedInfoCache BreedInfoCache
----@return number
-function BreedOperator:CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, breedInfoCache)
-    local probPureBredTarget = self:CalculateChanceArbitraryOffspringIsPureBredtarget(target, princess, drone, breedInfoCache)
-
-    -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
-    local probAtLeastOneOffspringIsPureBredTarget = 1.0 - ((1.0 - probPureBredTarget) ^ princess.individual.active.fertility)
-
-    return probAtLeastOneOffspringIsPureBredTarget
-end
-
+-- Computes the optimal matching of the princess in ANALYZED_PRINCESS_CHEST to a drone in ANALYZED_DRONE_CHEST for breeding the target.
 ---@param target string
 ---@param breedInfoCache table  -- map of parent to otherParent to breed chance (basically a lookup matrix for breeding chance)
 ---@return integer, integer  -- princessSlot, droneSlot.  If princessSlot is -1, then we have enough drones, and droneSlot contains the finished stack.
@@ -352,13 +195,43 @@ function BreedOperator:MatchPrincessToDrone(target, breedInfoCache)
         end
     end
 
+    if breedInfoCache[target] == nil then
+        breedInfoCache[target] = {}
+    end
+    local cacheElement = breedInfoCache[target]
+
     -- Determine the drone that has the highest chance of breeding the result when paired with the given princess.
     -- This is important because we will be making use of ignoble princesses, which start dying after they breed too much.
     -- Being efficient with their use lowers the numbers of other princesses we have to manually load into the system.
     local maxChanceDroneSlotInChest = -1
     local maxChance = 0.0
     for _, drone in ipairs(drones) do
-        local chance = self:CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, breedInfoCache)
+
+        -- Cache these numbers from the server response if we don't already have them.
+        local mutCombos = {{princess.individual.active.species.name, drone.individual.inactive.species.name}, {princess.individual.inactive.species.name, drone.individual.active.species.name}}
+        for _, combo in ipairs(mutCombos) do
+            if (cacheElement[combo[1]] == nil) or (cacheElement[combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]]) then
+                if cacheElement[combo[1]] == nil then
+                    cacheElement[combo[1]] = {}
+                end
+                if cacheElement[combo[2]] == nil then
+                    cacheElement[combo[2]] = {}
+                end
+
+                local breedInfo = self.robotComms:GetBreedInfoFromServer(target)
+                if breedInfo == nil then
+                    Print("Unexpected error when retrieving target's breed info from server.")
+                    return -1, -1  -- Internal error. TODO: Handle this up the stack.
+                end
+                breedInfo = UnwrapNull(breedInfo)
+
+                breedInfoCache[target][cacheElement[combo[1]]][cacheElement[combo[2]]] = breedInfo
+                breedInfoCache[target][cacheElement[combo[2]]][cacheElement[combo[1]]] = breedInfo
+            end
+        end
+
+        -- TODO: Is this likely to converge? Are there better methods with higher probability or fewer generations?
+        local chance = MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess.individual, drone.individual, breedInfoCache)
         if chance > maxChance then
             maxChanceDroneSlotInChest = drone.slotInChest
             maxChance = chance

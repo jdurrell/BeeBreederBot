@@ -73,7 +73,7 @@ local AnalyzedBeeIndividual = {}
 ---@field nocturnal boolean  Whether this bee can work at night.
 ---@field species BeeSpecies  Information on the species of this bee.
 ---@field speed number
----@field temperatureTolerance string  The termperature tolerance of this bee, of "NONE" if none.
+---@field temperatureTolerance string  The temperature tolerance of this bee, of "NONE" if none.
 ---@field territory integer[]
 ---@field tolerantFlyer boolean  Whether this bee can work in the rain.
 local AnalyzedBeeTraits = {}
