@@ -5,11 +5,13 @@
 ---@field robot any robot library
 ---@field sides any sides library
 ---@field logFilepath string
+---@field matchingAlgorithm function
 ---@field robotComms RobotComms
 ---@field storageInfo StorageInfo
 local BreedOperator = {}
 
 local Logger = require("Shared.Logger")
+local MatchingAlgorithms = require("BeeBot.MatchingAlgorithms")
 local MatchingMath = require("BeeBot.MatchingMath")
 
 -- Slots for holding items in the robot.
@@ -76,6 +78,10 @@ function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, si
         nextChest = {x = 0, y = 0},  -- TODO: Initialize nextChest properly based on the data in chestArray
         chestArray = chestArray
     }
+
+    -- TODO: This should probably be a config option.
+    -- TODO: This should also probably be overridable by the server for any given operation.
+    obj.selectionAlgorithm = MatchingAlgorithms.HighestPureBredChance
 
     -- TODO: This is currently a bit messy since it has side effects. Consider either moving the logging into this
     --       or having this function return a value instead of setting it directly.
@@ -148,25 +154,24 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self:moveDistance(self.sides.back, distFromStart)
 end
 
--- Computes the optimal matching of the princess in ANALYZED_PRINCESS_CHEST to a drone in ANALYZED_DRONE_CHEST for breeding the target.
----@param target string
----@param breedInfoCache table  -- map of parent to otherParent to breed chance (basically a lookup matrix for breeding chance)
----@return integer, integer  -- princessSlot, droneSlot.  If princessSlot is -1, then we have enough drones, and droneSlot contains the finished stack.
-function BreedOperator:MatchPrincessToDrone(target, breedInfoCache)
-
+-- Returns the next princess in ANALYZED_PRINCESS_CHEST.
+---@return AnalyzedBeeStack
+function BreedOperator:GetPrincessInChest()
     -- Spin until we have a princess to use.
     ---@type AnalyzedBeeStack
     local princess = nil
     local princessSlotInChest = -1
     while princess == nil do
         for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
-            if self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i) ~= nil then
-                princess = self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i)
+            local stack = self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i)
+            if stack ~= nil then
+                princess = stack
+                princess.slotInChest = i
 
                 -- TODO: Deal with the possibility of not having enough temperature/humidity tolerance to work in the climate.
                 --       This will probably just involve putting them in a chest to be sent to a Genetics acclimatizer
                 --       and then have them just loop back to this chest later on.
-                princessSlotInChest = i
+                -- TODO: Consider whether we will even handle this here and just have the piping system run them through an acclimatizer.
                 break
             end
         end
@@ -176,8 +181,14 @@ function BreedOperator:MatchPrincessToDrone(target, breedInfoCache)
         Sleep(2.0)
     end
 
+    return princess
+end
+
+-- Returns a list of drones in ANALYZED_DRONE_CHEST.
+-- TODO: Reorganize this into a stream to optimize for low memory.
+---@return AnalyzedBeeStack[]
+function BreedOperator:GetDronesInChest()
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
-    ---@type AnalyzedBeeStack[]
     local drones = {}
     for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
         ---@type AnalyzedBeeStack
@@ -185,62 +196,65 @@ function BreedOperator:MatchPrincessToDrone(target, breedInfoCache)
         if droneStack ~= nil then
             droneStack.slotInChest = i
             table.insert(drones, droneStack)
-
-            -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
-            --       or just force them to stack up. For now, it is simplest to force them to stack.
-            if isPureBred(droneStack, target) and droneStack.size == 64 then
-                -- If we have a full stack of our target, then we are done.
-                return -1, i
-            end
         end
     end
 
+    return drones
+end
+
+-- If the target has been reached, returns the slot of the finished stack in ANALYZED_DRONE_CHEST.
+-- Otherwise, returns nil.
+---@param droneStackList AnalyzedBeeStack[]
+---@return integer | nil
+function BreedOperator:GetFinishedDroneStack(droneStackList, target)
+    for _, droneStack in ipairs(droneStackList) do
+        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
+        --       or just force them to stack up. For now, it is simplest to force them to stack.
+        if isPureBred(droneStack, target) and droneStack.size == 64 then
+            -- If we have a full stack of our target, then we are done.
+            return droneStack.slotInChest
+        end
+    end
+
+    return nil
+end
+
+--- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
+--- the drone chest.
+---@param princessStack AnalyzedBeeStack
+---@param droneStackList AnalyzedBeeStack[]
+---@param target string
+---@param breedInfoCache BreedInfoCache  the cache to be populated.
+function BreedOperator:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
     if breedInfoCache[target] == nil then
         breedInfoCache[target] = {}
     end
     local cacheElement = breedInfoCache[target]
 
-    -- Determine the drone that has the highest chance of breeding the result when paired with the given princess.
-    -- This is important because we will be making use of ignoble princesses, which start dying after they breed too much.
-    -- Being efficient with their use lowers the numbers of other princesses we have to manually load into the system.
-    local maxChanceDroneSlotInChest = -1
-    local maxChance = 0.0
-    for _, drone in ipairs(drones) do
-
-        -- Cache these numbers from the server response if we don't already have them.
-        local mutCombos = {{princess.individual.active.species.name, drone.individual.inactive.species.name}, {princess.individual.inactive.species.name, drone.individual.active.species.name}}
+    for _, droneStack in ipairs(droneStackList) do
+        -- Forestry only checks for mutations between the princess's primary and drone's secondary species and the princess's secondary and
+        -- drone's primary species.
+        local mutCombos = {
+            {princessStack.individual.active.species.name, droneStack.individual.inactive.species.name},
+            {princessStack.individual.inactive.species.name, droneStack.individual.active.species.name}
+        }
         for _, combo in ipairs(mutCombos) do
-            if (cacheElement[combo[1]] == nil) or (cacheElement[combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]]) then
-                if cacheElement[combo[1]] == nil then
-                    cacheElement[combo[1]] = {}
-                end
-                if cacheElement[combo[2]] == nil then
-                    cacheElement[combo[2]] = {}
-                end
+            cacheElement[combo[1]] = ((cacheElement[combo[1]] == nil) and {}) or cacheElement[combo[1]]
+            cacheElement[combo[2]] = ((cacheElement[combo[2]] == nil) and {}) or cacheElement[combo[2]]
 
+            if (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) then
                 local breedInfo = self.robotComms:GetBreedInfoFromServer(target)
                 if breedInfo == nil then
                     Print("Unexpected error when retrieving target's breed info from server.")
-                    return -1, -1  -- Internal error. TODO: Handle this up the stack.
+                    return  -- Internal error. TODO: Handle this up the stack.
                 end
                 breedInfo = UnwrapNull(breedInfo)
 
-                breedInfoCache[target][cacheElement[combo[1]]][cacheElement[combo[2]]] = breedInfo
-                breedInfoCache[target][cacheElement[combo[2]]][cacheElement[combo[1]]] = breedInfo
+                cacheElement[combo[1]][combo[2]] = breedInfo
+                cacheElement[combo[2]][combo[1]] = breedInfo
             end
         end
-
-        -- TODO: Is this likely to converge? Are there better methods with higher probability or fewer generations?
-        local chance = MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess.individual, drone.individual, breedInfoCache)
-        if chance > maxChance then
-            maxChanceDroneSlotInChest = drone.slotInChest
-            maxChance = chance
-        end
     end
-
-    -- TODO: We will accumulate more drones than we use during the operation of this breeder, so we need to garbage-collect the chest at some point.
-
-    return princessSlotInChest, maxChanceDroneSlotInChest
 end
 
 ---@param dist integer
@@ -377,13 +391,6 @@ function BreedOperator:ReplicateSpecies(species)
     -- This system currently only supports breeding a stack of drones that somebody could then
     -- use to very simply turn a different princess into a pure-bred production one.
 
-    local breedInfo = self.robotComms:GetBreedInfoFromServer(species)
-    if breedInfo == nil then
-        Print("Unexpected error when retrieving breed info of species " .. species .. " from server.")
-        return false
-    end
-    breedInfo = UnwrapNull(breedInfo)
-
     local storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
         Print("Error getting storage location of " .. species .. " from server.")
@@ -396,14 +403,19 @@ function BreedOperator:ReplicateSpecies(species)
     self:RetrieveStockPrincessesFromChest({species})
 
     -- Replicate extras to replace the drones we took from the chest.
-    local princessSlot, droneSlot
+    ---@type BreedInfoCache
+    local breedInfoCache = {}
+    local finishedDroneSlot
     while true do
-        princessSlot, droneSlot = self:MatchPrincessToDrone(species, breedInfo)
-        if princessSlot == -1 then
-            -- We have enough drones now, so break out.
+        local princessStack = self:GetPrincessInChest()
+        local droneStackList = self:GetDronesInChest()
+        finishedDroneSlot = self:GetFinishedDroneStack(droneStackList, species)
+        if finishedDroneSlot ~= nil then
             break
         else
-            self:InitiateBreeding(princessSlot, droneSlot)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCache)
+            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, species, breedInfoCache[species])
+            self:InitiateBreeding(princessStack.slotInChest, droneSlot)
         end
     end
 
@@ -419,7 +431,7 @@ function BreedOperator:ReplicateSpecies(species)
 
     -- Store one half of the drone stack in the holdover chest.
     self.robot.select(DRONE_SLOT)
-    self.ic.suckFromSlot(self.sides.right)
+    self.ic.suckFromSlot(ANALYZED_DRONE_CHEST, finishedDroneSlot)
     self:moveDistance(2, self.sides.up)
     self.robot.turnLeft()
     self.robot.drop(32)
@@ -443,25 +455,32 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     --   chance to eventually get us out of this scenario instead of detecting it outright.
     --   To solve the above, we will probably just have PickUpBees prioritize breeding
     --   one of the parents if breeding the target has 0 chance with all princesses/drones.
-    local breedInfoCache = {}
 
     -- Move starter bees to their respective chests.
     self:ImportHoldoversToDroneChest()
     self:RetrieveStockPrincessesFromChest({parent1, parent2})
 
-    local princessSlot, droneSlot
+    -- Replicate extras to replace the drones we took from the chest.
+    ---@type BreedInfoCache
+    local breedInfoCache = {}
+    local finishedDroneSlot
     while true do
-        princessSlot, droneSlot = self:MatchPrincessToDrone(target, breedInfoCache)
-        if princessSlot == -1 then
+        local princessStack = self:GetPrincessInChest()
+        local droneStackList = self:GetDronesInChest()
+        finishedDroneSlot = self:GetFinishedDroneStack(droneStackList, target)
+        if finishedDroneSlot ~= nil then
             break
         else
-            self.robot.select(PRINCESS_SLOT)
-            self.ic.suckFromSlot(self.sides.left, princessSlot)
-            self.robot.select(DRONE_SLOT)
-            self.ic.suckFromSlot(self.sides.right, droneSlot)
-            self:InitiateBreeding(princessSlot, droneSlot)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
+            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target])
+            self:InitiateBreeding(princessStack.slotInChest, droneSlot)
         end
     end
+
+    -- Load the drones into the slot for StoreDrones.
+    -- TODO: Should this really be handled by StoreDrones()?
+    self.robot.select(DRONE_SLOT)
+    self.ic.suckFromSlot(ANALYZED_DRONE_CHEST, finishedDroneSlot)
 
     -- Double check with the server about the location in case the user changed it during operation.
     -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
