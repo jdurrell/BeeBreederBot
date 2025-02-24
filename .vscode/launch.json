@@ -7,6 +7,14 @@
             "name": "Debug Tests",
             "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
             "stopOnEntry": false
+        },
+        {
+            "type": "lua",
+            "request": "launch",
+            "name": "Debug Tests No Simulation",
+            "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
+            "arg": ["--exclude", "Simulation"],
+            "stopOnEntry": false
         }
     ]
 }
