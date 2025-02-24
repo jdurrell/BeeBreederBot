@@ -15,6 +15,14 @@
             "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
             "arg": ["--exclude", "Simulation"],
             "stopOnEntry": false
+        },
+        {
+            "type": "lua",
+            "request": "launch",
+            "name": "Debug Specific Test",
+            "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
+            "arg": ["--pattern", "<put-test-here>"],
+            "stopOnEntry": false
         }
     ]
 }
