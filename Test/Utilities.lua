@@ -150,4 +150,74 @@ function M.VerifyLogIsValidLog(filepath)
     logfile:close()
 end
 
+-- Returns a breeding information cache element preloaded with all possible combinations for the given target.
+---@param target string
+---@param graph SpeciesGraph
+---@return BreedInfoCacheElement
+function M.BreedCacheTargetLoad(target, graph)
+    local cache = {}
+
+    for spec, _ in pairs(graph) do
+        cache[spec] = (cache[spec] == nil and {}) or cache[spec]
+        for spec2, _ in pairs(graph) do
+            cache[spec2] = (cache[spec2] == nil and {}) or cache[spec2]
+
+            if cache[spec][spec2] == nil then
+                Luaunit.assertIsNil(cache[spec2][spec], "Test-internal error.")
+
+                local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(spec, spec2, target, graph)
+                cache[spec][spec2] = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
+                cache[spec2][spec] = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
+            end
+        end
+    end
+
+    return cache
+end
+
+-- TODO: Add more fields when we end up needing them.
+---@param species1 string
+---@param species2 string
+---@param fertility integer | nil
+function M.CreateGenome(species1, species2, fertility)
+    local fertilityToUse = ((fertility == nil) and 2) or fertility
+
+    return {
+        species = {primary = {name = species1}, secondary = {name = species2}},
+        fertility = {primary = fertilityToUse, secondary = fertilityToUse}
+    }
+end
+
+---@param genome ForestryGenome
+---@param traitInfo TraitInfo | nil
+---@return AnalyzedBeeIndividual
+function M.CreateBee(genome, traitInfo)
+    -- Convert primary/secondary genome representation to active/inactive traits based on dominant and recessive behavior.
+    local active = {}
+    local inactive = {}
+    for gene, alleles in pairs(genome) do
+        -- For species, traitInfo is indexed by the species name instead of the entire trait table.
+        -- TODO: Figure out how to deal with this in a less hacky way.
+        local lookupPrimary = ((gene == "species") and alleles.primary.name) or alleles.primary
+        local lookupSecondary = ((gene == "species") and alleles.secondary.name) or alleles.secondary
+
+        -- local toBeActive, toBeInactive
+        if (traitInfo ~= nil) and (traitInfo[gene] ~= nil) and (not traitInfo[gene][lookupPrimary]) and traitInfo[gene][lookupSecondary] then
+            -- If the primary allele is recessive, and the secondary is dominant, the the secondary shows up as active, and the primary shows up as inactive.
+            active[gene] = alleles.secondary
+            inactive[gene] = alleles.primary
+        else
+            -- In all other cases, Forestry prioritizes the primary allele.
+            active[gene] = alleles.primary
+            inactive[gene] = alleles.secondary
+        end
+    end
+
+    return {
+        active = active,
+        inactive = inactive,
+        __genome = genome
+    }
+end
+
 return M

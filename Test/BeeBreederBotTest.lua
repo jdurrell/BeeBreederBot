@@ -1,10 +1,12 @@
+require("Shared.Shared")
+__ActivateTestMode()
+
 Luaunit = require("Test.luaunit")
 require("Test.BeeBotTest.MatchingMathTest")
 require("Test.BeeServerTest.MutationMathTest")
 require("Test.BeeServerTest.GraphTest")
 require("Test.BeeServerTest.ServerOperationTest")
 require("Test.SharedLibTest.LoggerTest")
-require("Shared.Shared")
+require("Test.SimulationTest.RawProbabilityTest")
 
-__ActivateTestMode()
 os.exit(Luaunit.LuaUnit.run())

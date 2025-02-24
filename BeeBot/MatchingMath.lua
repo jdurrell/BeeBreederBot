@@ -1,19 +1,63 @@
 -- This module contains helper functions for doing calculations related to princess-drone matching.
 local M = {}
 
--- Calculates the chance that an abitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
+-- Calculates the chance that an arbitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
 ---@param target string
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
+---@param traitInfo TraitInfo
+---@param mathFunc function
 ---@return number
-function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princess, drone, cacheElement)
+function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, mathFunc)
+    -- The "active" and "inactive" alleles that we can see are not necessarily equal to the "primary" and "secondary" alleles in Forestry's
+    -- internal representation of the genome. If the secondary allele is dominant, and the primary allele is recessive, then the active trait
+    -- will reflect the secondary allele, and the inactive trait will reflect the primary allele. Otherwise, Forestry defers to the primary
+    -- allele.
+    -- Because we can read Forestry's code, we know which alleles are dominant vs. recessive (information contained in `traitInfo`).
+    -- If the bee has one dominant and one recessive allele, then we do not know which one is the primary or secondary because either ordering
+    -- would result in the same active/inactive phenotype. In this case, the dominant is the active trait, and the recessive is inactive.
+    -- However, if both are active or both are recessive, then Forestry defaults to using the primary allele as the active one and the
+    -- secondary allele for the inactive one.
+    local princessPossibilities = {}
+    table.insert(princessPossibilities, {primary = princess.active.species.name, secondary = princess.inactive.species.name})
+    if traitInfo["species"][princess.active.species.name] then
+        table.insert(princessPossibilities, {primary = princess.inactive.species.name, secondary = princess.active.species.name})
+    end
+
+    -- And do the same for the given drone.
+    local dronePossibilities = {}
+    table.insert(dronePossibilities, {primary = drone.active.species.name, secondary = drone.inactive.species.name})
+    if traitInfo["species"][drone.active.species.name] then
+        table.insert(dronePossibilities, {drone.inactive.species.name, drone.active.species.name})
+    end
+
+    -- Compute the probability weighted by possibility.
+    local probabilitySum = 0.0
+    for _, v in ipairs(princessPossibilities) do
+        for _, v2 in ipairs(dronePossibilities) do
+            probabilitySum = probabilitySum + ((1 / (#princessPossibilities * #dronePossibilities)) * mathFunc(target, v.primary, v.secondary, v2.primary, v2.secondary, cacheElement))
+        end
+    end
+
+    return probabilitySum
+end
+
+-- Calculates the chance that an arbitrary offspring produced by a princess and drone with the given species alleles will be a pure-bred of the target species.
+---@param target string
+---@param princessPrimary string
+---@param princessSecondary string
+---@param dronePrimary string
+---@param droneSecondary string
+---@param cacheElement BreedInfoCacheElement
+---@return number
+function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princessPrimary, princessSecondary, dronePrimary, droneSecondary, cacheElement)
     -- Mutations can only happen between a primary species of one bee and the secondary of the other.
     -- Simply checking the item name (primary species) is insufficient because mutation isn't chosen between primaries.
-    local A = princess.active.species.name
-    local B = princess.inactive.species.name
-    local C = drone.active.species.name
-    local D = drone.inactive.species.name
+    local A = princessPrimary
+    local B = princessSecondary
+    local C = dronePrimary
+    local D = droneSecondary
 
     -- Forestry will attempt to do a mutation twice. If the first succeeds, then parent1 will be replaced by the default genome of the resulting
     -- mutation before the Punnet Square. If the second succeeds, then parent2 will be replaced. Each mutation attempt will randomly try for a
@@ -123,14 +167,17 @@ end
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
+---@param traitInfo TraitInfo
 ---@return number
-function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement)
-    local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princess, drone, cacheElement)
+function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement, traitInfo)
+    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function (targetSpec, A, B, C, D, cachedData)
+        local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(targetSpec, A, B, C, D, cachedData)
 
-    -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
-    local probAtLeastOneOffspringIsPureBredTarget = 1.0 - ((1.0 - probPureBredTarget) ^ princess.active.fertility)
-
-    return probAtLeastOneOffspringIsPureBredTarget
+        -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
+        -- The chance of getting subsequent drones as pure-bred is not independent from the trait combinations, so we push that calculation
+        -- down into the trait combination layer.
+        return 1.0 - ((1.0 - probPureBredTarget) ^ princess.active.fertility)
+    end)
 end
 
 return M

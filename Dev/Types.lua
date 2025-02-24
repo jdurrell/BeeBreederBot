@@ -27,6 +27,23 @@ local BreedPathNode = {}
 ---@field specialConditions string[]
 local ForestryMutation = {}
 
+---@generic T
+---@class Chromosome<T>: {primary: T, secondary: T}
+local Chromosome = {}
+
+-- TODO: Add other chromosomes that we will end up caring about later on.
+--       In theory, this should be kept in sync with AnalyzedBeeTraits.
+---@class ForestryGenome
+---@field species Chromosome<{name: string}>
+---@field fertility Chromosome<integer>
+local ForestryGenome = {}
+
+-- For each trait, contains a mapping of each allele to a boolean that represents whether the allele is dominant.
+-- TODO: Extend this to non-species traits.
+---@class TraitInfo
+---@field species table<string, boolean>
+local TraitInfo = {}
+
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
 ---@class AnalyzedBeeStack
@@ -42,7 +59,7 @@ local ForestryMutation = {}
 ---@field outputs {} -- Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
----@field slotInChest integer
+---@field slotInChest integer  Must be assigned upon reading the stack from the chest.
 local AnalyzedBeeStack = {}
 
 ---@class AnalyzedBeeIndividual
@@ -60,6 +77,7 @@ local AnalyzedBeeStack = {}
 ---@field isNatural boolean  Whether this species spawns naturally in hives in the world.
 ---@field maxHealth integer
 ---@field type string  For bees, this seems to always be set to "bee".
+---@field __genome ForestryGenome  For use by modules internal to testing *only*! This field is not accessible from production code.
 local AnalyzedBeeIndividual = {}
 
 ---@class AnalyzedBeeTraits

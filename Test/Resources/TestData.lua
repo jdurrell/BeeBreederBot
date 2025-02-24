@@ -1,5 +1,6 @@
 -- This file contains data for running tests.
 -- NOTE: The data here is not necessarily reflective of actual genetics in any version of Forestry.
+-- TODO: Collect each set of test resources into a standardized class. Also, memoize the computations.
 
 -- TODO: Don't use this library to generate the graph since we want to be able to test it independently (even though it's mostly a simple library).
 GraphParse = require("BeeServer.GraphParse")
@@ -8,10 +9,39 @@ local Res = {
     MathMargin = 0.0000001,
     MundaneBees = {"Forest", "Marshy", "Meadows", "Modest", "Tropical", "Wintry"}
 }
+
+    ---@param rawMutationInfo ForestryMutation[]
+    ---@return SpeciesGraph
+    function Res.GetGraphFromRawMutationInfo(rawMutationInfo)
+        local graph = {}
+
+        for _, mut in ipairs(rawMutationInfo) do
+            GraphParse.AddMutationToGraph(graph, mut.allele1, mut.allele2, mut.result, mut.chance / 100.0)
+        end
+
+        return graph
+    end
+
+    ---@param graph SpeciesGraph
+    ---@return TraitInfo
+    function Res.TraitInfoAllRecessive(graph)
+        local traitInfo = {species = {}}
+        for spec, _ in pairs(graph) do
+            traitInfo.species[spec] = false
+        end
+
+        return traitInfo
+    end
+
     -- A graph made up of only mundane bees that breed into Common with 15% chance each.
     Res.BeeGraphMundaneIntoCommon = {
         MutationChanceIndividual = 0.15
     }
+
+        ---@return TraitInfo
+        function Res.BeeGraphMundaneIntoCommon.GetSpeciesTraitInfo()
+            return Res.TraitInfoAllRecessive(Res.BeeGraphMundaneIntoCommon.GetGraph())
+        end
 
         ---@return ForestryMutation[]
         function Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo()
@@ -27,26 +57,29 @@ local Res = {
 
         ---@return SpeciesGraph
         function Res.BeeGraphMundaneIntoCommon.GetGraph()
-            local graph = {}
-
-            for _, mut in ipairs(Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo()) do
-                GraphParse.AddMutationToGraph(graph, mut.allele1, mut.allele2, mut.result, mut.chance / 100.0)
-            end
-
-            return graph
+            return Res.GetGraphFromRawMutationInfo(Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo())
         end
 
     -- A graph made up of only mundane bees that breed into Common, then can breed with Common to create Cultivated.
     Res.BeeGraphMundaneIntoCommonIntoCultivated = {}
-        ---@return SpeciesGraph
-        function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
-            local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
+        ---@return TraitInfo
+        function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetSpeciesTraitInfo()
+            return Res.TraitInfoAllRecessive(Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph())
+        end
 
-            for i=1, #Res.MundaneBees do
-                GraphParse.AddMutationToGraph(graph, Res.MundaneBees[i], "Common", "Cultivated", 0.12)
+        ---@return ForestryMutation[]
+        function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetRawMutationInfo()
+            local mutations = Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo()
+            for _, bee in ipairs(Res.MundaneBees) do
+                table.insert(mutations, {allele1=bee, allele2="Common", result="Cultivated", chance=12.0})
             end
 
-            return graph
+            return mutations
+        end
+
+        ---@return SpeciesGraph
+        function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
+            return Res.GetGraphFromRawMutationInfo(Res.BeeGraphMundaneIntoCommonIntoCultivated.GetRawMutationInfo())
         end
 
     Res.BeeGraphSimpleDuplicateMutations = {
@@ -55,18 +88,27 @@ local Res = {
             Result2={["Root1-Root2"]={targetMutChance=0.1058333, nonTargetMutChance=0.7501667}},
             Result3={["Root1-Root2"]={targetMutChance=0.3925, nonTargetMutChance=0.4635}},
             Result4={["Root1-Root2"]={targetMutChance=0.0508333, nonTargetMutChance=0.8051667}}
+        },
+        RawMutationInfo = {
+            {allele1="Root1", allele2="Root2", result="Result1", chance=50.0},
+            {allele1="Root1", allele2="Root2", result="Result2", chance=20.0},
+            {allele1="Root1", allele2="Root2", result="Result3", chance=60.0},
+            {allele1="Root1", allele2="Root2", result="Result4", chance=10.0}
         }
     }
+        ---@return TraitInfo
+        function Res.BeeGraphSimpleDuplicateMutations.GetSpeciesTraitInfo()
+            return Res.TraitInfoAllRecessive(Res.BeeGraphSimpleDuplicateMutations.GetGraph())
+        end
+
+        ---@return ForestryMutation[]
+        function Res.BeeGraphSimpleDuplicateMutations.GetRawMutationInfo()
+            return Res.BeeGraphSimpleDuplicateMutations.RawMutationInfo
+        end
+
         ---@return SpeciesGraph    
         function Res.BeeGraphSimpleDuplicateMutations.GetGraph()
-            local graph = {}
-
-            GraphParse.AddMutationToGraph(graph, "Root1", "Root2", "Result1", 0.5)
-            GraphParse.AddMutationToGraph(graph, "Root1", "Root2", "Result2", 0.2)
-            GraphParse.AddMutationToGraph(graph, "Root1", "Root2", "Result3", 0.6)
-            GraphParse.AddMutationToGraph(graph, "Root1", "Root2", "Result4", 0.1)
-
-            return graph
+            return Res.GetGraphFromRawMutationInfo(Res.BeeGraphSimpleDuplicateMutations.GetRawMutationInfo())
         end
 
     -- The actual mutation list exported from OpenComputers/Forestry in GTNH 2.6.1.
