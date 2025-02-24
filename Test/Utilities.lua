@@ -180,7 +180,7 @@ end
 ---@param species2 string
 ---@param fertility integer | nil
 function M.CreateGenome(species1, species2, fertility)
-    local fertilityToUse = ((fertility == nil) and 2) or fertility
+    local fertilityToUse = ((fertility == nil) and 1) or fertility
 
     return {
         species = {primary = {name = species1}, secondary = {name = species2}},

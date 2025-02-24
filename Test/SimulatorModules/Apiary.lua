@@ -47,7 +47,7 @@ function M:GenerateDescendants(queen, drone)
 
     local princess = self:CreateOffspring(queen, drone, {}, {})
     local drones = {}
-    for i = 1, princess.active.fertility do
+    for i = 1, queen.active.fertility do
         table.insert(drones, self:CreateOffspring(queen, drone, {}, {}))
     end
 
