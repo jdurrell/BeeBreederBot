@@ -231,4 +231,22 @@ function M.CreateBee(genome, traitInfo)
     }
 end
 
+---@return boolean
+function M.IsVerboseMode()
+    for _, argument in ipairs(arg) do
+        if (argument == "-v") or (argument == "--verbose") then
+            return true
+        end
+    end
+
+    return false
+end
+
+---@param str string
+function M.VerbosePrint(str)
+    if M.IsVerboseMode() then
+        print(str)
+    end
+end
+
 return M

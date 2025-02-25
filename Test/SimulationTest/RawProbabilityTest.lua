@@ -15,8 +15,9 @@ local AlphaLevelToTwoSidedZThreshold = {
 ---@param n integer | nil Number of Bernoulli trials to perform.
 local function VerifyAlwaysHappens(bernoulliTrial, n)
     for i = 1, n do
-        Luaunit.assertIsTrue(bernoulliTrial(), "Iteration " .. tostring(i) .. ".")
+        Luaunit.assertIsTrue(bernoulliTrial(), "'Always Happens' failed at iteration " .. tostring(i) .. ".")
     end
+    Util.VerbosePrint(string.format("\nn = %u, all correct!", n))
 end
 
 -- Performs `n` Bernoulli trials (defined by `bernoulliTrial`) and verifies that it doesn't succeed once.
@@ -24,8 +25,9 @@ end
 ---@param n integer | nil Number of Bernoulli trials to perform.
 local function VerifyNeverHappens(bernoulliTrial, n)
     for i = 1, n do
-        Luaunit.assertIsFalse(bernoulliTrial(), "Iteration " .. tostring(i) .. ".")
+        Luaunit.assertIsFalse(bernoulliTrial(), "'Never Happens' failed at iteration " .. tostring(i) .. ".")
     end
+    Util.VerbosePrint(string.format("\nn = %u, all correct!", n))
 end
 
 -- Performs `n` Bernoulli trials (defined by `bernoulliTrial`) and verifies that the observed probability of success
@@ -64,13 +66,19 @@ local function VerifyReasonabilityOfAccuracy(bernoulliTrial, pZero, n, alphaLeve
     -- Then, we perform a z-test and reject the expected probability `pZero` if the observed probability differed to a degree of statistical
     -- significance represented by `alphaLevel`.
     local pHat = observedCount / n
-    local z = (pHat - pZero) / (math.sqrt((pZero * (1 - pZero)) / n))
+    local stdev = math.sqrt((pZero * (1 - pZero)) / n)
+    local z = (pHat - pZero) / stdev
 
     -- Since we must test for the observed probability being greater than or less than the expected probability, our z-test must be two-sided.
     local threshold = AlphaLevelToTwoSidedZThreshold[alphaLevel]
+    Util.VerbosePrint(string.format("\nDid Z-test at alpha = %.3f:\np0 = %.7f, rejection distance: %.7f\npHat = %.7f, z = %.3f",
+        alphaLevel, pZero, threshold * stdev, pHat, z
+    ))
+
     Luaunit.assertIsTrue(math.abs(z) < threshold,
         "Z-test failed: z=" .. tostring(z) .. " is outside threshold " .. tostring(threshold) .. ". Observed probability " .. tostring(pHat) .. ", expected ~" .. tostring(pZero) .. "."
     )
+    Util.VerbosePrint("H0 not rejected!")
 end
 
 ---@param target string
