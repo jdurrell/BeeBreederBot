@@ -21,15 +21,15 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cach
     -- secondary allele for the inactive one.
     local princessPossibilities = {}
     table.insert(princessPossibilities, {primary = princess.active.species.name, secondary = princess.inactive.species.name})
-    if traitInfo["species"][princess.active.species.name] then
+    if traitInfo["species"][princess.active.species.name] and not traitInfo["species"][princess.inactive.species.name] then
         table.insert(princessPossibilities, {primary = princess.inactive.species.name, secondary = princess.active.species.name})
     end
 
     -- And do the same for the given drone.
     local dronePossibilities = {}
     table.insert(dronePossibilities, {primary = drone.active.species.name, secondary = drone.inactive.species.name})
-    if traitInfo["species"][drone.active.species.name] then
-        table.insert(dronePossibilities, {drone.inactive.species.name, drone.active.species.name})
+    if traitInfo["species"][drone.active.species.name] and not traitInfo["species"][drone.inactive.species.name] then
+        table.insert(dronePossibilities, {primary = drone.inactive.species.name, secondary = drone.active.species.name})
     end
 
     -- Compute the probability weighted by possibility.

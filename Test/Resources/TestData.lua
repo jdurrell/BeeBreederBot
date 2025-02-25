@@ -111,6 +111,65 @@ local Res = {
             return Res.GetGraphFromRawMutationInfo(Res.BeeGraphSimpleDuplicateMutations.GetRawMutationInfo())
         end
 
+    Res.BeeGraphSimpleDominance = {
+        RawMutationInfo = {
+            {allele1="Recessive1", allele2="Recessive2", result="RecessiveResult", chance=15.0},
+            {allele1="Recessive1", allele2="Dominant1", result="RecessiveResult", chance=18.0},
+            {allele1="Recessive2", allele2="Recessive3", result="DominantResult", chance=20.0},
+            {allele1="Recessive1", allele2="Dominant1", result="DominantResult", chance=12.0},
+            {allele1="Dominant2", allele2="Dominant3", result="DominantResult", chance=10.0}
+        },
+        TraitInfo = {species = {
+            ["Recessive1"] = false,
+            ["Recessive2"] = false,
+            ["Recessive3"] = false,
+            ["Dominant1"] = true,
+            ["Dominant2"] = true,
+            ["Dominant3"] = true,
+            ["RecessiveResult"] = false,
+            ["DominantResult"] = true
+        }}
+    }
+        ---@return TraitInfo
+        function Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
+            return Res.BeeGraphSimpleDominance.TraitInfo
+        end
+
+        ---@return ForestryMutation[]
+        function Res.BeeGraphSimpleDominance.GetRawMutationInfo()
+            return Res.BeeGraphSimpleDominance.RawMutationInfo
+        end
+
+        ---@return SpeciesGraph
+        function Res.BeeGraphSimpleDominance.GetGraph()
+            return Res.GetGraphFromRawMutationInfo(Res.BeeGraphSimpleDominance.GetRawMutationInfo())
+        end
+
+    Res.BeeGraphSimpleDominanceDuplicateMutations = {
+        TraitInfo = {species = {
+            ["Root1"] = false,
+            ["Root2"] = true,
+            ["Result1"] = false,
+            ["Result2"] = true,
+            ["Result3"] = false,
+            ["Result4"] = true
+        }}
+    }
+        ---@return TraitInfo
+        function Res.BeeGraphSimpleDominanceDuplicateMutations.GetSpeciesTraitInfo()
+            return Res.BeeGraphSimpleDominanceDuplicateMutations.TraitInfo
+        end
+
+        ---@return ForestryMutation[]
+        function Res.BeeGraphSimpleDominanceDuplicateMutations.GetRawMutationInfo()
+            return Res.BeeGraphSimpleDuplicateMutations.GetRawMutationInfo()
+        end
+
+        ---@return SpeciesGraph
+        function Res.BeeGraphSimpleDominanceDuplicateMutations.GetGraph()
+            return Res.BeeGraphSimpleDuplicateMutations.GetGraph()
+        end
+
     -- The actual mutation list exported from OpenComputers/Forestry in GTNH 2.6.1.
     Res.BeeGraphActual = {
         RawMutationInfo = {

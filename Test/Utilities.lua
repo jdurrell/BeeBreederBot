@@ -175,6 +175,17 @@ function M.BreedCacheTargetLoad(target, graph)
     return cache
 end
 
+---@param graph SpeciesGraph
+function M.BreedCachePreloadAll(graph)
+    local cache = {}
+
+    for target, _ in pairs(graph) do
+        cache[target] = M.BreedCacheTargetLoad(target, graph)
+    end
+
+    return cache
+end
+
 -- TODO: Add more fields when we end up needing them.
 ---@param species1 string
 ---@param species2 string

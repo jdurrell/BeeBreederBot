@@ -120,7 +120,8 @@ end
 ---@param traitInfo TraitInfo
 ---@return AnalyzedBeeIndividual
 local function CreateBeeFromActiveAndInactive(activeSpecies, inactiveSpecies, fertility, traitInfo)
-    if traitInfo.species[inactiveSpecies] and math.random() < 0.5 then
+    -- If one trait is dominant and the other is recessive, then randomize the order.
+    if (traitInfo.species[activeSpecies] ~= traitInfo.species[inactiveSpecies]) and math.random() < 0.5 then
         return Util.CreateBee(Util.CreateGenome(inactiveSpecies, activeSpecies, fertility))
     else
         return Util.CreateBee(Util.CreateGenome(activeSpecies, inactiveSpecies, fertility))
@@ -141,11 +142,13 @@ local function RunAtLeastOneOffspringAccuracyTest(target, queenSpecies1, queenSp
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), traitInfo)
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)
-    local queen = CreateBeeFromActiveAndInactive(queenSpecies1, queenSpecies2, queenFertility, traitInfo)
-    local drone = CreateBeeFromActiveAndInactive(droneSpecies1, droneSpecies2, queenFertility, traitInfo)
 
     local expectedProbability = MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
-        target, queen, drone, cacheElement, traitInfo
+        target,
+        CreateBeeFromActiveAndInactive(queenSpecies1, queenSpecies2, queenFertility, traitInfo),
+        CreateBeeFromActiveAndInactive(droneSpecies1, droneSpecies2, queenFertility, traitInfo),
+        cacheElement,
+        traitInfo
     )
 
     VerifyReasonabilityOfAccuracy(
@@ -216,7 +219,7 @@ TestAtLeastOneOffspringIsPureBredTargetSimulation = {}
         RunAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
-    function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestOffspringPurityIsUncertainNoDominance()
+    function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestPartialPurity()
         local target = "Cultivated"
         RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
         RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
@@ -230,4 +233,37 @@ TestAtLeastOneOffspringIsPureBredTargetSimulation = {}
         RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
         RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
         RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+    end
+
+    function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestNoExistingPurityWithDominance()
+        local target = "RecessiveResult"
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Dominant1", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Dominant1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+    end
+
+    function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestPartialPurityWithDominance()
+        local target = "DominantResult"
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "DominantResult", "DominantResult", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive2", "Recessive2", "DominantResult", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "DominantResult", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+
+        target = "RecessiveResult"
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "RecessiveResult", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive2", "Recessive2", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "RecessiveResult", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+
+        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+    end
+
+    function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestDominanceMultipleMutations()
+        RunAtLeastOneOffspringAccuracyTest("Result1", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        RunAtLeastOneOffspringAccuracyTest("Result1", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        RunAtLeastOneOffspringAccuracyTest("Result2", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        RunAtLeastOneOffspringAccuracyTest("Result2", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
     end

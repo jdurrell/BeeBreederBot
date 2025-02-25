@@ -198,3 +198,84 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
             target, Util.CreateBee(Util.CreateGenome("Cultivated", "Cultivated", 4)), Util.CreateBee(Util.CreateGenome("Cultivated", "Cultivated", 2)), cacheElement, traitInfo
         ), 1)
     end
+
+    function TestAtLeastOneOffspringIsPureBredTarget:TestNoExistingPurityWithDominance()
+        local graph = Res.BeeGraphSimpleDominance.GetGraph()
+        local traitInfo = Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
+        local target = "RecessiveResult"
+        local cacheElement = Util.BreedCacheTargetLoad(target, graph)
+
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive1", "Recessive1", 2)), Util.CreateBee(Util.CreateGenome("Dominant1", "Dominant1", 2)), cacheElement, traitInfo
+        ), 0.0564377, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Dominant1", "Recessive1", 2)), Util.CreateBee(Util.CreateGenome("Dominant1", "Recessive1", 2)), cacheElement, traitInfo
+        ), 0.0282188, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive1", "Recessive1", 2)), Util.CreateBee(Util.CreateGenome("Dominant1", "Recessive1", 2)), cacheElement, traitInfo
+        ), 0.0142631, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Dominant1", "Dominant1", 2)), Util.CreateBee(Util.CreateGenome("Dominant1", "Recessive1", 2)), cacheElement, traitInfo
+        ), 0.0142631, Res.MathMargin)
+    end
+
+    function TestAtLeastOneOffspringIsPureBredTarget:TestPartialPurityWithDominance()
+        local graph = Res.BeeGraphSimpleDominance.GetGraph()
+        local traitInfo = Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
+        local target = "DominantResult"
+        local cacheElement = Util.BreedCacheTargetLoad(target, graph)
+
+        Luaunit.assertEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive2", "Recessive2", 2)), Util.CreateBee(Util.CreateGenome("DominantResult", "DominantResult", 2)), cacheElement, traitInfo
+        ), 0)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("DominantResult", "Recessive2", 2)), Util.CreateBee(Util.CreateGenome("Recessive2", "DominantResult", 2)), cacheElement, traitInfo
+        ), 0.4375, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("DominantResult", "DominantResult", 2)), Util.CreateBee(Util.CreateGenome("DominantResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0.75, Res.MathMargin)
+
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive2", "Recessive2", 2)), Util.CreateBee(Util.CreateGenome("DominantResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("DominantResult", "Recessive3", 2)), Util.CreateBee(Util.CreateGenome("DominantResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0.4754969, Res.MathMargin)
+
+        target = "RecessiveResult"
+        Luaunit.assertEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive2", "Recessive2", 2)), Util.CreateBee(Util.CreateGenome("RecessiveResult", "RecessiveResult", 2)), cacheElement, traitInfo
+        ), 0)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("RecessiveResult", "Recessive2", 2)), Util.CreateBee(Util.CreateGenome("Recessive2", "RecessiveResult", 2)), cacheElement, traitInfo
+        ), 0.4375, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("RecessiveResult", "RecessiveResult", 2)), Util.CreateBee(Util.CreateGenome("RecessiveResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0.75, Res.MathMargin)
+
+        Luaunit.assertEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("Recessive2", "Recessive3", 2)), Util.CreateBee(Util.CreateGenome("RecessiveResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            target, Util.CreateBee(Util.CreateGenome("RecessiveResult", "Recessive3", 2)), Util.CreateBee(Util.CreateGenome("RecessiveResult", "Recessive2", 2)), cacheElement, traitInfo
+        ), 0.4375, Res.MathMargin)
+    end
+
+    function TestAtLeastOneOffspringIsPureBredTarget:TestDominanceMultipleMutations()
+        local graph = Res.BeeGraphSimpleDominanceDuplicateMutations.GetGraph()
+        local traitInfo = Res.BeeGraphSimpleDominanceDuplicateMutations.GetSpeciesTraitInfo()
+        local cache = Util.BreedCachePreloadAll(graph)
+
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            "Result1", Util.CreateBee(Util.CreateGenome("Root1", "Root1", 2)), Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), cache["Result1"], traitInfo
+        ), 0.0465194, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            "Result1", Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), cache["Result1"], traitInfo
+        ), 0.0897149, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            "Result2", Util.CreateBee(Util.CreateGenome("Root1", "Root1", 2)), Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), cache["Result2"], traitInfo
+        ), 0.0055925, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
+            "Result2", Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), Util.CreateBee(Util.CreateGenome("Root2", "Root1", 2)), cache["Result2"], traitInfo
+        ), 0.0111380, Res.MathMargin)
+    end
