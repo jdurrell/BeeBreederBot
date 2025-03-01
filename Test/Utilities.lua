@@ -214,7 +214,6 @@ function M.CreateBee(genome, traitInfo)
         local lookupPrimary = ((gene == "species") and alleles.primary.name) or alleles.primary
         local lookupSecondary = ((gene == "species") and alleles.secondary.name) or alleles.secondary
 
-        -- local toBeActive, toBeInactive
         if (traitInfo ~= nil) and (traitInfo[gene] ~= nil) and (not traitInfo[gene][lookupPrimary]) and traitInfo[gene][lookupSecondary] then
             -- If the primary allele is recessive, and the secondary is dominant, the the secondary shows up as active, and the primary shows up as inactive.
             active[gene] = alleles.secondary

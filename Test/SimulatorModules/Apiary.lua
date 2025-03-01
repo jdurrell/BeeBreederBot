@@ -6,6 +6,7 @@
 -- TODO: Account for ignoble stock.
 -- TODO: Implement RNG for traits other than species.
 ---@class Apiary
+---@field defaultChromosomes table<string, ForestryGenome> | nil
 ---@field rawMutationInfo ForestryMutation[]
 ---@field traitInfo TraitInfo
 local M = {}
@@ -27,14 +28,16 @@ end
 
 ---@param rawMutationInfo ForestryMutation[]
 ---@param traitInfo TraitInfo
+---@param defaultChromosomes table<string, ForestryGenome> | nil
 ---@return Apiary
-function M:Create(rawMutationInfo, traitInfo)
+function M:Create(rawMutationInfo, traitInfo, defaultChromosomes)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
     obj.rawMutationInfo = rawMutationInfo
     obj.traitInfo = traitInfo
+    obj.defaultChromosomes = defaultChromosomes
 
     return obj
 end
@@ -141,8 +144,13 @@ function M:MutateSpecies(parent1, parent2)
     Shuffle(possibleMutations)
     for _, mut in ipairs(possibleMutations) do
         if (math.random() * 100) < mut.chance then
-            -- TODO: Assign default values for the species other than just the species allele itself.
-            return Util.CreateGenome(mut.result, mut.result)
+
+            -- Support TestData providers for which we never decided defaults.
+            if self.defaultChromosomes == nil then
+                return Util.CreateGenome(mut.result, mut.result)
+            end
+
+            return self.defaultChromosomes[mut.result]
         end
     end
 
