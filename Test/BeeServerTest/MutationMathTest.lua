@@ -1,7 +1,9 @@
-Luaunit = require("Test.luaunit")
-GraphParse = require("BeeServer.GraphParse")
-MutationMath = require("BeeServer.MutationMath")
-Resources = require("Test.Resources.TestData")
+local Luaunit = require("Test.luaunit")
+
+local Res = require("Test.Resources.TestData")
+
+local GraphParse = require("BeeServer.GraphParse")
+local MutationMath = require("BeeServer.MutationMath")
 
 TestFactorial = {}
     function TestFactorial:TestFactorialBasic()

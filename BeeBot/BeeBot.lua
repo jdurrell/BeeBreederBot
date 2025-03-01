@@ -79,7 +79,7 @@ function BeeBot:Create(componentLib, eventLib, serialLib, sidesLib, logFilepath,
         obj:Shutdown(1)
     end
 
-    local robotComms = RobotComms:Create(componentLib.modem, serialLib, port)
+    local robotComms = RobotComms:Create(eventLib, componentLib.modem, serialLib, port)
     if robotComms == nil then
         Print("Failed to initialize RobotComms during BeeBot initialization.")
         obj:Shutdown(1)

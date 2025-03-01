@@ -1,6 +1,7 @@
 -- This file contains code that dscribes the communication between the client (BeeBot) and the server (BeeServer).
 
 ---@class CommLayer
+---@field event any
 ---@field modem any
 ---@field serial any
 ---@field port integer
@@ -27,17 +28,19 @@ CommLayer.MessageCode = {
 CommLayer.DefaultComPort = 34000
 CommLayer.ModemEventName = "modem_message"
 
+---@param eventLib any
 ---@param modemLib any
 ---@param serializationLib any
 ---@param port integer
 ---@return CommLayer | nil
-function CommLayer:Open(modemLib, serializationLib, port)
+function CommLayer:Open(eventLib, modemLib, serializationLib, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
     -- Store away system libraries.
     -- These will need to be injected for testing.
+    obj.event = eventLib
     obj.modem = modemLib
     obj.serial = serializationLib
 
@@ -75,7 +78,7 @@ end
 ---@param timeout number | nil
 ---@return Message | nil, string | nil
 function CommLayer:GetIncoming(timeout)
-    local event, _, addr, _, _, response = Event.pull(timeout, CommLayer.ModemEventName)
+    local event, _, addr, _, _, response = self.event.pull(timeout, CommLayer.ModemEventName)
     if event == nil then
         return nil, nil
     end

@@ -1,8 +1,10 @@
 local Luaunit = require("Test.luaunit")
 
 local Apiary = require("Test.SimulatorModules.Apiary")
-local MatchingMath = require("BeeBot.MatchingMath")
 local Util = require("Test.Utilities")
+local Res = require("Test.Resources.TestData")
+
+local MatchingMath = require("BeeBot.MatchingMath")
 
 local AlphaLevelToTwoSidedZThreshold = {
     [0.01] = 2.58,
@@ -11,7 +13,7 @@ local AlphaLevelToTwoSidedZThreshold = {
 }
 
 -- Performs `n` Bernoulli trials (defined by `bernoulliTrial`) and verifies that it always succeeds.
----@param bernoulliTrial fun(): boolean  A function that determines whether the outcome of a given Bernoulli trial is a "success".
+---@param bernoulliTrial fun(): boolean  A function that performs a Bernoulli trial and returns whether or not it was a "success".
 ---@param n integer | nil Number of Bernoulli trials to perform.
 local function VerifyAlwaysHappens(bernoulliTrial, n)
     for i = 1, n do
@@ -21,7 +23,7 @@ local function VerifyAlwaysHappens(bernoulliTrial, n)
 end
 
 -- Performs `n` Bernoulli trials (defined by `bernoulliTrial`) and verifies that it doesn't succeed once.
----@param bernoulliTrial fun(): boolean  A function that determines whether the outcome of a given Bernoulli trial is a "success".
+---@param bernoulliTrial fun(): boolean  A function that performs a Bernoulli trial and returns whether or not it was a "success".
 ---@param n integer | nil Number of Bernoulli trials to perform.
 local function VerifyNeverHappens(bernoulliTrial, n)
     for i = 1, n do
@@ -34,7 +36,7 @@ end
 -- does not differ from the expected probability `pZero` to the degree of statistical significance represented by
 -- `alphaLevel`. Note that this does not strictly guarantee that the expected probability is "certainly correct",
 -- but it is useful for determining that the expected probability is reasonably close to reality.
----@param bernoulliTrial fun(): boolean  A function that determines whether the outcome of a given Bernoulli trial is a "success".
+---@param bernoulliTrial fun(): boolean  A function that performs a Bernoulli trial and returns whether or not it was a "success".
 ---@param pZero number  The expected probability of "success".
 ---@param n integer | nil Number of Bernoulli trials to perform.
 ---@param alphaLevel number | nil

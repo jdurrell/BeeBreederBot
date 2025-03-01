@@ -1,6 +1,7 @@
 -- This module encapsulates various common operations that involve the robot communicating with the server.
 
 require("Shared.Shared")
+local CommLayer = require("Shared.CommLayer")
 
 ---@class RobotComms
 ---@field comm CommLayer
@@ -184,16 +185,17 @@ function RobotComms:Shutdown()
 end
 
 -- Creates a RobotComms object.
+---@param eventLib any
 ---@param modemLib any
 ---@param serializationLib any
 ---@param port integer
 ---@return RobotComms | nil
-function RobotComms:Create(modemLib, serializationLib, port)
+function RobotComms:Create(eventLib, modemLib, serializationLib, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
-    local comm = CommLayer:Open(modemLib, serializationLib, port)
+    local comm = CommLayer:Open(eventLib, modemLib, serializationLib, port)
     if comm == nil then
         Print("Failed to open CommLayer during RobotComms initialization.")
         return nil

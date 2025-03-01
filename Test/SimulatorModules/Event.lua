@@ -6,7 +6,9 @@
 -- The test procedure will need to figure out exactly when it responds to
 -- each one because some messages are sent without waiting for a response,
 -- and the server constantly waits for a message until it gets one.
+
 local Coroutine = require("coroutine")
+
 local Queue = require("Test.SimulatorModules.EventQueue")
 
 ---@class Event

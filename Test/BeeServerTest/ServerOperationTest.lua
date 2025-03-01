@@ -1,17 +1,18 @@
-Coroutine = require("coroutine")
-Luaunit = require("Test.luaunit")
+local Coroutine = require("coroutine")
+local Luaunit = require("Test.luaunit")
 
-ApicultureTiles = require("Test.SimulatorModules.Component.ApicultureTiles")
-Component = require("Test.SimulatorModules.Component.Component")
-Event = require("Test.SimulatorModules.Event")
-Modem = require("Test.SimulatorModules.Component.Modem")
-Res = require("Test.Resources.TestData")
-Serialization = require("Test.SimulatorModules.Serialization")
-Term = require("Test.SimulatorModules.Term")
-Util = require("Test.Utilities")
+local ApicultureTiles = require("Test.SimulatorModules.Component.ApicultureTiles")
+local Component = require("Test.SimulatorModules.Component.Component")
+local Event = require("Test.SimulatorModules.Event")
+local Modem = require("Test.SimulatorModules.Component.Modem")
+local Res = require("Test.Resources.TestData")
+local Serialization = require("Test.SimulatorModules.Serialization")
+local Term = require("Test.SimulatorModules.Term")
+local Util = require("Test.Utilities")
 
-BeeServer = require("BeeServer.BeeServer")
-CommLayer = require("Shared.CommLayer")
+local BeeServer = require("BeeServer.BeeServer")
+local CommLayer = require("Shared.CommLayer")
+local Logger = require("Shared.Logger")
 
 
  ---@param thread thread

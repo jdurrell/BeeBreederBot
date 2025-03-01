@@ -1,6 +1,8 @@
 -- This is a module that simulates OC's term API for testing.
 -- Mostly, it is used for interacting with the BeeServer from the test environment.
+
 local Coroutine = require("coroutine")
+
 local Queue = require("Test.SimulatorModules.EventQueue")
 
 ---@class Term

@@ -1,5 +1,7 @@
 -- This module contains various utilities that are re-used by multiple test suites.
 
+local MutationMath = require("BeeServer.MutationMath")
+
 local M = {}
 
 M.SEED_LOG_DIR = "./Test/Resources/LogfileSeeds/"

@@ -1,7 +1,9 @@
-local MatchingMath = require("BeeBot.MatchingMath")
-local MutationMath = require("BeeServer.MutationMath")
+local Luaunit = require("Test.luaunit")
+
 local Res = require("Test.Resources.TestData")
 local Util = require("Test.Utilities")
+
+local MatchingMath = require("BeeBot.MatchingMath")
 
 TestArbitraryOffspringIsPureBredTarget = {}
     function TestArbitraryOffspringIsPureBredTarget:TestNoParentAlleleComboYieldsTarget()

@@ -1,7 +1,8 @@
-Luaunit = require("Test.luaunit")
-Util = require("Test.Utilities")
+local Luaunit = require("Test.luaunit")
 
-Logger = require("Shared.Logger")
+local Util = require("Test.Utilities")
+
+local Logger = require("Shared.Logger")
 
 TestLogger = {}
     function TestLogger:TestNoLog()

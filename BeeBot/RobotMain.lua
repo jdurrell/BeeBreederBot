@@ -4,6 +4,7 @@ local event = require("event")
 local serial = require("serialization")
 local sides = require("sides")
 
+local CommLayer = require("Shared.CommLayer")
 local BeeBot = require("BeeBot.BeeBot")
 
 -- TODO: Read from config file?

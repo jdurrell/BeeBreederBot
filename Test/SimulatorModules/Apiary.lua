@@ -5,14 +5,16 @@
 -- TODO: Account for frame modifiers.
 -- TODO: Account for ignoble stock.
 -- TODO: Implement RNG for traits other than species.
+
+require("Shared.Shared")
+local Util = require("Test.Utilities")
+
 ---@class Apiary
 ---@field defaultChromosomes table<string, ForestryGenome> | nil
 ---@field rawMutationInfo ForestryMutation[]
 ---@field traitInfo TraitInfo
 local M = {}
 
-require("Shared.Shared")
-local Util = require("Test.Utilities")
 
 -- Shuffles the given list in place.
 ---@generic T

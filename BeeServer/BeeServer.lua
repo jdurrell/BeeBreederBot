@@ -193,7 +193,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     obj.term = termLib
     obj.logFilepath = logFilepath
 
-    obj.comm = CommLayer:Open(componentLib.modem, serialLib, port)
+    obj.comm = CommLayer:Open(eventLib, componentLib.modem, serialLib, port)
     if obj.comm == nil then
         Print("Failed to open communication layer.")
 

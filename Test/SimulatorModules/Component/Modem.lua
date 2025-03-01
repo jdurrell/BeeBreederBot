@@ -1,8 +1,10 @@
 -- This is a module that simulates the OpenComputers modem component.
 -- It is admittedly a little odd to have asserts embedded directly into the
 -- test fixture, but there's not a fantastic better way to test this.
-local Luaunit = require("Test.luaunit")
+
 local Coroutine = require("coroutine")
+local Luaunit = require("Test.luaunit")
+
 local Event = require("Test.SimulatorModules.Event")
 
 ---@class Modem
