@@ -235,8 +235,8 @@ function BreedOperator:PopulateBreedInfoCache(princessStack, droneStackList, tar
         -- Forestry only checks for mutations between the princess's primary and drone's secondary species and the princess's secondary and
         -- drone's primary species.
         local mutCombos = {
-            {princessStack.individual.active.species.name, droneStack.individual.inactive.species.name},
-            {princessStack.individual.inactive.species.name, droneStack.individual.active.species.name}
+            {princessStack.individual.active.species.uid, droneStack.individual.inactive.species.uid},
+            {princessStack.individual.inactive.species.uid, droneStack.individual.active.species.uid}
         }
         for _, combo in ipairs(mutCombos) do
             cacheElement[combo[1]] = ((cacheElement[combo[1]] == nil) and {}) or cacheElement[combo[1]]

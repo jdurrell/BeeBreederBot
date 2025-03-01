@@ -20,16 +20,16 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cach
     -- However, if both are active or both are recessive, then Forestry defaults to using the primary allele as the active one and the
     -- secondary allele for the inactive one.
     local princessPossibilities = {}
-    table.insert(princessPossibilities, {primary = princess.active.species.name, secondary = princess.inactive.species.name})
-    if traitInfo["species"][princess.active.species.name] and not traitInfo["species"][princess.inactive.species.name] then
-        table.insert(princessPossibilities, {primary = princess.inactive.species.name, secondary = princess.active.species.name})
+    table.insert(princessPossibilities, {primary = princess.active.species.uid, secondary = princess.inactive.species.uid})
+    if traitInfo["species"][princess.active.species.uid] and not traitInfo["species"][princess.inactive.species.uid] then
+        table.insert(princessPossibilities, {primary = princess.inactive.species.uid, secondary = princess.active.species.uid})
     end
 
     -- And do the same for the given drone.
     local dronePossibilities = {}
-    table.insert(dronePossibilities, {primary = drone.active.species.name, secondary = drone.inactive.species.name})
-    if traitInfo["species"][drone.active.species.name] and not traitInfo["species"][drone.inactive.species.name] then
-        table.insert(dronePossibilities, {primary = drone.inactive.species.name, secondary = drone.active.species.name})
+    table.insert(dronePossibilities, {primary = drone.active.species.uid, secondary = drone.inactive.species.uid})
+    if traitInfo["species"][drone.active.species.uid] and not traitInfo["species"][drone.inactive.species.uid] then
+        table.insert(dronePossibilities, {primary = drone.inactive.species.uid, secondary = drone.active.species.uid})
     end
 
     -- Compute the probability weighted by possibility.

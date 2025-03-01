@@ -85,7 +85,7 @@ end
 ---@param bee AnalyzedBeeIndividual
 ---@return boolean
 local function IsPureBredTarget(target, bee)
-    return (bee.active.species.name == target) and (bee.inactive.species.name == target)
+    return (bee.active.species.uid == target) and (bee.inactive.species.uid == target)
 end
 
 ---@param target string
@@ -105,8 +105,8 @@ local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpe
     local drone = Util.CreateBee(Util.CreateGenome(droneSpecies1, droneSpecies2))
     local expectedProbability = MatchingMath.CalculateChanceArbitraryOffspringIsPureBredTarget(
         target,
-        queen.__genome.species.primary.name, queen.__genome.species.secondary.name,
-        drone.__genome.species.primary.name, drone.__genome.species.secondary.name,
+        queen.__genome.species.primary.uid, queen.__genome.species.secondary.uid,
+        drone.__genome.species.primary.uid, drone.__genome.species.secondary.uid,
         cacheElement
     )
 

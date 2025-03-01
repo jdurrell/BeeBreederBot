@@ -19,9 +19,10 @@ function M.ReadSpeciesLogFromDisk(filepath)
     for line in logfile:lines("l") do
         count = count + 1
         local fields = {}
-        for field in string.gmatch(line, "[%w]+") do  -- TODO: Handle species with spaces in their name.
-            local stringfield = string.gsub(field, ",", "")
-            table.insert(fields, stringfield)
+        for field in string.gmatch(line, "[^,]+") do  -- TODO: Handle species with spaces in their name.
+            -- local stringfield = string.gsub(field, ",", "")
+            -- table.insert(fields, stringfield)
+            table.insert(fields, field)
         end
 
         -- We should get 4 fields from each line. If we don't, then we don't know what we're reading.

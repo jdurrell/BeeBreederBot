@@ -121,11 +121,11 @@ function M:MutateSpecies(parent1, parent2)
     -- Choose between mutating on A-D or B-C.
     local allele1, allele2
     if math.random() > 0.5 then
-        allele1 = parent1.species.primary.name
-        allele2 = parent2.species.secondary.name
+        allele1 = parent1.species.primary.uid
+        allele2 = parent2.species.secondary.uid
     else
-        allele1 = parent1.species.secondary.name
-        allele2 = parent2.species.primary.name
+        allele1 = parent1.species.secondary.uid
+        allele2 = parent2.species.primary.uid
     end
 
     -- Collect the possible mutations from these two parents.

@@ -127,7 +127,7 @@ function M.VerifyLogIsValidLog(filepath)
 
         count = count + 1
         local fields = {}
-        for field in string.gmatch(line, "[%w]+") do  -- TODO: Handle species with spaces in their name.
+        for field in string.gmatch(line, "[^,]+") do  -- TODO: Handle species with spaces in their name.
             local stringfield = string.gsub(field, ",", "")
             table.insert(fields, stringfield)
         end
@@ -136,8 +136,10 @@ function M.VerifyLogIsValidLog(filepath)
         Luaunit.assertEquals(#fields, 4, lineString)
 
         -- Coordinates should be integers (shouldn't contain non-numeric characters).
-        Luaunit.assertNotIsNil(fields[2]:find("^[%d]"), lineString)
-        Luaunit.assertNotIsNil(fields[3]:find("^[%d]"), lineString)
+        Luaunit.assertIsNil(fields[2]:find("[^%d]"), lineString)
+        Luaunit.assertIsNil(fields[3]:find("[^%d]"), lineString)
+        Luaunit.assertNotIsNil(fields[2]:find("[%d]"), lineString)
+        Luaunit.assertNotIsNil(fields[3]:find("[%d]"), lineString)
 
         -- Assuming we have read the log in at some point and didn't write a 0 timestamp directly,
         -- then any 0 timestamp should have been converted.
@@ -194,7 +196,7 @@ function M.CreateGenome(species1, species2, fertility)
     local fertilityToUse = ((fertility == nil) and 1) or fertility
 
     return {
-        species = {primary = {name = species1}, secondary = {name = species2}},
+        species = {primary = {uid = species1}, secondary = {uid = species2}},
         fertility = {primary = fertilityToUse, secondary = fertilityToUse}
     }
 end

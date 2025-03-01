@@ -34,7 +34,7 @@ local Chromosome = {}
 -- TODO: Add other chromosomes that we will end up caring about later on.
 --       In theory, this should be kept in sync with AnalyzedBeeTraits.
 ---@class ForestryGenome
----@field species Chromosome<{name: string}>
+---@field species Chromosome<{uid: string}>
 ---@field fertility Chromosome<integer>
 local ForestryGenome = {}
 
