@@ -115,8 +115,11 @@ end
 ---@param target string
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfo
+---@param seed integer | nil
 ---@return integer
-local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo)
+local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo, seed)
+    math.randomseed(((seed ~= nil) and seed) or 456)
+
     ---@type (AnalyzedBeeStack | {})[]
     local droneStacks = Copy(initialDroneStacks)
     local princess = Copy(initialPrincess)

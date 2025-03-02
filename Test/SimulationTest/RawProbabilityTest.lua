@@ -98,8 +98,9 @@ end
 ---@param resourceProvider any  -- TODO: Adjust this once TestData has been refactored into proper provider classes.
 ---@param numTrials integer | nil
 ---@param alphaLevel number | nil
-local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpecies2, droneSpecies1, droneSpecies2, resourceProvider, numTrials, alphaLevel)
-    math.randomseed(456)
+---@param seed integer | nil
+local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpecies2, droneSpecies1, droneSpecies2, resourceProvider, numTrials, alphaLevel, seed)
+    math.randomseed(((seed ~= nil) and seed) or 456)
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), resourceProvider.GetSpeciesTraitInfo())
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)
