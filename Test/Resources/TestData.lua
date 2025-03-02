@@ -326,7 +326,7 @@ local Res = {
             {allele1="forestry.speciesMajestic", allele2="extrabees.species.zinc", result="extrabees.species.silver", chance=2.0},
             {allele1="extrabees.species.gold", allele2="extrabees.species.silver", result="extrabees.species.platinum", chance=2.0},
             {allele1="gregtech.bee.speciesVega", allele2="gregtech.bee.speciesNaquadria", result="gregtech.bee.speciesVegab", chance=2.0},
-            {allele1="forestry.speciesImperial", allele2="extrabees.species.mineral", result="Lapis", chance=5.0},
+            {allele1="forestry.speciesImperial", allele2="extrabees.species.mineral", result="extrabees.species.lapis", chance=5.0},
             {allele1="extrabees.species.gray", allele2="extrabees.species.white", result="extrabees.species.lightgray", chance=5.0},
             {allele1="forestry.speciesAustere", allele2="magicbees.speciesGold", result="magicbees.speciesDiamond", chance=7.0},
             {allele1="magicbees.speciesTCChicken", allele2="magicbees.speciesSpidery", result="magicbees.speciesCatty", chance=15.0},
@@ -591,7 +591,7 @@ local Res = {
             {allele1="magicbees.speciesAESkystone", allele2="magicbees.speciesIron", result="magicbees.speciesSilicon", chance=17.0},
             {allele1="extrabees.species.unstable", allele2="extrabees.species.lead", result="extrabees.species.nuclear", chance=5.0},
             {allele1="forestry.speciesSecluded", allele2="extrabees.species.ancient", result="extrabees.species.primeval", chance=8.0},
-            {allele1="forestry.speciesDemonic", allele2="forestry.speciesImperial", result="Lapis", chance=10.0},
+            {allele1="forestry.speciesDemonic", allele2="forestry.speciesImperial", result="gregtech.bee.speciesLapis", chance=10.0},
             {allele1="gregtech.bee.speciesRedalloy", allele2="forestry.speciesEnded", result="gregtech.bee.speciesPulsatingiron", chance=9.0},
             {allele1="gregtech.bee.speciesNeutronium", allele2="gregtech.bee.speciesBarnardaf", result="gregtech.bee.speciesCosmicneutronium", chance=0.7},
             {allele1="extrabees.species.ocean", allele2="extrabees.species.primeval", result="extrabees.species.oil", chance=8.0},
@@ -647,7 +647,7 @@ local Res = {
             {allele1="forestry.speciesModest", allele2="extrabees.species.mineral", result="extrabees.species.copper", chance=5.0},
             {allele1="forestry.speciesTipsy", allele2="forestry.speciesExotic", result="computronics.speciesScummy", chance=10.0},
             {allele1="magicbees.speciesSorcerous", allele2="extrabees.species.water", result="forestry.speciesCommon", chance=15.0},
-            {allele1="magicbees.speciesTCOrder", allele2="magicbees.speciesTCChaos", result="Essentia", chance=8.0},
+            {allele1="magicbees.speciesTCOrder", allele2="magicbees.speciesTCChaos", result="magicbees.speciesTCEssentia", chance=8.0},
             {allele1="forestry.speciesHermitic", allele2="extrabees.species.unusual", result="extrabees.species.spatial", chance=5.0},
             {allele1="forestry.speciesForest", allele2="extrabees.species.desolate", result="extrabees.species.bone", chance=15.0},
             {allele1="magicbees.speciesEthereal", allele2="magicbees.speciesSupernatural", result="magicbees.speciesTCChaos", chance=8.0},
@@ -11823,7 +11823,14 @@ local Res = {
 
         ---@return table<string, ForestryGenome>
         function Res.BeeGraphActual.GetDefaultChromosomes()
-            return Res.BeeGraphActual.DefaultChromosomes
+            local defaults = {}
+            for k, v in pairs(Res.BeeGraphActual.DefaultChromosomes) do
+                defaults[k] = {}
+                for k2, v2 in pairs(v) do
+                    defaults[k][k2] = {primary = v2, secondary = v2}
+                end
+            end
+            return defaults
         end
 
         ---@return SpeciesGraph

@@ -1,7 +1,7 @@
 local Luaunit = require("Test.luaunit")
 
 local Apiary = require("Test.SimulatorModules.Apiary")
-local Util = require("Test.Utilities")
+local Util = require("Test.Utilities.CommonUtilities")
 local Res = require("Test.Resources.TestData")
 
 local MatchingMath = require("BeeBot.MatchingMath")

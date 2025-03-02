@@ -3,7 +3,7 @@
 
 local Coroutine = require("coroutine")
 
-local Queue = require("Test.SimulatorModules.EventQueue")
+local Queue = require("Test.SimulatorModules.Queue")
 
 ---@class Term
 ---@field __events table<thread, Queue>

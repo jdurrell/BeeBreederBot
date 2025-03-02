@@ -2,6 +2,8 @@
 local M = {}
 local MatchingMath = require("BeeBot.MatchingMath")
 
+---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[], target: string, cacheElement: BreedInfoCacheElement, traitInfo: TraitInfo): integer
+
 -- Computes the optimal matching of the given princess and set of drones for breeding the target.
 ---@param princessStack AnalyzedBeeStack
 ---@param droneStackList AnalyzedBeeStack[]
@@ -16,6 +18,10 @@ function M.HighestPureBredChance(princessStack, droneStackList, target, cacheEle
     local maxDroneStack
     local maxChance = 0.0
     for _, droneStack in ipairs(droneStackList) do
+        -- This doesn't really happen in production, but it helps avoid some nasty recomputation in the simulator.
+        if droneStack.individual == nil then
+            goto continue
+        end
 
         -- TODO: Is this likely to converge? Are there better methods with higher probability or fewer generations?
         -- TODO: We want to favor higher fertility of drones, but this doesn't actually do that since the number of offspring is only dependent
@@ -24,7 +30,11 @@ function M.HighestPureBredChance(princessStack, droneStackList, target, cacheEle
         if chance > maxChance then
             maxDroneStack = droneStack
             maxChance = chance
+            if maxChance == 1 then
+                break
+            end
         end
+        ::continue::
     end
 
     -- TODO: We will accumulate more drones than we use during the operation of this breeder, so we need to garbage-collect the chest at some point.
@@ -34,6 +44,32 @@ function M.HighestPureBredChance(princessStack, droneStackList, target, cacheEle
     end
 
     return maxDroneStack.slotInChest
+end
+
+-- If the target has been reached, returns the slot of the finished stack in ANALYZED_DRONE_CHEST.
+-- Otherwise, returns nil.
+---@param droneStackList AnalyzedBeeStack[]
+---@param target string
+---@return integer | nil
+function M.GetFinishedDroneStack(droneStackList, target)
+    for _, droneStack in ipairs(droneStackList) do
+        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
+        --       or just force them to stack up. For now, it is simplest to force them to stack.
+        if (droneStack.individual ~= nil) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
+            -- If we have a full stack of our target, then we are done.
+            return droneStack.slotInChest
+        end
+    end
+
+    return nil
+end
+
+-- Returns whether the bee represented by the given stack is a pure bred version of the given species.
+---@param individual AnalyzedBeeIndividual
+---@param species string
+---@return boolean
+function M.isPureBred(individual, species)
+    return (individual.active.species.uid == species) and (individual.active.species.uid == individual.inactive.species.uid)
 end
 
 return M

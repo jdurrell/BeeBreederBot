@@ -96,14 +96,6 @@ function BreedOperator:swapBees(side)
     self.bk.swapDrone(side)
 end
 
--- Returns whether the bee represented by the given stack is a pure bred version of the given species.
----@param beeStack AnalyzedBeeStack
----@param species string
----@return boolean
-local function isPureBred(beeStack, species)
-    return (beeStack.individual.active.species == species) and (beeStack.individual.active.species == beeStack.individual.inactive.species)
-end
-
 -- Robot walks the apiary row and starts an empty apiary with the bees in the inventories in the given slots.
 -- Starts at the breeding station and ends at the breeding station.
 -- TODO: Deal with the possibility of foundation blocks or special "flowers" being required and tracking which apiaries have them.
@@ -200,23 +192,6 @@ function BreedOperator:GetDronesInChest()
     end
 
     return drones
-end
-
--- If the target has been reached, returns the slot of the finished stack in ANALYZED_DRONE_CHEST.
--- Otherwise, returns nil.
----@param droneStackList AnalyzedBeeStack[]
----@return integer | nil
-function BreedOperator:GetFinishedDroneStack(droneStackList, target)
-    for _, droneStack in ipairs(droneStackList) do
-        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
-        --       or just force them to stack up. For now, it is simplest to force them to stack.
-        if isPureBred(droneStack, target) and droneStack.size == 64 then
-            -- If we have a full stack of our target, then we are done.
-            return droneStack.slotInChest
-        end
-    end
-
-    return nil
 end
 
 --- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
@@ -409,7 +384,7 @@ function BreedOperator:ReplicateSpecies(species)
     while true do
         local princessStack = self:GetPrincessInChest()
         local droneStackList = self:GetDronesInChest()
-        finishedDroneSlot = self:GetFinishedDroneStack(droneStackList, species)
+        finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, species)
         if finishedDroneSlot ~= nil then
             break
         else
@@ -467,7 +442,7 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     while true do
         local princessStack = self:GetPrincessInChest()
         local droneStackList = self:GetDronesInChest()
-        finishedDroneSlot = self:GetFinishedDroneStack(droneStackList, target)
+        finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target)
         if finishedDroneSlot ~= nil then
             break
         else

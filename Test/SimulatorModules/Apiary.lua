@@ -7,7 +7,7 @@
 -- TODO: Implement RNG for traits other than species.
 
 require("Shared.Shared")
-local Util = require("Test.Utilities")
+local Util = require("Test.Utilities.CommonUtilities")
 
 ---@class Apiary
 ---@field defaultChromosomes table<string, ForestryGenome> | nil

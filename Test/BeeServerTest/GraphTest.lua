@@ -1,7 +1,7 @@
 local Luaunit = require("Test.luaunit")
 
 local Res = require("Test.Resources.TestData")
-local Util = require("Test.Utilities")
+local Util = require("Test.Utilities.CommonUtilities")
 
 require("Shared.Shared")
 local GraphParse = require("BeeServer.GraphParse")

@@ -8,7 +8,7 @@ local Modem = require("Test.SimulatorModules.Component.Modem")
 local Res = require("Test.Resources.TestData")
 local Serialization = require("Test.SimulatorModules.Serialization")
 local Term = require("Test.SimulatorModules.Term")
-local Util = require("Test.Utilities")
+local Util = require("Test.Utilities.CommonUtilities")
 
 local BeeServer = require("BeeServer.BeeServer")
 local CommLayer = require("Shared.CommLayer")

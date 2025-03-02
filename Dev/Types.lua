@@ -34,8 +34,19 @@ local Chromosome = {}
 -- TODO: Add other chromosomes that we will end up caring about later on.
 --       In theory, this should be kept in sync with AnalyzedBeeTraits.
 ---@class ForestryGenome
----@field species Chromosome<{uid: string}>
----@field fertility Chromosome<integer>
+---@field caveDwelling Chromosome<boolean>  Whether this bee can work without access to the sky above its housing.
+---@field effect Chromosome<string>  The effect provided by this bee, or "NONE" if no effect.
+---@field fertility Chromosome<integer>  The number of drones produced by this bee upon dying.
+---@field flowering Chromosome<integer>  The degree to which this bee spreads flowers.
+---@field flowerProvider Chromosome<string>  Describes the flowers required by this bee. TODO: Verify these values and possibly include logic for placing correct flowers.
+---@field humidityTolerance Chromosome<string>  The humidity tolerance of this bee, or "NONE" if none.
+---@field lifespan Chromosome<integer>
+---@field nocturnal Chromosome<boolean>  Whether this bee can work at night.
+---@field species Chromosome<BeeSpecies>  Information on the species of this bee.
+---@field speed Chromosome<number>
+---@field temperatureTolerance Chromosome<string>  The temperature tolerance of this bee, of "NONE" if none.
+---@field territory Chromosome<integer[]>
+---@field tolerantFlyer Chromosome<boolean>  Whether this bee can work in the rain.
 local ForestryGenome = {}
 
 -- For each trait, contains a mapping of each allele to a boolean that represents whether the allele is dominant.
@@ -50,16 +61,17 @@ local TraitInfo = {}
 ---@field damage number
 ---@field hasTag boolean
 ---@field individual AnalyzedBeeIndividual  The actual bee information.
----@field inputs {}  -- Empty table? It seems that there is nothing actually in here.
+---@field inputs {}  Empty table? It seems that there is nothing actually in here.
 ---@field isCraftable boolean
 ---@field label string  Translated name (appears as the "common name" of the item in-game).
 ---@field maxDamage number
 ---@field maxSize integer
 ---@field name string   Untranslated name (internal Minecraft name).
----@field outputs {} -- Empty table? It seems that there is nothing actually in here.
+---@field outputs {}  Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
 ---@field slotInChest integer  Must be assigned upon reading the stack from the chest.
+---@field __hash string  Testing field for simulator optimization.
 local AnalyzedBeeStack = {}
 
 ---@class AnalyzedBeeIndividual
