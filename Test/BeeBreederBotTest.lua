@@ -8,6 +8,6 @@ require("Test.BeeServerTest.GraphTest")
 require("Test.BeeServerTest.ServerOperationTest")
 require("Test.SharedLibTest.LoggerTest")
 require("Test.SimulationTest.ConvergenceTest")
-require("Test.SimulationTest.RawProbabilityTest")
+require("Test.SimulationTest.RawDistributionTest")
 
 os.exit(Luaunit.LuaUnit.run())

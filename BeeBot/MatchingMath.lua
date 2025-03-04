@@ -7,7 +7,7 @@ local M = {}
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfo
----@param mathFunc function
+---@param mathFunc fun(A: string, B: string, C: string, D: string): number
 ---@return number
 function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, mathFunc)
     -- The "active" and "inactive" alleles that we can see are not necessarily equal to the "primary" and "secondary" alleles in Forestry's
@@ -32,11 +32,11 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cach
         table.insert(dronePossibilities, {primary = drone.inactive.species.uid, secondary = drone.active.species.uid})
     end
 
-    -- Compute the probability weighted by possibility.
+    -- Compute the outcome weighted by probability.
     local probabilitySum = 0.0
     for _, v in ipairs(princessPossibilities) do
         for _, v2 in ipairs(dronePossibilities) do
-            probabilitySum = probabilitySum + ((1 / (#princessPossibilities * #dronePossibilities)) * mathFunc(target, v.primary, v.secondary, v2.primary, v2.secondary, cacheElement))
+            probabilitySum = probabilitySum + ((1 / (#princessPossibilities * #dronePossibilities)) * mathFunc(v.primary, v.secondary, v2.primary, v2.secondary))
         end
     end
 
@@ -88,7 +88,7 @@ function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princessPri
     -- prior events:
     --  * In 4 out of 9 mutation outcomes, both parents have mutated. In these scenarios, there is only one possible Punnet Square outcome.
     --  * In another 4 out of 9 mutation outcomes, just one parent has mutated. In these scenarios, there are two possible Punnet Square outcomes.
-    --  * If neither parent mutates (which is most likely), then the resulting Punnet Square has four outcomes.
+    --  * If neither parent mutates, then the resulting Punnet Square has four outcomes.
     -- Thus, there are (4*1) + (4*2) + (1*4) = 16 distinct Punnet Square outcomes to consider.
     -- Additionally, in the 5 out of 9 scenarios where either parent has mutated into a non-target species, the Punnet Square must result in an
     -- offspring with at least one non-target chromosome, which eliminates any chance of getting a pure-bred drone. Thus, we ignore the 7
@@ -170,13 +170,120 @@ end
 ---@param traitInfo TraitInfo
 ---@return number
 function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement, traitInfo)
-    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function (targetSpec, A, B, C, D, cachedData)
-        local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(targetSpec, A, B, C, D, cachedData)
+    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function (A, B, C, D)
+        local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, A, B, C, D, cacheElement)
 
         -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
         -- The chance of getting subsequent drones as pure-bred is not independent from the trait combinations, so we push that calculation
         -- down into the trait combination layer.
         return 1.0 - ((1.0 - probPureBredTarget) ^ princess.active.fertility)
+    end)
+end
+
+---@param target string
+---@param princess AnalyzedBeeIndividual
+---@param drone AnalyzedBeeIndividual
+---@param cacheElement BreedInfoCacheElement
+---@param traitInfo TraitInfo
+---@return number
+function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(target, princess, drone, cacheElement, traitInfo)
+    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function(A, B, C, D)
+        -- Handle possibility of mutation failing, producing a target, or producing a non-target.
+        local breedChanceAD = cacheElement[A][D]
+        local breedChanceBC = cacheElement[B][C]
+
+        local probMutIsTarget = (0.5 * breedChanceAD.targetMutChance) + (0.5 * breedChanceBC.targetMutChance)
+        local probMutIsNonTarget = (0.5 * breedChanceAD.nonTargetMutChance) + (0.5 * breedChanceBC.nonTargetMutChance)
+        local probNoMut = 1.0 - (probMutIsTarget + probMutIsNonTarget)
+
+        -- From two independent mutation attempts, we would appear to get 4 * 9 = 36 disjoint Punnet Square outcomes.
+        -- However, if a mutation occurs, *both* chromosomes from that parent are replaced with the mutation, so that allele must be picked
+        -- from that parent by the Punnet Square.
+        --  * In 4 out of 9 mutation outcomes, both parents have mutated. In these scenarios, there is only one possible Punnet Square outcome.
+        --  * In another 4 out of 9 mutation outcomes, just one parent has mutated. In these scenarios, there are two possible Punnet Square outcomes.
+        --  * If neither parent mutates, then the resulting Punnet Square has four outcomes.
+        -- Thus, we have (4*1) + (4*2) + (1*4) = 16 distinct Punnet Square outcomes to consider.
+        -- Additionally, in the scenario where both parents have mutated into a non-target, there is zero chance of getting any target allele.
+        -- Therefore, to calculate the chance of getting a pure-bred drone, we only need to consider 15 final Punnet Square outcomes:
+        --  * When neither parent has been replaced:
+        --    (1) A + C
+        --    (2) A + D
+        --    (3) B + C
+        --    (4) B + D
+        --  * When only parent1 has been replaced by the target:
+        --    (5) target + C
+        --    (6) target + D
+        --  * When only parent2 has been replaced by the target:
+        --    (7) A + target
+        --    (8) B + target
+        --  * When both parents have been replaced by the target:
+        --    (9) target + target
+        --  * When only parent1 has been replaced by a non-target:
+        --    (10) non-target + C
+        --    (11) non-target + D
+        --  * When only parent2 has been replaced by a non-target:
+        --    (12) A + non-target
+        --    (13) B + non-target
+        --  * When parent1 has been replaced by the target, and parent2 has been replaced by a non-target:
+        --    (14) target + non-target
+        --  * When parent1 has been replaced by a non-target, and parent2 has been replaced by the target:
+        --    (15) non-target + target
+
+        -- The outcomes listed above are disjoint. Therefore, we can obtain the expected number of pure-bred alleles by adding up the expected
+        -- number of pure-bred alleles in each case multiplied by the probability of each case occurring.
+        -- Randomness at each stage is independent, so the probability of an outcome is the product of the probabilities of the required events.
+        local expectedPureBredAlleles = 0.0
+        local numA = ((A == target) and 1) or 0
+        local numB = ((B == target) and 1) or 0
+        local numC = ((C == target) and 1) or 0
+        local numD = ((D == target) and 1) or 0
+
+        -- A + C (requires no mutations and has 1 valid Punnet Square outcome).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numA + numC) * (probNoMut * probNoMut * 0.25))
+
+        -- A + D (requires no mutations and has 1 valid Punnet Square outcome).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numA + numD) * (probNoMut * probNoMut * 0.25))
+
+        -- B + C (requires no mutations and has 1 valid Punnet Square outcome).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numB + numC) * (probNoMut * probNoMut * 0.25))
+
+        -- B + D (requires no mutations and has 1 valid Punnet Square outcome).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numB + numD) * (probNoMut * probNoMut * 0.25))
+
+        -- target + C (requires parent1 to mutate into the target and parent2 to not mutate, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((1 + numC) * (probMutIsTarget * probNoMut * 0.5))
+
+        -- target + D (requires parent1 to mutate into the target and parent2 to not mutate, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((1 + numD) * (probMutIsTarget * probNoMut * 0.5))
+
+        -- A + target (requires parent1 to not mutate and parent2 to mutate into the target, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numA + 1) * (probNoMut * probMutIsTarget * 0.5))
+
+        -- B + target (requires parent1 to not mutate and parent2 to mutate into the target, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + ((numB + 1) * (probNoMut * probMutIsTarget * 0.5))
+
+        -- target + target (requires both parents to mutate into the target, and has 4 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (2 * (probMutIsTarget * probMutIsTarget * 1))
+
+        -- non-target + C (requires parent1 to mutate into a non-target and parent2 to not mutate, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (numC * (probMutIsNonTarget * probNoMut * 0.5))
+
+        -- non-target + D (requires parent1 to mutate into a non-target and parent2 to not mutate, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (numD * (probMutIsNonTarget * probNoMut * 0.5))
+
+        -- A + non-target (requires parent1 to not mutate and parent2 to mutate into a non-target, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (numA * (probNoMut * probMutIsNonTarget * 0.5))
+
+        -- B + non-target (requires parent1 to not mutate and parent2 to mutate into a non-target, and has 2 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (numB * (probNoMut * probMutIsNonTarget * 0.5))
+
+        -- target + non-target (requires parent1 to mutate into the target and parent2 to mutate into a non-target, and has 4 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (1 * (probMutIsTarget * probMutIsNonTarget * 1))
+
+        -- non-target + target (requires parent1 to mutate into a non-target and parent2 to mutate into the target, and has 4 valid Punnet Square outcomes).
+        expectedPureBredAlleles = expectedPureBredAlleles + (1 * (probMutIsTarget * probMutIsNonTarget * 1))
+
+        return expectedPureBredAlleles
     end)
 end
 

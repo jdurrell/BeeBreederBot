@@ -116,52 +116,68 @@ end
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfo
 ---@param seed integer | nil
----@return integer
+---@return number
 local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo, seed)
+    local convergences = 0
+    local sumItersToConvergence = 0
+    local numTrials = 1000
     math.randomseed(((seed ~= nil) and seed) or 456)
+    for i = 1, numTrials do
 
-    ---@type (AnalyzedBeeStack | {})[]
-    local droneStacks = Copy(initialDroneStacks)
-    local princess = Copy(initialPrincess)
+        ---@type (AnalyzedBeeStack | {})[]
+        local droneStacks = Copy(initialDroneStacks)
+        local princess = Copy(initialPrincess)
 
-    local i = 0
-    while (i < maxIterations) and (not endCondition(droneStacks)) do
-        local slot = matcher(princess, droneStacks, target, cacheElement, traitInfo)
+        local iteration = 0
+        while (iteration < maxIterations) and (not endCondition(droneStacks)) do
+            local slot = matcher(princess, droneStacks, target, cacheElement, traitInfo)
 
-        -- Take the drone out of the "chest".
-        local chosenDroneStack = droneStacks[slot]
-        chosenDroneStack.size = chosenDroneStack.size - 1
-        if chosenDroneStack.size == 0 then
-           droneStacks[slot] = {}
+            -- Take the drone out of the "chest".
+            local chosenDroneStack = droneStacks[slot]
+            chosenDroneStack.size = chosenDroneStack.size - 1
+            if chosenDroneStack.size == 0 then
+               droneStacks[slot] = {}
+            end
+
+            -- Give some visibility for debugging.
+            -- if Util.IsVerboseMode() then
+            --     print("Iteration " .. iteration .. ":")
+            --     print("Princess: " .. princess.individual.active.species.uid .. ", " .. princess.individual.inactive.species.uid)
+            --     print("Chose slot " .. slot)
+            --     print("Drone: " .. chosenDroneStack.individual.active.species.uid .. ", " .. chosenDroneStack.individual.inactive.species.uid .. ", " .. chosenDroneStack.__hash)
+            --     print("")
+            -- end
+
+            local offspringPrincess, offspringDrones = apiary:GenerateDescendants(princess.individual, chosenDroneStack.individual)
+
+            ---@diagnostic disable-next-line: missing-fields
+            princess = {individual = offspringPrincess}
+            for _, v in ipairs(offspringDrones) do
+                AddIndividualToChest(v, HashIndividual(v), droneStacks)
+            end
+
+            iteration = iteration + 1
         end
-
-        -- Give some visibility for debugging.
-        if Util.IsVerboseMode() then
-            print("Iteration " .. i .. ":")
-            print("Princess: " .. princess.individual.active.species.uid .. ", " .. princess.individual.inactive.species.uid)
-            print("Chose slot " .. slot)
-            print("Drone: " .. chosenDroneStack.individual.active.species.uid .. ", " .. chosenDroneStack.individual.inactive.species.uid .. ", " .. chosenDroneStack.__hash)
-            print("")
+        if iteration < maxIterations then
+            convergences = convergences + 1
+            sumItersToConvergence = sumItersToConvergence + iteration
         end
-
-        local offspringPrincess, offspringDrones = apiary:GenerateDescendants(princess.individual, chosenDroneStack.individual)
-
-        ---@diagnostic disable-next-line: missing-fields
-        princess = {individual = offspringPrincess}
-        for _, v in ipairs(offspringDrones) do
-            AddIndividualToChest(v, HashIndividual(v), droneStacks)
-        end
-
-        i = i + 1
     end
+    Util.VerbosePrint(string.format("Converged %u / %u times, averaging %.2f iterations to converge.", convergences, numTrials, sumItersToConvergence / convergences))
 
-    Luaunit.assertIsTrue(i < maxIterations, "Failed to converge within " .. i .. " iterations.")
-
-    return i
+    return convergences / numTrials
 end
 
-TestConvergence = {}
-    function TestConvergence:TestTwoSimpleSpecies()
+---@param target string
+---@return fun(droneStackList: AnalyzedBeeStack[]): boolean
+local function commonEndCondition(target)
+    return function(droneStackList)
+        return (MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target) ~= nil)
+    end
+end
+
+TestConvergenceHighestPureBredChance = {}
+    function TestConvergenceHighestPureBredChance:TestTwoSimpleSpecies()
         local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
         local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
@@ -174,23 +190,75 @@ TestConvergence = {}
         }
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
 
-        ---@param droneStackList AnalyzedBeeStack[]
-        ---@return boolean
-        local endCondition = function (droneStackList)
-            return (MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target) ~= nil)
-        end
-
-        local iterations = RunConvergenceTest(
+        local successRatio = RunConvergenceTest(
             MatchingAlgorithms.HighestPureBredChance,
-            endCondition,
-            10000,
+            commonEndCondition(target),
+            200,
             apiary,
             initialPrincess,
             initialDroneStacks,
-            "forestry.speciesCommon",
+            target,
             cacheElement,
             traitInfo
         )
 
-        Luaunit.assertIsTrue(iterations < 200, "number of iterations: " .. iterations)
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+TestConvergenceHighestPureBredChanceGenerationalPositiveFertility = {}
+    function TestConvergenceHighestPureBredChanceGenerationalPositiveFertility:TestTwoSimpleSpecies()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "forestry.speciesCommon"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighestAverageExpectedAllelesGenerationalPositiveFertility,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighestPureBredChanceGenerationalPositiveFertility:TestTargetHasOneFertility()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "computronics.speciesScummy"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighestAverageExpectedAllelesGenerationalPositiveFertility,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            789
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.9, "Converged at ratio " .. successRatio .. ".")
     end

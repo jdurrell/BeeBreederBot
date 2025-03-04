@@ -10,7 +10,7 @@ local MatchingMath = require("BeeBot.MatchingMath")
 function M.HighestPureBredChance(princessStack, droneStackList, target, cacheElement, traitInfo)
     return M.GenericHighestScore(
         droneStackList,
-        function(droneStack)
+        function (droneStack)
             return MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
                 target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
             )
@@ -19,12 +19,30 @@ function M.HighestPureBredChance(princessStack, droneStackList, target, cacheEle
     )
 end
 
+---@type Matcher
+function M.HighestAverageExpectedAllelesGenerationalPositiveFertility(princessStack, droneStackList, target, cacheElement, traitInfo)
+    return M.GenericHighestScore(
+        droneStackList,
+        function (droneStack)
+            if (droneStack.individual.active.fertility < 2) or (droneStack.individual.inactive.fertility < 2) then
+                return 0
+            end
+
+            return MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
+                target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
+            )
+        end,
+        2
+    )
+end
+
 -- Generic function to wrap algorithms that calculate a score for each drone and pick the one with the highest score.
+-- `scoreFunc` must only return values greater than or equal to 0.
 ---@param scoreFunc ScoreFunction
 ---@param maxPossibleScore number | nil
 function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
     local maxDroneStack
-    local maxScore = 0.0
+    local maxScore = -1
     for _, droneStack in ipairs(droneStackList) do
         -- This doesn't really happen in production, but it helps avoid some nasty recomputation in the simulator.
         if droneStack.individual == nil then
