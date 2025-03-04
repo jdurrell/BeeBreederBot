@@ -76,7 +76,7 @@ function M.GetFinishedDroneStack(droneStackList, target)
     for _, droneStack in ipairs(droneStackList) do
         -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
         --       or just force them to stack up. For now, it is simplest to force them to stack.
-        if (droneStack.individual ~= nil) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
+        if (droneStack.individual ~= nil) and (droneStack.individual.active.fertility >= 2) and (droneStack.individual.inactive.fertility >=2) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
             -- If we have a full stack of our target, then we are done.
             return droneStack.slotInChest
         end
