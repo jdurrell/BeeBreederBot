@@ -6,6 +6,7 @@ local Util = require("Test.Utilities.CommonUtilities")
 local RollingEnum = require("Test.Utilities.RollingEnum")
 
 require("Shared.Shared")
+local GarbageCollectionPolicies = require("BeeBot.GarbageCollectionPolicies")
 local MatchingAlgorithms = require("BeeBot.MatchingAlgorithms")
 
 -- Mapping for optimizing the hash computation.
@@ -58,7 +59,7 @@ local function HashIndividual(individual)
         (BooleanToInteger(genome.tolerantFlyer.secondary) << 39)           -- 1 bit
     )
 
-    -- TODO: Figure out a better way of combining these than a string.
+    -- TODO: Implement a better way of combining these than a string.
     return tostring(hash1) .. "-" .. tostring(hash2)
 end
 
@@ -77,6 +78,8 @@ local function CreateBeeStack(individual, size, slotInChest, hash)
     }
 end
 
+local DRONE_CHEST_SIZE = 27
+
 -- Adds the given individual to the chest. If a drone of the exact same data exists, then they will stack.
 -- Otherwise, the individual will be placed into the first open slot in the chest.
 -- Technically, not every field of AnalyzedBeeStack will be set, but we will set as many as the simulator requires.
@@ -86,7 +89,7 @@ end
 local function AddIndividualToChest(individual, hash, droneChest)
     ---@type AnalyzedBeeStack
     local matchingStackWithSpace = nil
-    local openSlot = nil  -- TODO: Implement garbage collection and the concept of the chest having limited storage.
+    local openSlot = nil
     for i, stack in ipairs(droneChest) do
         if stack.__hash == nil then
             openSlot = ((openSlot == nil) and i) or openSlot
@@ -99,7 +102,9 @@ local function AddIndividualToChest(individual, hash, droneChest)
     if matchingStackWithSpace ~= nil then
         matchingStackWithSpace.size = matchingStackWithSpace.size + 1
     else
-        openSlot = ((openSlot ~= nil) and openSlot) or (#droneChest + 1)
+        -- The size of the chest is fixed, so we can't insert a drone into a chest that has no room for it.
+        Luaunit.assertNotIsNil(openSlot, "Garbage collection error: too many drones for the drone chest.")
+        openSlot = UnwrapNull(openSlot)
         droneChest[openSlot] = CreateBeeStack(individual, 1, openSlot, hash)
     end
 end
@@ -107,6 +112,7 @@ end
 -- Repeatedly performs matches and breeding simulations until `endCondition` becomes true or failing to converge after a maximum number of iterations.
 -- Returns the number of iterations taken to converge.
 ---@param matcher Matcher
+---@param garbageCollector GarbageCollector
 ---@param endCondition fun(droneStackList: AnalyzedBeeStack[]): boolean
 ---@param maxIterations integer
 ---@param apiary Apiary
@@ -117,7 +123,7 @@ end
 ---@param traitInfo TraitInfo
 ---@param seed integer | nil
 ---@return number
-local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo, seed)
+local function RunConvergenceTest(matcher, garbageCollector, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo, seed)
     local convergences = 0
     local sumItersToConvergence = 0
     local numTrials = 1000
@@ -126,6 +132,11 @@ local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, 
 
         ---@type (AnalyzedBeeStack | {})[]
         local droneStacks = Copy(initialDroneStacks)
+        for slot = 1, DRONE_CHEST_SIZE do
+            if droneStacks[slot] == nil then
+                droneStacks[slot] = {}
+            end
+        end
         local princess = Copy(initialPrincess)
 
         local iteration = 0
@@ -147,6 +158,38 @@ local function RunConvergenceTest(matcher, endCondition, maxIterations, apiary, 
             --     print("Drone: " .. chosenDroneStack.individual.active.species.uid .. ", " .. chosenDroneStack.individual.inactive.species.uid .. ", " .. chosenDroneStack.__hash)
             --     print("")
             -- end
+
+            -- Garbage collect the chest if there are too many drone stacks. 
+            -- In the real system, this happens simulataneously with the apiary, so it must generally be done without knowledge of the outputs.
+            -- Technically, there may be a race condition here that the simulator doesn't account for: next-generation drones can appear in the
+            -- chest while garbage collection happens. If the BeeBot implementation performs a subsequent re-stream of the inventory, then
+            -- garbage collection *may* or *may not* consider the next generation. This only happens with frames that considerably reduce
+            -- lifetime, though, and in theory, if the `matcher` and `garbageCollector` function are well-constructed, they should make better
+            -- choices with the strictly greater information from that race condition firing.
+            -- TODO: Make the "minDronesToRemove" concept a configurable function.
+            local numEmptySlots = 0
+            for _, stack in ipairs(droneStacks) do
+                if stack.individual == nil then
+                    numEmptySlots = numEmptySlots + 1
+                end
+            end
+            if princess.individual.active.fertility > numEmptySlots then
+                local slotsToRemove = garbageCollector(droneStacks, princess.individual.active.fertility - numEmptySlots, target)
+                -- Visibility for debugging.
+                -- if Util.IsVerboseMode() then
+                --     print("Removed " .. #slotsToRemove .. " drone stacks:")
+                --     for _, removeSlot in ipairs(slotsToRemove) do
+                --         local stack = droneStacks[removeSlot]
+                --         print(string.format("\tSlot  = %s\n\tSpecies = %s / %s\n\tfertility  = %u / %u\n\tSize = %u",
+                --             stack.slotInChest, stack.individual.active.species.uid, stack.individual.inactive.species.uid,
+                --             stack.individual.active.fertility, stack.individual.inactive.fertility, stack.size
+                --         ))
+                --     end
+                -- end
+                for _, removeSlot in ipairs(slotsToRemove) do
+                    droneStacks[removeSlot] = {}
+                end
+            end
 
             local offspringPrincess, offspringDrones = apiary:GenerateDescendants(princess.individual, chosenDroneStack.individual)
 
@@ -192,6 +235,7 @@ TestConvergenceHighestPureBredChance = {}
 
         local successRatio = RunConvergenceTest(
             MatchingAlgorithms.HighestPureBredChance,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
             commonEndCondition(target),
             200,
             apiary,
@@ -221,6 +265,7 @@ TestConvergenceHighestPureBredChanceGenerationalPositiveFertility = {}
 
         local successRatio = RunConvergenceTest(
             MatchingAlgorithms.HighestAverageExpectedAllelesGenerationalPositiveFertility,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
             commonEndCondition(target),
             10000,
             apiary,
@@ -249,6 +294,7 @@ TestConvergenceHighestPureBredChanceGenerationalPositiveFertility = {}
 
         local successRatio = RunConvergenceTest(
             MatchingAlgorithms.HighestAverageExpectedAllelesGenerationalPositiveFertility,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
             commonEndCondition(target),
             10000,
             apiary,

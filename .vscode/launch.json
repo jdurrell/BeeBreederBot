@@ -13,7 +13,7 @@
             "request": "launch",
             "name": "Debug Tests No Simulation",
             "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
-            "arg": ["--exclude", "Simulation"],
+            "arg": ["--exclude", "Simulation", "--exclude", "Convergence"],
             "stopOnEntry": false
         },
         {
