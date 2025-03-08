@@ -36,6 +36,26 @@ function M.HighestAverageExpectedAllelesGenerationalPositiveFertility(princessSt
     )
 end
 
+---@type Matcher
+function M.HighFertilityAndAlleles(princessStack, droneStackList, target, cacheElement, traitInfo)
+    return M.GenericHighestScore(
+        droneStackList,
+        function (droneStack)
+            -- Always attempt to choose a drone with which the princess has a chance to produce a target allele.
+            -- If one exists, then prioritize fertility above all else.
+            local score = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
+                target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
+            )
+            if score > 0 then
+                -- TODO: This should still filter for zero fertility.
+                score = score + (10000 * (droneStack.individual.active.fertility + droneStack.individual.inactive.fertility))
+            end
+
+            return score
+        end
+    )
+end
+
 -- Generic function to wrap algorithms that calculate a score for each drone and pick the one with the highest score.
 -- `scoreFunc` must only return values greater than or equal to 0.
 ---@param scoreFunc ScoreFunction
@@ -74,10 +94,12 @@ end
 ---@return integer | nil
 function M.GetFinishedDroneStack(droneStackList, target)
     for _, droneStack in ipairs(droneStackList) do
-        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to deal with this possibility
-        --       or just force them to stack up. For now, it is simplest to force them to stack.
-        if (droneStack.individual ~= nil) and (droneStack.individual.active.fertility >= 2) and (droneStack.individual.inactive.fertility >=2) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
-            -- If we have a full stack of our target, then we are done.
+        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to
+        --       deal with this possibility or just force them to stack up. For now, it is simplest to force them to stack.
+        if (droneStack.individual ~= nil) and (droneStack.individual.active.fertility >= 2) and
+            (droneStack.individual.inactive.fertility >=2) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
+
+                -- If we have a full stack of our target, then we are done.
             return droneStack.slotInChest
         end
     end

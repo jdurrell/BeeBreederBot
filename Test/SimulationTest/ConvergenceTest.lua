@@ -243,7 +243,8 @@ TestConvergenceHighestPureBredChance = {}
             initialDroneStacks,
             target,
             cacheElement,
-            traitInfo
+            traitInfo,
+            1001
         )
 
         Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
@@ -273,7 +274,8 @@ TestConvergenceHighestPureBredChanceGenerationalPositiveFertility = {}
             initialDroneStacks,
             target,
             cacheElement,
-            traitInfo
+            traitInfo,
+            2001
         )
 
         Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
@@ -303,8 +305,189 @@ TestConvergenceHighestPureBredChanceGenerationalPositiveFertility = {}
             target,
             cacheElement,
             traitInfo,
-            789
+            2002
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.9, "Converged at ratio " .. successRatio .. ".")
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+TestConvergenceHighFertilityAndAlleles = {}
+    function TestConvergenceHighFertilityAndAlleles:TestTwoSimpleSpecies()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "forestry.speciesCommon"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3001
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighFertilityAndAlleles:TestTargetHasOneFertility()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "computronics.speciesScummy"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3002
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityNoMutations()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "extrabees.species.rock"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesVindictive"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3003
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityWithMutations()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "extrabees.species.rock"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 32, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3004
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityLowNumberDrones()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "extrabees.species.rock"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 8, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 8, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3005
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
+    end
+
+    function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityAndDifferentPrincess()
+        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
+        local traitInfo = Res.BeeGraphActual.GetSpeciesTraitInfo()
+        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
+        local target = "extrabees.species.rock"
+        local cacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
+        local initialDroneStacks = {
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 16, 2)
+        }
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+
+        local successRatio = RunConvergenceTest(
+            MatchingAlgorithms.HighFertilityAndAlleles,
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize,
+            commonEndCondition(target),
+            10000,
+            apiary,
+            initialPrincess,
+            initialDroneStacks,
+            target,
+            cacheElement,
+            traitInfo,
+            3006
+        )
+
+        Luaunit.assertIsTrue(successRatio > 0.95, "Converged at ratio " .. successRatio .. ".")
     end
