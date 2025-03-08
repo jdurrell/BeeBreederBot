@@ -211,10 +211,10 @@ function M.CreateBee(genome, traitInfo)
     local active = {}
     local inactive = {}
     for gene, alleles in pairs(genome) do
-        -- For species, traitInfo is indexed by the species name instead of the entire trait table.
+        -- For species, traitInfo is indexed by the species uid instead of the entire trait table.
         -- TODO: Figure out how to deal with this in a less hacky way.
-        local lookupPrimary = ((gene == "species") and alleles.primary.name) or alleles.primary
-        local lookupSecondary = ((gene == "species") and alleles.secondary.name) or alleles.secondary
+        local lookupPrimary = ((gene == "species") and alleles.primary.uid) or alleles.primary
+        local lookupSecondary = ((gene == "species") and alleles.secondary.uid) or alleles.secondary
 
         if (traitInfo ~= nil) and (traitInfo[gene] ~= nil) and (not traitInfo[gene][lookupPrimary]) and traitInfo[gene][lookupSecondary] then
             -- If the primary allele is recessive, and the secondary is dominant, the the secondary shows up as active, and the primary shows up as inactive.
