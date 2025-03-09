@@ -11,11 +11,11 @@ TestLogger = {}
         local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result, {})
 
-        local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Forest", {x=0, y=0}, 123)
+        local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Forest", {x=0, y=0, z=0}, 123)
         Luaunit.assertIsTrue(success)
 
         result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
-        Luaunit.assertEquals(result, {["Forest"]={loc={x=0, y=0}, timestamp=123}})
+        Luaunit.assertEquals(result, {["Forest"]={loc={x=0, y=0, z=0}, timestamp=123}})
 
         Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
     end
@@ -25,9 +25,9 @@ TestLogger = {}
 
         local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
-            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456}
+            ["Forest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2, z=0}, timestamp=123456}
         })
 
         Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
@@ -40,21 +40,21 @@ TestLogger = {}
         Luaunit.assertNotIsNil(result)
 
         local zeroTimestampResult = result["Marshy"]
-        Luaunit.assertEquals(zeroTimestampResult.loc, {x=0, y=4})
+        Luaunit.assertEquals(zeroTimestampResult.loc, {x=0, y=4, z=1})
         Luaunit.assertNotEquals(zeroTimestampResult.timestamp, 0)
 
         result["Marshy"] = nil
         Luaunit.assertEquals(result, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
-            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456}
+            ["Forest"]={loc={x=0, y=0, z=1}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1, z=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2, z=1}, timestamp=123456}
         })
 
         local result2 = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result2, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
-            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Forest"]={loc={x=0, y=0, z=1}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1, z=1}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2, z=1}, timestamp=123456},
             ["Marshy"]=zeroTimestampResult
         })
 
@@ -66,19 +66,19 @@ TestLogger = {}
 
         local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
-            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456}
+            ["Forest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2, z=0}, timestamp=123456}
         })
 
-        local newMeadows = {loc={x=1, y=5}, timestamp=999999}
+        local newMeadows = {loc={x=1, y=5, z=0}, timestamp=999999}
         local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Meadows", newMeadows.loc, newMeadows.timestamp)
         Luaunit.assertIsTrue(success)
         result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
+            ["Forest"]={loc={x=0, y=0, z=0}, timestamp=123456},
             ["Meadows"]=newMeadows,
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456}
+            ["Tropical"]={loc={x=0, y=2, z=0}, timestamp=123456}
         })
 
         Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
@@ -86,16 +86,16 @@ TestLogger = {}
 
     function TestLogger:TestNewEntry()
         Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
-        local newEntryMarshy = {loc={x=1, y=5}, timestamp=987654}
+        local newEntryMarshy = {loc={x=1, y=5, z=0}, timestamp=987654}
 
         local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Marshy", newEntryMarshy.loc, newEntryMarshy.timestamp)
         Luaunit.assertIsTrue(success)
 
         local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertEquals(result, {
-            ["Forest"]={loc={x=0, y=0}, timestamp=123456},
-            ["Meadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["Tropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["Forest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["Meadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["Tropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
             ["Marshy"]=newEntryMarshy
         })
 

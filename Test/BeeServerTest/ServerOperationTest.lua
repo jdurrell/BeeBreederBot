@@ -245,7 +245,7 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        local industriousNode = {loc={x=6, y=9}, timestamp=345678}
+        local industriousNode = {loc={x=6, y=9, z=3}, timestamp=345678}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
             code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesIndustrious", node=industriousNode}
         })
@@ -253,9 +253,9 @@ TestBeeServerStandalone = {}
         VerifyNoModemResponse()
 
         local expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
             ["forestry.speciesIndustrious"]=industriousNode
         }
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
@@ -279,7 +279,7 @@ TestBeeServerStandalone = {}
 
         -- Send new event and verify that it gets logged.
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        local industriousNodeMiddleTimestamp = {loc={x=6, y=9}, timestamp=222222}
+        local industriousNodeMiddleTimestamp = {loc={x=6, y=9, z=3}, timestamp=222222}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
             code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesIndustrious", node=industriousNodeMiddleTimestamp}
         })
@@ -287,9 +287,9 @@ TestBeeServerStandalone = {}
         VerifyNoModemResponse()
 
         local expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
             ["forestry.speciesIndustrious"]=industriousNodeMiddleTimestamp
         }
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
@@ -299,7 +299,7 @@ TestBeeServerStandalone = {}
 
         -- Send version with an earlier timestamp and assert that it doesn't get logged.
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        local industriousNodeLowTimestamp = {loc={x=2, y=7}, timestamp=111111}
+        local industriousNodeLowTimestamp = {loc={x=2, y=7, z=0}, timestamp=111111}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
             code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesIndustrious", node=industriousNodeLowTimestamp}
         })
@@ -307,9 +307,9 @@ TestBeeServerStandalone = {}
         VerifyNoModemResponse()
 
         expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
             ["forestry.speciesIndustrious"]=industriousNodeMiddleTimestamp
         }
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
@@ -319,7 +319,7 @@ TestBeeServerStandalone = {}
 
         -- Send version with a later timestamp and assert that it does get logged.
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        local industriousNodeHighTimestamp = {loc={x=3, y=1}, timestamp=333333}
+        local industriousNodeHighTimestamp = {loc={x=3, y=1, z=0}, timestamp=333333}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
             code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesIndustrious", node=industriousNodeHighTimestamp}
         })
@@ -327,9 +327,9 @@ TestBeeServerStandalone = {}
         VerifyNoModemResponse()
 
         expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2}, timestamp=123456},
+            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
             ["forestry.speciesIndustrious"]=industriousNodeHighTimestamp
         }
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
@@ -354,9 +354,9 @@ TestBeeServerStandalone = {}
         RunThreadAndVerifyResponse(serverThread, "event_pull")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.LogStreamRequest})
         local expectedResults = {
-            ["forestry.speciesForest"]={loc={x=0, y=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2}, timestamp=123456}
+            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
+            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
+            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456}
         }
         local results = {}
         for i = 1, 3 do

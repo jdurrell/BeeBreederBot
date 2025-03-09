@@ -26,7 +26,7 @@ function M.ReadSpeciesLogFromDisk(filepath)
         end
 
         -- We should get 4 fields from each line. If we don't, then we don't know what we're reading.
-        if #fields ~= 4 then
+        if #fields ~= 5 then
             logfile:close()
             Print("Error: failed to parse logfile on line " .. tostring(count) .. ": " .. line)
             Print("Got " .. tostring(#fields) .. " fields:")
@@ -40,12 +40,13 @@ function M.ReadSpeciesLogFromDisk(filepath)
             loc = {
                 x = tonumber(fields[2]),
                 y = tonumber(fields[3]),
+                z = tonumber(fields[4])
             },
-            timestamp = fields[4] == "0" and GetCurrentTimestamp() or tonumber(fields[4])  -- Set manually adjusted values to override pre-existing versions.
+            timestamp = fields[5] == "0" and GetCurrentTimestamp() or tonumber(fields[5])  -- Set manually adjusted values to override pre-existing versions.
         }
 
         -- If this is the first read of something manually adjusted, then we will need to write out the new time afterwards.
-        if fields[4] == "0" then
+        if fields[5] == "0" then
             table.insert(newManualAdjusts, fields[1])
         end
     end
@@ -65,7 +66,7 @@ end
 ---@param timestamp integer
 ---@return boolean -- whether the operation succeeded.
 function M.LogSpeciesToDisk(filepath, species, location, timestamp)
-    local thisLogLine = species .. "," .. tostring(location.x) .. "," .. tostring(location.y) .. "," .. tostring(timestamp) .. "\n"
+    local thisLogLine = string.format("%s,%u,%u,%u,%u\n", species, location.x, location.y, location.z, timestamp)
     local logfile, fs, errMsg
 
     logfile, errMsg = io.open(filepath, "r")

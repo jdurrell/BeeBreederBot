@@ -135,17 +135,17 @@ function M.VerifyLogIsValidLog(filepath)
         end
 
         -- We should get 4 fields from each line.
-        Luaunit.assertEquals(#fields, 4, lineString)
+        Luaunit.assertEquals(#fields, 5, lineString)
 
         -- Coordinates should be integers (shouldn't contain non-numeric characters).
-        Luaunit.assertIsNil(fields[2]:find("[^%d]"), lineString)
-        Luaunit.assertIsNil(fields[3]:find("[^%d]"), lineString)
-        Luaunit.assertNotIsNil(fields[2]:find("[%d]"), lineString)
-        Luaunit.assertNotIsNil(fields[3]:find("[%d]"), lineString)
+        for coordinateField = 2, 4 do
+            Luaunit.assertIsNil(fields[coordinateField]:find("[^%d]"), lineString)
+            Luaunit.assertNotIsNil(fields[coordinateField]:find("[%d]"), lineString)
+        end
 
         -- Assuming we have read the log in at some point and didn't write a 0 timestamp directly,
         -- then any 0 timestamp should have been converted.
-        Luaunit.assertNotEquals(speciesInLog[fields[4]], 0, lineString)
+        Luaunit.assertNotEquals(speciesInLog[fields[5]], 0, lineString)
 
         -- We should only see each species once.
         Luaunit.assertIsNil(speciesInLog[fields[1]], lineString)

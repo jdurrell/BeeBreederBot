@@ -148,6 +148,7 @@ local StorageInfo = {}
 ---@class Point
 ---@field x integer
 ---@field y integer
+---@field z integer
 local Point = {}
 
 -- TODO: Define types for message payloads.
