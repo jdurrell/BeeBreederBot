@@ -120,7 +120,7 @@ end
 ---@param initialDroneStacks AnalyzedBeeStack[]
 ---@param target string
 ---@param cacheElement BreedInfoCacheElement
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoFull
 ---@param seed integer | nil
 ---@return number
 local function RunConvergenceTest(matcher, garbageCollector, endCondition, maxIterations, apiary, initialPrincess, initialDroneStacks, target, cacheElement, traitInfo, seed)

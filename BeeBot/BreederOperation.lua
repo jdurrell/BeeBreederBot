@@ -1,18 +1,19 @@
 -- This module contains logic used by the breeder robot to manipulate bees and the apiaries.
 ---@class BreedOperator
----@field bk any beekeeper library
+---@field bk any beekeeper library  TODO: Is this even necessary?
 ---@field ic any inventory controller library
 ---@field robot any robot library
 ---@field sides any sides library
 ---@field logFilepath string
----@field matchingAlgorithm function
+---@field garbageCollectionAlgorithm GarbageCollector
+---@field matchingAlgorithm Matcher
 ---@field robotComms RobotComms
 ---@field storageInfo StorageInfo
 local BreedOperator = {}
 
 local Logger = require("Shared.Logger")
+local GarbageCollectionPolicies = require("BeeBot.GarbageCollectionPolicies")
 local MatchingAlgorithms = require("BeeBot.MatchingAlgorithms")
-local MatchingMath = require("BeeBot.MatchingMath")
 
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT = 1
@@ -26,10 +27,12 @@ local NUM_INTERNAL_SLOTS = 16
 ---@type Point
 local BREEDING_STOCK_PRINCESSES_LOC = {x = 0, y = 0}
 
+-- TODO: Check if the inventory controller can even work with these.
 local ANALYZED_DRONE_CHEST     -- directly to the right of the breeder station.
 local ANALYZED_PRINCESS_CHEST  -- directly to the left of the breeder station.
 local HOLDOVER_CHEST           -- to the right of the breeder station, 2 blocks up vertically.
 local OUTPUT_CHEST             -- to the left of the breeder station, 2 blocks up vertically.
+local TRASH_CAN
 
 -- Info for chests for analyzed bees at the start of the apiary row.
 local BASIC_CHEST_INVENTORY_SLOTS = 27
@@ -66,6 +69,7 @@ function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, si
 
     ANALYZED_PRINCESS_CHEST = sidesLib.left
     ANALYZED_DRONE_CHEST = sidesLib.right
+    TRASH_CAN = sidesLib.back
 
     -- Initialize location information of the bees in storage.
     obj.logFilepath = logFilepath
@@ -81,7 +85,8 @@ function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, si
 
     -- TODO: This should probably be a config option.
     -- TODO: This should also probably be overridable by the server for any given operation.
-    obj.selectionAlgorithm = MatchingAlgorithms.HighestPureBredChance
+    obj.selectionAlgorithm = MatchingAlgorithms.HighFertilityAndAlleles
+    obj.garbageCollectionAlgorithm = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize
 
     -- TODO: This is currently a bit messy since it has side effects. Consider either moving the logging into this
     --       or having this function return a value instead of setting it directly.
@@ -104,9 +109,9 @@ end
 function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     -- Pick up the specified bees.
     self.robot.select(PRINCESS_SLOT)
-    self.ic.suckFromSlot(self.sides.left, princessSlot, 1)
+    self.ic.suckFromSlot(ANALYZED_PRINCESS_CHEST, princessSlot, 1)
     self.robot.select(DRONE_SLOT)
-    self.ic.suckFromSlot(self.sides.right, droneSlot, 1)
+    self.ic.suckFromSlot(ANALYZED_DRONE_CHEST, droneSlot, 1)
 
     local distFromStart = 0
     local placed = false
@@ -152,7 +157,6 @@ function BreedOperator:GetPrincessInChest()
     -- Spin until we have a princess to use.
     ---@type AnalyzedBeeStack
     local princess = nil
-    local princessSlotInChest = -1
     while princess == nil do
         for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
             local stack = self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i)
@@ -199,7 +203,7 @@ end
 ---@param princessStack AnalyzedBeeStack
 ---@param droneStackList AnalyzedBeeStack[]
 ---@param target string
----@param breedInfoCache BreedInfoCache  the cache to be populated.
+---@param breedInfoCache BreedInfoCache  The cache to be populated.
 function BreedOperator:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
     if breedInfoCache[target] == nil then
         breedInfoCache[target] = {}
@@ -228,6 +232,54 @@ function BreedOperator:PopulateBreedInfoCache(princessStack, droneStackList, tar
                 cacheElement[combo[1]][combo[2]] = breedInfo
                 cacheElement[combo[2]][combo[1]] = breedInfo
             end
+        end
+    end
+end
+
+-- Populates `traitInfoCache` with any required infromation to allow for breeding calculations between the given princess and any drone in
+-- the drone chest.
+---@param princessStack AnalyzedBeeStack
+---@param droneStackList AnalyzedBeeStack[]
+---@param traitInfoCache TraitInfoSpecies  The cache to be populated.
+function BreedOperator:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+    local princessSpecies1 = princessStack.individual.active.species.uid
+    local princessSpecies2 = princessStack.individual.inactive.species.uid
+    if traitInfoCache[princessSpecies1] == nil then
+        local dominance = self.robotComms:GetTraitInfoFromServer(princessSpecies1)
+        if dominance == nil then
+            return nil -- TODO: Deal with this at some point.
+        end
+
+        traitInfoCache[princessSpecies1] = dominance
+    end
+
+    if traitInfoCache[princessSpecies2] == nil then
+        local dominance = self.robotComms:GetTraitInfoFromServer(princessSpecies2)
+        if dominance == nil then
+            return nil -- TODO: Deal with this at some point.
+        end
+
+        traitInfoCache[princessSpecies2] = dominance
+    end
+
+    for _, stack in ipairs(droneStackList) do
+        local droneSpecies1 = stack.individual.active.species.uid
+        local droneSpecies2 = stack.individual.inactive.species.uid
+        if traitInfoCache[droneSpecies1] == nil then
+            local dominance = self.robotComms:GetTraitInfoFromServer(droneSpecies1)
+            if dominance == nil then
+                return nil -- TODO: Deal with this at some point.
+            end
+
+            traitInfoCache[droneSpecies1] = dominance
+        end
+        if traitInfoCache[droneSpecies2] == nil then
+            local dominance = self.robotComms:GetTraitInfoFromServer(droneSpecies2)
+            if dominance == nil then
+                return nil -- TODO: Deal with this at some point.
+            end
+
+            traitInfoCache[droneSpecies2] = dominance
         end
     end
 end
@@ -294,6 +346,17 @@ function BreedOperator:StoreDrones(point)
     self:unloadIntoChest()
     self:returnToBreederStationFromChest(point)
 end
+
+---@param slots integer[]
+function BreedOperator:TrashSlotsFromDroneChest(slots)
+    -- TODO: Figure out exactly where the trash slot is going to be.
+    self.robot.select(1)
+    for _, slot in ipairs(slots) do
+        self.ic.suckFromSlot(ANALYZED_DRONE_CHEST, slot, 64)
+        self.robot.drop(TRASH_CAN, 64)
+    end
+end
+
 
 ---@param species string
 ---@return Point
@@ -380,6 +443,8 @@ function BreedOperator:ReplicateSpecies(species)
     -- Replicate extras to replace the drones we took from the chest.
     ---@type BreedInfoCache
     local breedInfoCache = {}
+    ---@type TraitInfoSpecies
+    local traitInfoCache = {species = {}}
     local finishedDroneSlot
     while true do
         local princessStack = self:GetPrincessInChest()
@@ -389,8 +454,13 @@ function BreedOperator:ReplicateSpecies(species)
             break
         else
             self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCache)
-            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, species, breedInfoCache[species])
+            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, species, breedInfoCache[species], traitInfoCache)
             self:InitiateBreeding(princessStack.slotInChest, droneSlot)
+            if princessStack.individual.active.fertility > (27 - #droneStackList) then
+                local slotsToRemove = self.garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, species)
+                self:TrashSlotsFromDroneChest(slotsToRemove)
+            end
         end
     end
 
@@ -428,8 +498,8 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     --   to one of the two parents. In this case, it could be impossible to get a drone that
     --   has a non-zero chance to breed the target. For now, we will just rely on random
     --   chance to eventually get us out of this scenario instead of detecting it outright.
-    --   To solve the above, we will probably just have PickUpBees prioritize breeding
-    --   one of the parents if breeding the target has 0 chance with all princesses/drones.
+    --   To solve the above, we could have the matcher prioritize breeding one of the parents
+    --   if breeding the target has 0 chance with all princesses/drones.
 
     -- Move starter bees to their respective chests.
     self:ImportHoldoversToDroneChest()
@@ -438,6 +508,8 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
     -- Replicate extras to replace the drones we took from the chest.
     ---@type BreedInfoCache
     local breedInfoCache = {}
+    ---@type TraitInfoSpecies
+    local traitInfoCache = {species = {}}
     local finishedDroneSlot
     while true do
         local princessStack = self:GetPrincessInChest()
@@ -447,8 +519,13 @@ function BreedOperator:BreedSpecies(target, parent1, parent2)
             break
         else
             self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
-            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target])
+            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+            local droneSlot = self.matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target], traitInfoCache)
             self:InitiateBreeding(princessStack.slotInChest, droneSlot)
+            if princessStack.individual.active.fertility > (27 - #droneStackList) then
+                local slotsToRemove = self.garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, target)
+                self:TrashSlotsFromDroneChest(slotsToRemove)
+            end
         end
     end
 

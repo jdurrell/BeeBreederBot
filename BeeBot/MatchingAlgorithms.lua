@@ -2,7 +2,7 @@
 local M = {}
 local MatchingMath = require("BeeBot.MatchingMath")
 
----@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[], target: string, cacheElement: BreedInfoCacheElement, traitInfo: TraitInfo): integer
+---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[], target: string, cacheElement: BreedInfoCacheElement, traitInfo: TraitInfoSpecies): integer
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number
 
 -- Matches `princessStack` to the drone with the highest chance to immediately create at least one pure-bred target offspring drone.

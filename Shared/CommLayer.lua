@@ -22,7 +22,9 @@ CommLayer.MessageCode = {
     LogStreamRequest = 10,
     LogStreamResponse = 11,
     LocationRequest = 12,
-    LocationResponse = 13
+    LocationResponse = 13,
+    TraitInfoRequest = 14,
+    TraitInfoResponse = 15
 }
 
 CommLayer.DefaultComPort = 34000

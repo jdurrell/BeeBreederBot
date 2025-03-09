@@ -114,6 +114,25 @@ function RobotComms:GetBreedInfoFromServer(target)
 end
 
 ---@param species string
+---@return boolean | nil
+function RobotComms:GetTraitInfoFromServer(species)
+    ::restart::
+    local payload = {species = species}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, payload)
+
+    local response, _ = self.comm:GetIncoming(5.0)
+    if response == nil then
+        self:EstablishComms()
+        goto restart
+    end
+    if not self:ValidateExpectedResponse(CommLayer.MessageCode.TraitInfoResponse, payload, true) then
+        return nil
+    end
+
+    return UnwrapNull(response).payload.dominant
+end
+
+---@param species string
 ---@param node StorageNode
 function RobotComms:ReportSpeciesFinishedToServer(species, node)
     -- Report the update to the server.

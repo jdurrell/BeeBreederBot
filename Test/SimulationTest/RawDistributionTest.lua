@@ -133,7 +133,7 @@ end
 ---@param activeSpecies string
 ---@param inactiveSpecies string
 ---@param fertility integer | nil
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoFull
 ---@return AnalyzedBeeIndividual
 local function CreateBeeFromActiveAndInactive(activeSpecies, inactiveSpecies, fertility, traitInfo)
     -- If one trait is dominant and the other is recessive, then randomize the order.

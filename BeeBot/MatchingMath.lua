@@ -6,7 +6,7 @@ local M = {}
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoSpecies
 ---@param mathFunc fun(A: string, B: string, C: string, D: string): number
 ---@return number
 function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, mathFunc)
@@ -21,14 +21,14 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cach
     -- secondary allele for the inactive one.
     local princessPossibilities = {}
     table.insert(princessPossibilities, {primary = princess.active.species.uid, secondary = princess.inactive.species.uid})
-    if traitInfo["species"][princess.active.species.uid] and not traitInfo["species"][princess.inactive.species.uid] then
+    if traitInfo.species[princess.active.species.uid] and not traitInfo.species[princess.inactive.species.uid] then
         table.insert(princessPossibilities, {primary = princess.inactive.species.uid, secondary = princess.active.species.uid})
     end
 
     -- And do the same for the given drone.
     local dronePossibilities = {}
     table.insert(dronePossibilities, {primary = drone.active.species.uid, secondary = drone.inactive.species.uid})
-    if traitInfo["species"][drone.active.species.uid] and not traitInfo["species"][drone.inactive.species.uid] then
+    if traitInfo.species[drone.active.species.uid] and not traitInfo.species[drone.inactive.species.uid] then
         table.insert(dronePossibilities, {primary = drone.inactive.species.uid, secondary = drone.active.species.uid})
     end
 
@@ -167,7 +167,7 @@ end
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoSpecies
 ---@return number
 function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement, traitInfo)
     return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function (A, B, C, D)
@@ -184,7 +184,7 @@ end
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param cacheElement BreedInfoCacheElement
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoSpecies
 ---@return number
 function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(target, princess, drone, cacheElement, traitInfo)
     return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function(A, B, C, D)

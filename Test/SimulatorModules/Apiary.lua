@@ -12,7 +12,7 @@ local Util = require("Test.Utilities.CommonUtilities")
 ---@class Apiary
 ---@field defaultChromosomes table<string, ForestryGenome> | nil
 ---@field rawMutationInfo ForestryMutation[]
----@field traitInfo TraitInfo
+---@field traitInfo TraitInfoFull
 local M = {}
 
 
@@ -29,7 +29,7 @@ local function Shuffle(list)
 end
 
 ---@param rawMutationInfo ForestryMutation[]
----@param traitInfo TraitInfo
+---@param traitInfo TraitInfoFull
 ---@param defaultChromosomes table<string, ForestryGenome> | nil
 ---@return Apiary
 function M:Create(rawMutationInfo, traitInfo, defaultChromosomes)

@@ -9,6 +9,7 @@ local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
 local Logger = require("Shared.Logger")
 local MutationMath = require("BeeServer.MutationMath")
+local TraitInfo = require("BeeServer.SpeciesDominance")
 
 ---@class BeeServer
 ---@field event any
@@ -78,6 +79,13 @@ function BeeServer:SpeciesFoundHandler(addr, data)
         table.insert(self.leafSpeciesList, data.species)
         Logger.LogSpeciesToDisk(self.logFilepath, data.species, data.node.loc, data.node.timestamp)
     end
+end
+
+---@param addr string
+---@param data TraitInfoRequestPayload
+function BeeServer:TraitInfoHandler(addr, data)
+    local payload = {dominant = TraitInfo[data.species]}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, payload)
 end
 
 ---@param timeout number

@@ -49,11 +49,28 @@ local Chromosome = {}
 ---@field tolerantFlyer Chromosome<boolean>  Whether this bee can work in the rain.
 local ForestryGenome = {}
 
--- For each trait, contains a mapping of each allele to a boolean that represents whether the allele is dominant.
--- TODO: Extend this to non-species traits.
----@class TraitInfo
+-- Mapping of each species to a boolean that represents whether the species allele is dominant.
+-- This is communicated from the server to the robot in production code.
+---@class TraitInfoSpecies
 ---@field species table<string, boolean>
-local TraitInfo = {}
+local TraitInfoSpecies = {}
+
+-- Mapping of each trait to a boolean that represents whether the given allele is dominant.
+-- This is only used by simulation code.
+---@class TraitInfoFull: TraitInfoSpecies
+---@field caveDwelling table<boolean, boolean>
+---@field effect table<string, boolean>
+---@field fertility table<integer, boolean>
+---@field flowerProvider table<string, boolean>
+---@field humidityTolerance table<string, boolean>
+---@field nocturnal table<boolean, boolean>
+---@field species table<string, boolean>  indexed by species.uid
+---@field speed table<number, boolean>
+---@field temperatureTolerance table<string, boolean>
+---@field territory table<integer, boolean>  indexed by territory[1]
+---@field tolerantFlyer table<boolean, boolean>
+local TraitInfoFull = {}
+
 
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
@@ -162,6 +179,8 @@ local CodedMessage = {}
 ---@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}
 ---@alias LocationRequestPayload {species: string}
 ---@alias LocationResponsePayload {loc: Point}
+---@alias TraitInfoRequestPayload {species: string}
+---@alias TraitInfoResponsePaytoad {dominant: boolean}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}

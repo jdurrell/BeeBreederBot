@@ -23,7 +23,7 @@ local Res = {
     end
 
     ---@param graph SpeciesGraph
-    ---@return TraitInfo
+    ---@return TraitInfoFull
     function Res.TraitInfoAllRecessive(graph)
         local traitInfo = {species = {}}
         for spec, _ in pairs(graph) do
@@ -38,7 +38,7 @@ local Res = {
         MutationChanceIndividual = 0.15
     }
 
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphMundaneIntoCommon.GetSpeciesTraitInfo()
             return Res.TraitInfoAllRecessive(Res.BeeGraphMundaneIntoCommon.GetGraph())
         end
@@ -62,7 +62,7 @@ local Res = {
 
     -- A graph made up of only mundane bees that breed into Common, then can breed with Common to create Cultivated.
     Res.BeeGraphMundaneIntoCommonIntoCultivated = {}
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetSpeciesTraitInfo()
             return Res.TraitInfoAllRecessive(Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph())
         end
@@ -96,7 +96,7 @@ local Res = {
             {allele1="Root1", allele2="Root2", result="Result4", chance=10.0}
         }
     }
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphSimpleDuplicateMutations.GetSpeciesTraitInfo()
             return Res.TraitInfoAllRecessive(Res.BeeGraphSimpleDuplicateMutations.GetGraph())
         end
@@ -130,7 +130,7 @@ local Res = {
             ["DominantResult"] = true
         }}
     }
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
             return Res.BeeGraphSimpleDominance.TraitInfo
         end
@@ -155,7 +155,7 @@ local Res = {
             ["Result4"] = true
         }}
     }
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphSimpleDominanceDuplicateMutations.GetSpeciesTraitInfo()
             return Res.BeeGraphSimpleDominanceDuplicateMutations.TraitInfo
         end
@@ -11816,8 +11816,10 @@ local Res = {
             return Res.BeeGraphActual.RawMutationInfo
         end
 
-        ---@return TraitInfo
+        ---@return TraitInfoFull
         function Res.BeeGraphActual.GetSpeciesTraitInfo()
+            -- Technically, this is only returning a TraitInfoSpecies, but we'll call it "TraitInfoFull" for the purposes
+            -- of the simulation code that actually needs it.
             return Res.BeeGraphActual.TraitInfo
         end
 

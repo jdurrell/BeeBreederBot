@@ -204,7 +204,7 @@ function M.CreateGenome(species1, species2, fertility)
 end
 
 ---@param genome ForestryGenome
----@param traitInfo TraitInfo | nil
+---@param traitInfo TraitInfoFull | nil
 ---@return AnalyzedBeeIndividual
 function M.CreateBee(genome, traitInfo)
     -- Convert primary/secondary genome representation to active/inactive traits based on dominant and recessive behavior.
