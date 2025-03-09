@@ -158,7 +158,7 @@ function BreedOperator:GetPrincessInChest()
     ---@type AnalyzedBeeStack
     local princess = nil
     while princess == nil do
-        for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
+        for i = 1, BASIC_CHEST_INVENTORY_SLOTS do
             local stack = self.ic.getStackInSlot(ANALYZED_PRINCESS_CHEST, i)
             if stack ~= nil then
                 princess = stack
@@ -186,7 +186,7 @@ end
 function BreedOperator:GetDronesInChest()
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     local drones = {}
-    for i = 0, BASIC_CHEST_INVENTORY_SLOTS - 1 do
+    for i = 1, BASIC_CHEST_INVENTORY_SLOTS do
         ---@type AnalyzedBeeStack
         local droneStack = self.ic.getStackInSlot(i)
         if droneStack ~= nil then
@@ -287,14 +287,14 @@ end
 ---@param dist integer
 ---@param direction integer
 function BreedOperator:moveDistance(dist, direction)
-    for i = 0, dist do
+    for i = 1, dist do
         self.robot.move(direction)
     end
 end
 
 ---@return boolean succeeded
 function BreedOperator:unloadIntoChest()
-    for i = 0, NUM_INTERNAL_SLOTS do
+    for i = 1, NUM_INTERNAL_SLOTS do
         self.robot.select(i)
 
         -- Early exit when we have hit the end of the items in the inventory.
@@ -555,13 +555,13 @@ function BreedOperator:ImportHoldoversToDroneChest()
     self:moveDistance(2, self.sides.up)
     self.robot.turnRight()
 
-    for i = 0, 1 do  -- TODO: Are these slots one-indexed?
+    for i = 1, 2 do
         self.robot.select(i)
         self.ic.suckFromSlot(self.sides.front, i)
     end
 
     self:moveDistance(2, self.sides.down)
-    for i = 0, 1 do
+    for i = 1, 2 do
         self.robot.select(i)
         self.robot.drop()
     end
@@ -576,7 +576,7 @@ function BreedOperator:ExportHoldoversToOutput()
     self:moveDistance(2, self.sides.up)
 
     self.robot.turnRight()  -- Face the holdover chest.
-    for i = 0, 26 do  -- TODO: Account for inventories with more than 27 slots. This should be a config option. Also TODO: are these slots one-indexed?
+    for i = 1, BASIC_CHEST_INVENTORY_SLOTS do  -- TODO: Account for inventories with more than 27 slots. This should be a config option.
         self.ic.suckFromSlot(self.sides.front, i)
         self.robot.turnAround()
         self.robot.drop()
