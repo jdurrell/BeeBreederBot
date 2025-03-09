@@ -67,11 +67,6 @@ function BreedOperator:GetPrincessInChest()
             if stack ~= nil then
                 princess = stack
                 princess.slotInChest = i
-
-                -- TODO: Deal with the possibility of not having enough temperature/humidity tolerance to work in the climate.
-                --       This will probably just involve putting them in a chest to be sent to a Genetics acclimatizer
-                --       and then have them just loop back to this chest later on.
-                -- TODO: Consider whether we will even handle this here and just have the piping system run them through an acclimatizer.
                 break
             end
         end
