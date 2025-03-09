@@ -128,7 +128,6 @@ end
 -- Replicates drones of the given species.
 -- Places outputs into the holdover chest.
 ---@param species string
----@return boolean
 function BeekeeperBot:ReplicateSpecies(species)
     -- TODO: At some point, we should probably have a way to store + retrieve breeding stock princesses,
     -- but for now, we will just rely on the user to place them into the princess chest manually.
@@ -144,32 +143,10 @@ function BeekeeperBot:ReplicateSpecies(species)
 
     -- Move starter bees to their respective chests.
     self.breeder:RetrieveDronesFromChest(storagePoint, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
-    self.breeder:RetrieveStockPrincessesFromChest({species})
+    self.breeder:RetrieveStockPrincessesFromChest(1, {species})
 
-    -- Replicate extras to replace the drones we took from the chest.
-    ---@type BreedInfoCache
-    local breedInfoCache = {}
-    ---@type TraitInfoSpecies
-    local traitInfoCache = {species = {}}
-    local finishedDroneSlot
-    while true do
-        local princessStack = self.breeder:GetPrincessInChest()
-        local droneStackList = self.breeder:GetDronesInChest()
-        finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, species)
-        if finishedDroneSlot ~= nil then
-            break
-        else
-            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCache)
-            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-            local droneSlot = matchingAlgorithm(princessStack, droneStackList, species, breedInfoCache[species], traitInfoCache)
-            self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
-            if princessStack.individual.active.fertility > (27 - #droneStackList) then
-                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, species)
-                self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
-            end
-        end
-    end
-    finishedDroneSlot = UnwrapNull(finishedDroneSlot)
+    -- Do the breeding.
+    local finishedDroneSlot = self:Breed(species)
 
     -- Double check with the server about the location in case the user changed it during operation.
     -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
@@ -187,7 +164,7 @@ end
 
 -- Breeds the target species from the two given parents.
 -- Requires drones of each species as inputs already in the holdover chest.
--- Places outputs in the holdover chest.
+-- Places finished breed output in the storage columns.
 ---@param target string
 ---@param parent1 string
 ---@param parent2 string
@@ -203,8 +180,28 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2)
 
     -- Move starter bees to their respective chests.
     self.breeder:ImportHoldoversToDroneChest()
-    self.breeder:RetrieveStockPrincessesFromChest({parent1, parent2})
+    self.breeder:RetrieveStockPrincessesFromChest(1, {parent1, parent2})
 
+    -- Do the breeding.
+    local finishedDroneSlot = self:Breed(target)
+
+    -- Double check with the server about the location in case the user changed it during operation.
+    -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
+    -- but this is a mostly trivial way to recover from at least some possible bad behavior.
+    local storagePoint = self.robotComms:GetStorageLocationFromServer(target)
+    if storagePoint == nil then
+        Print("Error getting storage location of " .. target .. " from server.")
+    end
+    storagePoint = UnwrapNull(storagePoint)
+
+    -- If we have enough of the target species now, then clean up and break out.
+    local point = self:ReportNewSpecies(target)
+    self.breeder:StoreDrones(finishedDroneSlot, point)
+end
+
+---@param target string
+---@return integer
+function BeekeeperBot:Breed(target)
     -- Replicate extras to replace the drones we took from the chest.
     ---@type BreedInfoCache
     local breedInfoCache = {}
@@ -229,19 +226,6 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2)
         end
     end
     finishedDroneSlot = UnwrapNull(finishedDroneSlot)
-
-    -- Double check with the server about the location in case the user changed it during operation.
-    -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
-    -- but this is a mostly trivial way to recover from at least some possible bad behavior.
-    local storagePoint = self.robotComms:GetStorageLocationFromServer(target)
-    if storagePoint == nil then
-        Print("Error getting storage location of " .. target .. " from server.")
-    end
-    storagePoint = UnwrapNull(storagePoint)
-
-    -- If we have enough of the target species now, then clean up and break out.
-    local point = self:ReportNewSpecies(target)
-    self.breeder:StoreDrones(finishedDroneSlot, point)
 end
 
 --- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
