@@ -6,8 +6,8 @@ local Util = require("Test.Utilities.CommonUtilities")
 local RollingEnum = require("Test.Utilities.RollingEnum")
 
 require("Shared.Shared")
-local GarbageCollectionPolicies = require("BeeBot.GarbageCollectionPolicies")
-local MatchingAlgorithms = require("BeeBot.MatchingAlgorithms")
+local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
+local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 
 -- Mapping for optimizing the hash computation.
 local effectEnum = RollingEnum:Create()
@@ -162,7 +162,7 @@ local function RunConvergenceTest(matcher, garbageCollector, endCondition, maxIt
             -- Garbage collect the chest if there are too many drone stacks. 
             -- In the real system, this happens simulataneously with the apiary, so it must generally be done without knowledge of the outputs.
             -- Technically, there may be a race condition here that the simulator doesn't account for: next-generation drones can appear in the
-            -- chest while garbage collection happens. If the BeeBot implementation performs a subsequent re-stream of the inventory, then
+            -- chest while garbage collection happens. If the BeekeeperBot implementation performs a subsequent re-stream of the inventory, then
             -- garbage collection *may* or *may not* consider the next generation. This only happens with frames that considerably reduce
             -- lifetime, though, and in theory, if the `matcher` and `garbageCollector` function are well-constructed, they should make better
             -- choices with the strictly greater information from that race condition firing.

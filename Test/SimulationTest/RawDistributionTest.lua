@@ -4,7 +4,7 @@ local Apiary = require("Test.SimulatorModules.Apiary")
 local Util = require("Test.Utilities.CommonUtilities")
 local Res = require("Test.Resources.TestData")
 
-local MatchingMath = require("BeeBot.MatchingMath")
+local MatchingMath = require("BeekeeperBot.MatchingMath")
 
 local AlphaLevelToTwoSidedZThreshold = {
     [0.01] = 2.58,

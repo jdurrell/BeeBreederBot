@@ -18,5 +18,5 @@ cp "$SCRIPT_DIR"/Shared/* "$SERVER_DEST"
 # Copy robot files to robot.
 ROBOT_DEST=$(echo $SAVE_FOLDER/opencomputers/$ROBOT_ID/home/BeeBreederBot/)
 echo "Copying robot files to $ROBOT_DEST"
-cp "$SCRIPT_DIR"/BeeBot/* "$ROBOT_DEST"
+cp "$SCRIPT_DIR"/BeekeeperBot/* "$ROBOT_DEST"
 cp "$SCRIPT_DIR"/Shared/* "$ROBOT_DEST"

@@ -1,6 +1,6 @@
 -- This module contains algorithms for selecting the right drone to use with a given princess during the breeding process.
 local M = {}
-local MatchingMath = require("BeeBot.MatchingMath")
+local MatchingMath = require("BeekeeperBot.MatchingMath")
 
 ---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[], target: string, cacheElement: BreedInfoCacheElement, traitInfo: TraitInfoSpecies): integer
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number

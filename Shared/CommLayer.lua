@@ -1,4 +1,4 @@
--- This file contains code that dscribes the communication between the client (BeeBot) and the server (BeeServer).
+-- This file contains code that dscribes the communication between the client (BeekeeperBot) and the server (BeeServer).
 
 ---@class CommLayer
 ---@field event any

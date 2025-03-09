@@ -3,7 +3,7 @@ local Luaunit = require("Test.luaunit")
 local Res = require("Test.Resources.TestData")
 local Util = require("Test.Utilities.CommonUtilities")
 
-local MatchingMath = require("BeeBot.MatchingMath")
+local MatchingMath = require("BeekeeperBot.MatchingMath")
 
 TestArbitraryOffspringIsPureBredTarget = {}
     function TestArbitraryOffspringIsPureBredTarget:TestNoParentAlleleComboYieldsTarget()

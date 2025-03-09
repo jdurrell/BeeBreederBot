@@ -5,11 +5,11 @@ local serial = require("serialization")
 local sides = require("sides")
 
 local CommLayer = require("Shared.CommLayer")
-local BeeBot = require("BeeBot.BeeBot")
+local BeekeeperBot = require("BeekeeperBot.BeekeeperBot")
 
 -- TODO: Read from config file?
 local logFilepath = "/home/BeeBreederBot/DroneLocations.log"
 local comPort = CommLayer.DefaultComPort
 
-local robot = BeeBot:Create(component, event, serial, sides, logFilepath, comPort)
+local robot = BeekeeperBot:Create(component, event, serial, sides, logFilepath, comPort)
 robot:RunRobot()

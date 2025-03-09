@@ -31,7 +31,7 @@ function M.__registerThread(thread)
 end
 
 -- This is technically external since it's needed by the component modem library,
--- but it shouldn't be used by the BeeServer or BeeBot because it's not truly
+-- but it shouldn't be used by the BeeServer or BeekeeperBot because it's not truly
 -- part of OpenComputers' event library.
 ---@param thread thread
 ---@param key string

@@ -1,6 +1,6 @@
 local Luaunit = require("Test.luaunit")
 
-local GarbageCollectionPolicies = require("BeeBot.GarbageCollectionPolicies")
+local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
 
 ---@param size integer
 ---@return {}[]
