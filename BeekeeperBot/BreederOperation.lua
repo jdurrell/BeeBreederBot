@@ -294,7 +294,7 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
         self.robot.turnLeft()
     end
 
-    -- Cleanup by returning to starting position.
+    -- Clean up by returning to starting position.
     self.robot.turnLeft()
 end
 
@@ -397,7 +397,7 @@ function BreedOperator:ImportHoldoversToDroneChest()
         self.robot.drop(64)
     end
 
-    -- Cleanup by returning to starting position.
+    -- Clean up by returning to starting position.
     self.robot.turnRight()
 end
 
