@@ -1,5 +1,5 @@
 # BeeBreederBot
-The BeeBreeerBot is a (work-in-progress) automated system that uses OpenComputers to breed Forestry bees. Given a target species, it breeds a full stack of drones for that species and converts some princesses to pure-breds of that species, which a user can then use in a production system however they please. It consists of three components: the BeeServer, the BeekeeperBot, and some piping system. 
+The BeeBreederBot is a (work-in-progress) automated system that uses OpenComputers to breed Forestry bees. Given a target species, it breeds a full stack of drones for that species and converts some princesses to pure-breds of that species, which a user can then use in a production system however they please. It consists of three components: the BeeServer, the BeekeeperBot, and some piping system. 
 
 ## BeeServer
 The BeeServer provides the front-facing user interface where the user selects a target species to breed, and it also manages the breeding tree and mutation information queried from an attached apiary.
