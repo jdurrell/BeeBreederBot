@@ -1,4 +1,5 @@
 -- This module contains logic used by the breeder robot to manipulate bees and the apiaries.
+-- TODO: A lot of "return" logic could really just keep track of the moves and then retrace, which would likely be simpler to use.
 ---@class BreedOperator
 ---@field bk any beekeeper library  TODO: Is this even necessary?
 ---@field ic any inventory controller library
@@ -413,9 +414,111 @@ function BreedOperator:ExportDroneStackToHoldovers(slot, amount)
     self.robot.up()
     self.robot.drop(amount)
 
-    -- Cleanup by returning to starting position.
+    -- Clean up by returning to starting position.
     self.robot.down()
     self.robot.turnRight()
+end
+
+-- Moves the princesses in the import chest to the breeding stock chest.
+function BreedOperator:ImportPrincessesToStock()
+    self:moveToInputChest()
+
+    -- TODO: Deal with the case where there are more than 16 princesses.
+    -- There are several items in this input chest. Only pick up the princesses.
+    local numInternalSlotsTaken = 0
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack ~= nil) and (string.find(stack.label, "[P|p]rincess") ~= nil) then
+            self.robot.select(numInternalSlotsTaken + 1)
+            self.ic.suckFromSlot(self.sides.front, i, 64)
+
+            numInternalSlotsTaken = numInternalSlotsTaken + 1
+            if numInternalSlotsTaken >= 16 then
+                break
+            end
+        end
+    end
+
+    -- Move to the stock princess chest.
+    self:returnToBreederStationFromInputChest()
+    self:moveToStorageColumn()
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnLeft()
+
+    self:unloadInventory()
+
+    -- Clean up by returning to the starting position.
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnRight()
+    self:returnToBreederStationFromStorageColumn()
+end
+
+-- Moves the specified number of drones from the given slot in the active chest to the output chest.
+---@param slot integer
+function BreedOperator:ExportDroneToOutput(slot, number)
+    self.robot.select(1)
+
+    -- Pick up drones.
+    self.robot.turnRight()
+    self.ic.suckFromSlot(self.sides.front, slot, number)
+    self.robot.turnLeft()
+
+    -- Go to chest and unload, then return to the breeder station.
+    self:moveToOutputChest()
+    self.robot.drop(number)
+    self:returnToBreederStationFromOutputChest()
+end
+
+-- Moves the specified number of princesses from the given slot in the active chest to the output chest.
+---@param slot integer
+function BreedOperator:ExportPrincessToOutput(slot, number)
+    self.robot.select(1)
+
+    -- Pick up princesses.
+    self.robot.turnLeft()
+    self.ic.suckFromSlot(self.sides.front, slot, number)
+    self.robot.turnRight()
+
+    -- Go to chest and unload, then return to the breeder station.
+    self:moveToOutputChest()
+    self.robot.drop(number)
+    self:returnToBreederStationFromOutputChest()
+end
+
+-- Moves the robot from the breeder station to facing the input chest.
+function BreedOperator:moveToInputChest()
+    self.robot.up()
+    self:moveBackwards(2)
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnLeft()
+end
+
+function BreedOperator:returnToBreederStationFromInputChest()
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnLeft()
+    self:moveForwards(2)
+    self.robot.down()
+end
+
+-- Moves the robot from the breeder station to facing the output chest.
+function BreedOperator:moveToOutputChest()
+    self.robot.up()
+    self:moveBackwards(2)
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnRight()
+end
+
+function BreedOperator:returnToBreederStationFromOutputChest()
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnRight()
+    self:moveForwards(2)
+    self.robot.down()
 end
 
 return BreedOperator
