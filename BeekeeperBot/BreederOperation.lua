@@ -17,6 +17,11 @@ local NUM_INTERNAL_SLOTS = 16
 -- Info for chests for analyzed bees at the start of the apiary row.
 local BASIC_CHEST_INVENTORY_SLOTS = 27
 
+---@param beekeeperLib any
+---@param inventoryControllerLib any
+---@param robotLib any
+---@param sidesLib any
+---@param numApiaries integer
 ---@return BreedOperator | nil
 function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, sidesLib, numApiaries)
     local obj = {}
@@ -246,20 +251,20 @@ end
 -- Moves the robot from position {-1, -1, -1} of the storage column to be facing the chest at the given point.
 ---@param point Point
 function BreedOperator:moveToChestFromStorageColumn(point)
-    self:moveForwards(point.y)
+    self:moveForwards(point.z)
     self.robot.turnLeft()
     self:moveForwards(point.x + 1)
     self.robot.turnRight()
-    self:moveUpwards(point.z)
+    self:moveUpwards(point.y)
 end
 
 -- Moves the robot from the chest at the given point to position {-1, -1, -1} of the storage column.
 function BreedOperator:returnToStorageColumnOriginFromChest(point)
-    self:moveDownwards(point.z)
+    self:moveDownwards(point.y)
     self.robot.turnRight()
     self:moveForwards(point.x + 1)
     self.robot.turnLeft()
-    self:moveBackwards(point.y)
+    self:moveBackwards(point.z)
 end
 
 ---@param slots integer[]

@@ -7,7 +7,6 @@
 require("Shared.Shared")
 local BreederOperation = require("BeekeeperBot.BreederOperation")
 local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
-local Logger = require("Shared.Logger")
 local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 local RobotComms = require("BeekeeperBot.RobotComms")
 
@@ -21,17 +20,19 @@ local garbageCollectionAlgorithm = GarbageCollectionPolicies.ClearDronesByFertil
 ---@field breeder BreedOperator
 ---@field logFilepath string
 ---@field robotComms RobotComms
----@field storageInfo StorageInfo
 local BeekeeperBot = {}
 
 -- Creates a BeekeeperBot and does initial setup.
 -- Requires system libraries as an input.
 ---@param componentLib any
 ---@param eventLib any
+---@param robotLib any
 ---@param serialLib any
+---@param sidesLib any
 ---@param port integer
+---@param numApiaries integer
 ---@return BeekeeperBot
-function BeekeeperBot:Create(componentLib, eventLib, serialLib, sidesLib, logFilepath, port)
+function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesLib, port, numApiaries)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -60,28 +61,12 @@ function BeekeeperBot:Create(componentLib, eventLib, serialLib, sidesLib, logFil
     end
     obj.robotComms = UnwrapNull(robotComms)
 
-    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, sidesLib)
+    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, robotLib, sidesLib, numApiaries)
     if breeder == nil then
         Print("Failed to initialize breeding operator during BeekeeperBot initialization.")
         obj:Shutdown(1)
     end
     obj.breeder = UnwrapNull(breeder)
-
-    -- Initialize location information of the bees in storage.
-    obj.logFilepath = logFilepath
-    local chestArray = Logger.ReadSpeciesLogFromDisk(logFilepath)
-    if chestArray == nil then
-        Print("Error while reading log on startup.")
-        obj:Shutdown(1)
-    end
-    obj.storageInfo = {
-        nextChest = {x = 0, y = 0},  -- TODO: Initialize nextChest properly based on the data in chestArray
-        chestArray = chestArray
-    }
-
-    -- TODO: This is currently a bit messy since it has side effects. Consider either moving the logging into this
-    --       or having this function return a value instead of setting it directly.
-    obj:SyncLogWithServer()
 
     return obj
 end
@@ -153,9 +138,8 @@ function BeekeeperBot:ReplicateSpecies(species)
     -- but this is a mostly trivial way to recover from at least some possible bad behavior.
     storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
-        storagePoint = self.storageInfo.chestArray[species].loc
-    else
-        storagePoint = UnwrapNull(storagePoint)
+        Print("Error getting storage location of " .. species .. " from server.")
+        return
     end
 
     self.breeder:ExportDroneStackToHoldovers(finishedDroneSlot, 32)
@@ -185,17 +169,12 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2)
     -- Do the breeding.
     local finishedDroneSlot = self:Breed(target)
 
-    -- Double check with the server about the location in case the user changed it during operation.
-    -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
-    -- but this is a mostly trivial way to recover from at least some possible bad behavior.
-    local storagePoint = self.robotComms:GetStorageLocationFromServer(target)
-    if storagePoint == nil then
+    -- If we have enough of the target species now, then information the server and store the drones at the new location.
+    local point = self.robotComms:ReportNewSpeciesToServer(target)
+    if point == nil then
         Print("Error getting storage location of " .. target .. " from server.")
+        return
     end
-    storagePoint = UnwrapNull(storagePoint)
-
-    -- If we have enough of the target species now, then clean up and break out.
-    local point = self:ReportNewSpecies(target)
     self.breeder:StoreDrones(finishedDroneSlot, point)
 end
 
@@ -209,6 +188,7 @@ function BeekeeperBot:Breed(target)
     local traitInfoCache = {species = {}}
     local finishedDroneSlot
     while true do
+        -- TODO: Handle the possibility of non-convergence.
         local princessStack = self.breeder:GetPrincessInChest()
         local droneStackList = self.breeder:GetDronesInChest()
         finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target)
@@ -311,51 +291,6 @@ function BeekeeperBot:PopulateTraitInfoCache(princessStack, droneStackList, trai
 
             traitInfoCache[droneSpecies2] = dominance
         end
-    end
-end
-
----@param species string
----@return Point
-function BeekeeperBot:ReportNewSpecies(species)
-    -- Pick the next open one store for this species.
-    local chestNode = {
-        loc = Copy(self.storageInfo.nextChest),
-        timestamp = GetCurrentTimestamp()
-    }
-
-    self.storageInfo.nextChest.y = self.storageInfo.nextChest.y + 1
-    if self.storageInfo.nextChest.y >= 5 then
-        self.storageInfo.nextChest.y = 0
-        self.storageInfo.nextChest.x = self.storageInfo.nextChest.x + 1
-    end
-
-    self.storageInfo.chestArray[species] = chestNode
-
-    -- Store this location on our own logfile in case the server is down, and we need to re-sync later.
-    -- TODO: Does this concept even make any sense??? We might get rid of this, especially if we plan to
-    -- support multiple bots at some point (since they will all need to sync with the server).
-    Logger.LogSpeciesToDisk(self.logFilepath, species, chestNode.loc, chestNode.timestamp)
-    self.robotComms:ReportSpeciesFinishedToServer(species, chestNode)
-
-    return chestNode.loc
-end
-
-function BeekeeperBot:SyncLogWithServer()
-    self.robotComms:SendLogToServer(self.storageInfo.chestArray)
-
-    -- At this point, the server's information is at least as recent as our own because operations are linearizable.
-    -- Thus, we can simply overwrite our own information with whatever is handed back to us from the server.
-    local newInfo = self.robotComms:RetrieveLogFromServer()
-    if newInfo == nil then
-        Print("Unexpected error when attempting to synchronize logs with the server.")
-        return
-    end
-
-    -- TODO: Adjust nextChest here as well. Alternatively, perhaps the server should own the concept of nextChest...
-    self.storageInfo.chestArray = UnwrapNull(newInfo)
-    for species, entry in pairs(self.storageInfo.chestArray) do
-        -- TODO: Overwrite the log in bulk.
-        Logger.LogSpeciesToDisk(self.logFilepath, species, entry.loc, entry.timestamp)
     end
 end
 

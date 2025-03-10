@@ -177,7 +177,7 @@ local CodedMessage = {}
 ---@alias PathResponsePayload BreedPathNode[]
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
----@alias SpeciesFoundRequestPayload {species: string, node: StorageNode}
+---@alias SpeciesFoundRequestPayload {species: string}
 ---@alias LocationRequestPayload {species: string}
 ---@alias LocationResponsePayload {loc: Point}
 ---@alias TraitInfoRequestPayload {species: string}

@@ -99,17 +99,40 @@ function M.AssertPathIsValidInGraph(graph, path, target)
     Luaunit.assertIsTrue(speciesInPath[#speciesInPath] == path[#path].target)
 end
 
----@param actualTable any
----@param expectedFormat any
-function M.AssertTableHasKeys(actualTable, expectedFormat)
+---@param actualTable table | nil
+---@param expectedTable table | nil
+function M.AssertTableHasKeys(actualTable, expectedTable)
     Luaunit.assertNotIsNil(actualTable)
-    Luaunit.assertNotIsNil(expectedFormat)
+    Luaunit.assertNotIsNil(expectedTable)
+    actualTable = UnwrapNull(actualTable)
+    expectedTable = UnwrapNull(expectedTable)
 
     -- Assert that all keys in the expected format are present in the actual table.
-    for k, v in pairs(expectedFormat) do
+    for k, v in pairs(expectedTable) do
         Luaunit.assertNotIsNil(actualTable[k])
         if type(v) == "table" then
             M.AssertTableKeys(actualTable[k], v)
+        end
+    end
+end
+
+-- Asserts that all keys in the expected table exist in the actual table, and that all of the values are equal.
+-- This skips the reverse comparison because the actual table might have some keys that we can't know beforehand
+-- (such as values dependent on the current system time).s
+---@param actualTable table | nil
+---@param expectedTable table | nil
+function M.AssertAllKnowableFields(actualTable, expectedTable)
+    Luaunit.assertNotIsNil(actualTable)
+    Luaunit.assertNotIsNil(expectedTable)
+    actualTable = UnwrapNull(actualTable)
+    expectedTable = UnwrapNull(expectedTable)
+
+    for k, v in pairs(expectedTable) do
+        Luaunit.assertNotIsNil(actualTable[k])
+        if type(v) == "table" then
+            M.AssertAllKnowableFields(actualTable[k], v)
+        else
+            Luaunit.assertEquals(actualTable[k], v)
         end
     end
 end

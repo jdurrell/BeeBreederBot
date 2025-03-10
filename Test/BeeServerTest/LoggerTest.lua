@@ -2,7 +2,7 @@ local Luaunit = require("Test.luaunit")
 
 local Util = require("Test.Utilities.CommonUtilities")
 
-local Logger = require("Shared.Logger")
+local Logger = require("BeeServer.Logger")
 
 TestLogger = {}
     function TestLogger:TestNoLog()

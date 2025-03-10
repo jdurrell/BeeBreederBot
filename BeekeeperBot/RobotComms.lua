@@ -60,6 +60,25 @@ function RobotComms:EstablishComms()
     end
 end
 
+---@param target string
+---@return BreedInfoResponsePayload | nil
+function RobotComms:GetBreedInfoFromServer(target)
+    ::restart::
+    local payload = {target=target}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
+
+    local response, _ = self.comm:GetIncoming(5.0)
+    if response == nil then
+        self:EstablishComms()
+        goto restart
+    end
+    if not self:ValidateExpectedResponse(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
+        return nil
+    end
+
+    return UnwrapNull(response).payload
+end
+
 ---@return BreedPathNode[] | nil
 function RobotComms:GetBreedPathFromServer()
     ::restart::
@@ -80,7 +99,7 @@ end
 ---@return Point | nil
 function RobotComms:GetStorageLocationFromServer(species)
     ::restart::
-    local payload = {species=species}
+    local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LocationRequest, payload)
 
     local response, _ = self.comm:GetIncoming(5.0)
@@ -92,25 +111,6 @@ function RobotComms:GetStorageLocationFromServer(species)
     end
 
     return UnwrapNull(response).payload.loc
-end
-
----@param target string
----@return BreedInfoResponsePayload | nil
-function RobotComms:GetBreedInfoFromServer(target)
-    ::restart::
-    local payload = {target=target}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
-
-    local response, _ = self.comm:GetIncoming(5.0)
-    if response == nil then
-        self:EstablishComms()
-        goto restart
-    end
-    if not self:ValidateExpectedResponse(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
-        return nil
-    end
-
-    return UnwrapNull(response).payload
 end
 
 ---@param species string
@@ -125,21 +125,32 @@ function RobotComms:GetTraitInfoFromServer(species)
         self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedResponse(CommLayer.MessageCode.TraitInfoResponse, payload, true) then
+    if not self:ValidateExpectedResponse(CommLayer.MessageCode.TraitInfoResponse, response, true) then
         return nil
     end
 
     return UnwrapNull(response).payload.dominant
 end
 
+-- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
 ---@param species string
----@param node StorageNode
-function RobotComms:ReportSpeciesFinishedToServer(species, node)
+---@return Point | nil
+function RobotComms:ReportNewSpeciesToServer(species)
+    ::restart::
     -- Report the update to the server.
-    local payload = {species = species, node = node}
+    local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
-    -- TODO: Do we need an ACK for this?
+    local response, _ = self.comm:GetIncoming(5.0)
+    if response == nil then
+        self:EstablishComms()
+        goto restart
+    end
+    if not self:ValidateExpectedResponse(CommLayer.MessageCode.LocationResponse, response, true) then
+        return nil
+    end
+
+    return UnwrapNull(response).payload.loc
 end
 
 -- TODO: Find a replacement for this concept. Using this function is probably architecturally unsound since it could cause us to drop another message.
@@ -151,47 +162,6 @@ function RobotComms:PollForCancel()
     end
 
     return response.code == CommLayer.MessageCode.CancelRequest
-end
-
----@param chestArray table<string, StorageNode>
-function RobotComms:SendLogToServer(chestArray)
-    for species, storageNode in pairs(chestArray) do
-        local payload = {species=species, node=storageNode}
-        self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
-
-        -- Give the server time to actually process instead of just blowing up its buffer.
-        Sleep(0.2)
-    end
-end
-
--- Fetches the server's entire log.
----@return ChestArray | nil
-function RobotComms:RetrieveLogFromServer()
-    ::restart::
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LogStreamRequest, nil)
-
-    ---@type ChestArray
-    local serverLog = {}
-    while true do
-        local response, _ = self.comm:GetIncoming(5.0)
-        if response == nil then
-            self:EstablishComms()
-            goto restart
-        elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.LogStreamResponse, response, true) then
-            return nil
-        end
-
-        if response.payload == {} then
-            -- This is the last message, so we are done.
-            break
-        end
-
-        ---@type LogStreamResponsePayload
-        local data = response.payload
-        serverLog[data.species] = data.node
-    end
-
-    return serverLog
 end
 
 -- Closes the communications to the server.

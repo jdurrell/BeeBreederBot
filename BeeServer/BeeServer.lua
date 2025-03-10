@@ -7,7 +7,7 @@ require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
-local Logger = require("Shared.Logger")
+local Logger = require("BeeServer.Logger")
 local MutationMath = require("BeeServer.MutationMath")
 local TraitInfo = require("BeeServer.SpeciesDominance")
 
@@ -17,8 +17,9 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field beeGraph SpeciesGraph
 ---@field breedPath BreedPathNode[]
 ---@field comm CommLayer
----@field foundSpecies table<string, StorageNode>
+---@field foundSpecies ChestArray
 ---@field messageHandlerTable table<integer, function>
+---@field nextChest Point
 ---@field leafSpeciesList string[]
 ---@field logFilepath string
 ---@field terminalHandlerTable table<string, function>
@@ -41,18 +42,14 @@ function BeeServer:BreedInfoHandler(addr, data)
 end
 
 ---@param addr string
----@param data LogStreamRequestPayload
-function BeeServer:LogStreamHandler(addr, data)
-    for species, node in pairs(self.foundSpecies) do
-        local payload = {species=species, node=node}
-        self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, payload)
-
-        -- Give the robot time to actually process these instead of just blowing up its event queue.
-        Sleep(0.2)
+---@param data LocationRequestPayload
+function BeeServer:LocationHandler(addr, data)
+    if (data == nil) or (data.species == nil) then
+        return
     end
 
-    -- Send an empty response to indicate that the stream has ended.
-    self.comm:SendMessage(addr, CommLayer.MessageCode.LogStreamResponse, {})
+    local payload = {loc = self.foundSpecies[data.species]}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
 end
 
 ---@param addr string
@@ -66,19 +63,28 @@ end
 ---@param data PingRequestPayload
 function BeeServer:PingHandler(addr, data)
     -- Just respond with our own ping, echoing back the transaction id.
-    local payload = {transactionId=data.transactionId}
+    local payload = {transactionId = data.transactionId}
     self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
 end
 
 ---@param addr string
 ---@param data SpeciesFoundRequestPayload
 function BeeServer:SpeciesFoundHandler(addr, data)
-    -- Record the species that was found by the robot to our own disk.
-    if (self.foundSpecies[data.species] == nil) or (self.foundSpecies[data.species].timestamp < data.node.timestamp) then
-        self.foundSpecies[data.species] = data.node
-        table.insert(self.leafSpeciesList, data.species)
-        Logger.LogSpeciesToDisk(self.logFilepath, data.species, data.node.loc, data.node.timestamp)
+    if data.species == nil then
+        return
     end
+
+    -- Update the species that was found by the robot in our internal state and on disk.
+    if (self.foundSpecies[data.species] == nil) then
+        self.foundSpecies[data.species] = {loc = Copy(self.nextChest), timestamp = GetCurrentTimestamp()}
+        self:IncrementNextChest()
+        table.insert(self.leafSpeciesList, data.species)
+        Logger.LogSpeciesToDisk(self.logFilepath, data.species, self.foundSpecies[data.species].loc, self.foundSpecies[data.species].timestamp)
+    end
+
+    -- Respond back to the robot with the new location for this species.
+    local payload = {loc = self.foundSpecies[data.species].loc}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
 end
 
 ---@param addr string
@@ -176,6 +182,18 @@ function BeeServer:Shutdown(code)
     ExitProgram(code)
 end
 
+function BeeServer:IncrementNextChest()
+    self.nextChest.x = self.nextChest.x + 1
+    if self.nextChest.x >= 8 then
+        self.nextChest.x = 0
+        self.nextChest.y = self.nextChest.y + 1
+        if self.nextChest.y >=  8 then
+            self.nextChest.y = 0
+            self.nextChest.z = self.nextChest.z + 1
+        end
+    end
+end
+
 
 ---------------------
 --- Main entry points.
@@ -214,7 +232,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     -- Register request handlers.
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [CommLayer.MessageCode.LogStreamRequest] = BeeServer.LogStreamHandler,
+        [CommLayer.MessageCode.LocationRequest] = BeeServer.LocationHandler,
         [CommLayer.MessageCode.PathRequest] = BeeServer.PathHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler
@@ -236,8 +254,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
 
-    -- Read our local logfile to figure out which species we already have (and where they're stored).
-    -- We will synchronize this with the robot later on via LogStreamHandler when it boots up.
+    -- Read our local logfile to figure out which species we already have and where they're stored.
     obj.foundSpecies = Logger.ReadSpeciesLogFromDisk(logFilepath)
     if obj.foundSpecies == nil then
         Print("Got an error while reading logfile.")
@@ -247,6 +264,20 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     for spec, _ in pairs(obj.foundSpecies) do
         table.insert(obj.leafSpeciesList, spec)
     end
+
+    -- Figure out the next viable storage location based on the locations in the log.
+    local maxPoint = {x = 0, y = 0, z = 0}
+    for _, node in pairs(obj.foundSpecies) do
+        if (
+            (node.loc.z > maxPoint.z) or
+            ((node.loc.z == maxPoint.z) and (node.loc.y > maxPoint.y)) or
+            ((node.loc.z == maxPoint.z) and (node.loc.y == maxPoint.y) and (node.loc.x > maxPoint.x))
+        ) then
+            maxPoint = node.loc
+        end
+    end
+    obj.nextChest = Copy(maxPoint)
+    obj:IncrementNextChest()
 
     obj.breedPath = nil
 
