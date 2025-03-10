@@ -267,22 +267,33 @@ function BreedOperator:returnToStorageColumnOriginFromChest(point)
     self:moveBackwards(point.z)
 end
 
----@param slots integer[]
+-- Moves all stacks from the given slot in the drone chest to the trash can.
+-- If slots is nil, then trashes all slots.
+---@param slots integer[] | nil
 function BreedOperator:TrashSlotsFromDroneChest(slots)
-    -- Get the the drone stacks from the drone chest.
-    -- TODO: Deal with the case where #slots > 16.
-    self.robot.turnRight()
-    for i, slot in ipairs(slots) do
-        self.robot.select(i)
-        self.ic.suckFromSlot(self.sides.front, slot, 64)
+    if slots == nil then
+        slots = {}
+        for i = 1, 27 do
+            table.insert(slots, i)
+        end
     end
 
-    -- Face the trash can and unload the drones into it.
+    self.robot.select(1)
     self.robot.turnRight()
-    self:unloadInventory()
+
+    for _, slot in ipairs(slots) do
+        -- Pick up the stack.
+        self.ic.suckFromSlot(self.sides.front, slot, 64)
+
+        -- Trash the stack.
+        self.robot.turnRight()
+        self.robot.drop(64)
+
+        -- Turn back to the drone chest.
+        self.robot.turnLeft()
+    end
 
     -- Cleanup by returning to starting position.
-    self.robot.turnLeft()
     self.robot.turnLeft()
 end
 
@@ -319,6 +330,30 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
 
     -- Clean up by returning to starting position.
     self.robot.turnRight()
+end
+
+function BreedOperator:ReturnActivePrincessesToStock()
+    -- Pick up princesses from the active chest.
+    -- TODO: Deal with having more than 16 princesses.
+    self.robot.turnLeft()
+    for i = 1, NUM_INTERNAL_SLOTS do
+        self.robot.select(i)
+        self.robot.suck(64)
+    end
+    self.robot.turnRight()
+
+    -- Move to the stock chest and unload the princesses.
+    self:moveToStorageColumn()
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnLeft()
+    self:unloadInventory()
+
+    -- Return to the breeder station.
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnRight()
+    self:returnToBreederStationFromStorageColumn()
 end
 
 -- Retrieves `number` drones from the chest located at `loc` in the storage column.

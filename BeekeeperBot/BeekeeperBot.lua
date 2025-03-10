@@ -98,14 +98,14 @@ function BeekeeperBot:RunRobot()
         -- Breed the commanded species based on the given path.
         for _, v in ipairs(breedPath) do
             if v.parent1 ~= nil then
-                self:ReplicateSpecies(v.parent1)
+                self:ReplicateSpecies(v.parent1, false)
             end
 
             if v.parent2 ~= nil then
-                self:ReplicateSpecies(v.parent2)
+                self:ReplicateSpecies(v.parent2, false)
             end
 
-            self:BreedSpecies(v.target, v.parent1, v.parent2)
+            self:BreedSpecies(v.target, v.parent1, v.parent2, true)
         end
     end
 end
@@ -113,7 +113,8 @@ end
 -- Replicates drones of the given species.
 -- Places outputs into the holdover chest.
 ---@param species string
-function BeekeeperBot:ReplicateSpecies(species)
+---@param returnPrincessesToStock boolean
+function BeekeeperBot:ReplicateSpecies(species, returnPrincessesToStock)
     -- TODO: At some point, we should probably have a way to store + retrieve breeding stock princesses,
     -- but for now, we will just rely on the user to place them into the princess chest manually.
     -- This system currently only supports breeding a stack of drones that somebody could then
@@ -144,6 +145,10 @@ function BeekeeperBot:ReplicateSpecies(species)
 
     self.breeder:ExportDroneStackToHoldovers(finishedDroneSlot, 32)
     self.breeder:StoreDrones(finishedDroneSlot, storagePoint)
+    self.breeder:TrashSlotsFromDroneChest(nil)
+    if returnPrincessesToStock then
+        self.breeder:ReturnActivePrincessesToStock()
+    end
 end
 
 -- Breeds the target species from the two given parents.
@@ -152,7 +157,8 @@ end
 ---@param target string
 ---@param parent1 string
 ---@param parent2 string
-function BeekeeperBot:BreedSpecies(target, parent1, parent2)
+---@param returnPrincessesToStock boolean
+function BeekeeperBot:BreedSpecies(target, parent1, parent2, returnPrincessesToStock)
     -- Breed the target using the left-over drones from both parents and the princesses
     -- implied to be created by breeding the replacements for parent 2.
     -- TODO: Technically, it is likely possible that some princesses may not get converted
@@ -176,6 +182,10 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2)
         return
     end
     self.breeder:StoreDrones(finishedDroneSlot, point)
+    self.breeder:TrashSlotsFromDroneChest(nil)
+    if returnPrincessesToStock then
+        self.breeder:ReturnActivePrincessesToStock()
+    end
 end
 
 ---@param target string
