@@ -362,6 +362,7 @@ end
 ---@param number integer
 function BreedOperator:RetrieveDronesFromChest(loc, number)
     -- Retrieve the drones from the chest.
+    -- TODO: Deal with the possibility of drones not being in the chest.
     self:moveToStorageColumn()
     self:moveToChestFromStorageColumn(loc)
     self.robot.select(1)

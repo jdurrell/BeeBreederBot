@@ -97,15 +97,35 @@ function BeekeeperBot:RunRobot()
 
         -- Breed the commanded species based on the given path.
         for _, v in ipairs(breedPath) do
+            ::restart::
             if v.parent1 ~= nil then
-                self:ReplicateSpecies(v.parent1, false)
+                local retval = self:ReplicateSpecies(v.parent1, true, true)
+                if retval == nil then
+                    Print("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
+                    self:Shutdown(1)
+                end
+                -- Convergence failure is handled inside ReplicateSpecies.
             end
 
             if v.parent2 ~= nil then
-                self:ReplicateSpecies(v.parent2, false)
+                local retval = self:ReplicateSpecies(v.parent2, true, false)
+                if retval == nil then
+                    Print("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
+                    self:Shutdown(1)
+                end
+                -- Convergence failure is handled inside ReplicateSpecies.
             end
 
-            self:BreedSpecies(v.target, v.parent1, v.parent2, true)
+            local retval = self:BreedSpecies(v.target, v.parent1, v.parent2, false, true)
+            if retval == nil then
+                Print(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
+                self:Shutdown(1)
+            elseif not retval then
+                -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
+                self.breeder:TrashSlotsFromDroneChest(nil)
+                self.breeder:ReturnActivePrincessesToStock()
+                goto restart
+            end
         end
     end
 end
@@ -113,26 +133,36 @@ end
 -- Replicates drones of the given species.
 -- Places outputs into the holdover chest.
 ---@param species string
+---@param retrievePrincessesFromStock boolean
 ---@param returnPrincessesToStock boolean
-function BeekeeperBot:ReplicateSpecies(species, returnPrincessesToStock)
-    -- TODO: At some point, we should probably have a way to store + retrieve breeding stock princesses,
-    -- but for now, we will just rely on the user to place them into the princess chest manually.
-    -- This system currently only supports breeding a stack of drones that somebody could then
-    -- use to very simply turn a different princess into a pure-bred production one.
+---@return boolean | nil success  `true` indicates a success. `false` indicates a convergence failure. `nil` indicates a fatal error.
+function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, returnPrincessesToStock)
+    if retrievePrincessesFromStock then
+        self.breeder:RetrieveStockPrincessesFromChest(1, {species})
+    end
 
+    ::restart::
     local storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
         Print("Error getting storage location of " .. species .. " from server.")
-        return false
+        return nil
     end
-    storagePoint = UnwrapNull(storagePoint)
 
     -- Move starter bees to their respective chests.
+    -- TODO: This should fail when we are unable to get drones from the chest.
     self.breeder:RetrieveDronesFromChest(storagePoint, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
-    self.breeder:RetrieveStockPrincessesFromChest(1, {species})
 
     -- Do the breeding.
     local finishedDroneSlot = self:Breed(species)
+    if finishedDroneSlot == -1 then
+        -- This should never really happen since we're starting with an absurdly high number of drones.
+        -- The only way this should ever happen is if it picked an unfortunate princess that actually has
+        -- a mutation with `species` and the user was also using frenzy frames (which they shouldn't do anyways).
+        Print("Error replicating " .. species .. ". Retrying with another drone batch.")
+        self.breeder:TrashSlotsFromDroneChest(nil)
+        self.breeder:ReturnActivePrincessesToStock()
+        goto restart
+    end
 
     -- Double check with the server about the location in case the user changed it during operation.
     -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
@@ -140,7 +170,7 @@ function BeekeeperBot:ReplicateSpecies(species, returnPrincessesToStock)
     storagePoint = self.robotComms:GetStorageLocationFromServer(species)
     if storagePoint == nil then
         Print("Error getting storage location of " .. species .. " from server.")
-        return
+        return nil
     end
 
     self.breeder:ExportDroneStackToHoldovers(finishedDroneSlot, 32)
@@ -149,6 +179,8 @@ function BeekeeperBot:ReplicateSpecies(species, returnPrincessesToStock)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()
     end
+
+    return true
 end
 
 -- Breeds the target species from the two given parents.
@@ -157,11 +189,17 @@ end
 ---@param target string
 ---@param parent1 string
 ---@param parent2 string
+---@param retrievePrincessesFromStock boolean
 ---@param returnPrincessesToStock boolean
-function BeekeeperBot:BreedSpecies(target, parent1, parent2, returnPrincessesToStock)
+---@return boolean | nil success  `true` indicates a success. `false` indicates a convergence failure. `nil` indicates a fatal error.
+function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesFromStock, returnPrincessesToStock)
+    if retrievePrincessesFromStock then
+        self.breeder:RetrieveStockPrincessesFromChest(1, {parent1, parent2})
+    end
+
     -- Breed the target using the left-over drones from both parents and the princesses
     -- implied to be created by breeding the replacements for parent 2.
-    -- TODO: Technically, it is likely possible that some princesses may not get converted
+    -- TODO: It is technically possible that some princesses may not have been converted
     --   to one of the two parents. In this case, it could be impossible to get a drone that
     --   has a non-zero chance to breed the target. For now, we will just rely on random
     --   chance to eventually get us out of this scenario instead of detecting it outright.
@@ -170,52 +208,68 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, returnPrincessesToS
 
     -- Move starter bees to their respective chests.
     self.breeder:ImportHoldoversToDroneChest()
-    self.breeder:RetrieveStockPrincessesFromChest(1, {parent1, parent2})
 
     -- Do the breeding.
     local finishedDroneSlot = self:Breed(target)
+    if finishedDroneSlot == -1 then
+        Print(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", target, parent1, parent2))
+        return false
+    end
 
-    -- If we have enough of the target species now, then information the server and store the drones at the new location.
+    -- If we have enough of the target species now, then inform the server and store the drones at the new location.
     local point = self.robotComms:ReportNewSpeciesToServer(target)
     if point == nil then
         Print("Error getting storage location of " .. target .. " from server.")
-        return
+        return nil
     end
+
     self.breeder:StoreDrones(finishedDroneSlot, point)
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()
     end
+
+    return true
 end
 
+-- Breeds the target species using the drones and princesses in the active chests.
 ---@param target string
----@return integer
+---@return integer slot The slot of the finished drone stack, or -1 on failure.
 function BeekeeperBot:Breed(target)
-    -- Replicate extras to replace the drones we took from the chest.
     ---@type BreedInfoCache
     local breedInfoCache = {}
     ---@type TraitInfoSpecies
     local traitInfoCache = {species = {}}
+
     local finishedDroneSlot
-    while true do
-        -- TODO: Handle the possibility of non-convergence.
+    local iteration = 0
+    while iteration < 300 do
         local princessStack = self.breeder:GetPrincessInChest()
         local droneStackList = self.breeder:GetDronesInChest()
         finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target)
         if finishedDroneSlot ~= nil then
             break
-        else
-            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
-            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-            local droneSlot = matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target], traitInfoCache)
-            self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
-            if princessStack.individual.active.fertility > (27 - #droneStackList) then
-                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, target)
-                self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
-            end
         end
+
+        -- Not finished, but haven't failed. Continue breeding.
+        self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
+        self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+        local droneSlot = matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target], traitInfoCache)
+        self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
+        if princessStack.individual.active.fertility > (27 - #droneStackList) then
+            local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, target)
+            self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
+        end
+
+        iteration = iteration + 1
     end
-    finishedDroneSlot = UnwrapNull(finishedDroneSlot)
+
+    -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
+    if iteration >= 300 then
+        return -1
+    end
+
+    return UnwrapNull(finishedDroneSlot)
 end
 
 --- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
