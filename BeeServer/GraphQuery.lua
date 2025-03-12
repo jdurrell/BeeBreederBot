@@ -48,10 +48,16 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
     for _, spec in ipairs(leafSpecies) do
+        -- If we already have the species, then it should be the only thing in the breed path.
+        if spec == target then
+            return {{target = target, parent1 = nil, parent2 = nil}}
+        end
+
         bfsQueueSearch:Push(spec, 0, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
     end
 
     if #(bfsQueueSearch.queue) == 0 then
+        -- We need to be able to start from something.
         Print("Error: Failed to start the queue search because no leaf nodes were provided.")
         return nil
     end
@@ -103,11 +109,13 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
     bfsQueueRetrace:Push(target, 0, nil)
     while #(bfsQueueRetrace.queue) > 0 do
         local name = bfsQueueRetrace:Pop()
-        table.insert(path, {
-            target=name,
-            parent1=bfsQueueSearch.pathlookup[name][1],
-            parent2=bfsQueueSearch.pathlookup[name][2]
-        })
+        if bfsQueueSearch.pathlookup[name][1] ~= nil or bfsQueueSearch.pathlookup[name][2] then
+            table.insert(path, {
+                target=name,
+                parent1=bfsQueueSearch.pathlookup[name][1],
+                parent2=bfsQueueSearch.pathlookup[name][2]
+            })
+        end
 
         for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
             if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then

@@ -171,10 +171,6 @@ local CodedMessage = {}
 ---@alias BreedInfoRequestPayload {parent1: string, parent2: string, target: string}
 ---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
 ---@alias CancelRequestPayload nil
----@alias LogStreamResponsePayload {species: string, node: StorageNode}
----@alias LogStreamRequestPayload nil
----@alias PathRequestPayload nil
----@alias PathResponsePayload BreedPathNode[]
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string}
@@ -182,6 +178,8 @@ local CodedMessage = {}
 ---@alias LocationResponsePayload {loc: Point}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
+---@alias BreedCommandPayload BreedPathNode[]
+---@alias ReplicateCommandPayload {species: string}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}

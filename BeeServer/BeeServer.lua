@@ -15,7 +15,7 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field event any
 ---@field term any
 ---@field beeGraph SpeciesGraph
----@field breedPath BreedPathNode[]
+---@field botAddr string
 ---@field comm CommLayer
 ---@field foundSpecies ChestArray
 ---@field messageHandlerTable table<integer, function>
@@ -53,15 +53,12 @@ function BeeServer:LocationHandler(addr, data)
 end
 
 ---@param addr string
----@param data PathRequestPayload
-function BeeServer:PathHandler(addr, data)
-    -- Send the calculated breed path to the robot.
-    self.comm:SendMessage(addr, CommLayer.MessageCode.PathResponse, self.breedPath)
-end
-
----@param addr string
 ---@param data PingRequestPayload
 function BeeServer:PingHandler(addr, data)
+    -- TODO: If we ever want to support multiple bots, then we will need each bot to have a uid so that
+    --       the server can keep track of which is which.
+    self.botAddr = addr
+
     -- Just respond with our own ping, echoing back the transaction id.
     local payload = {transactionId = data.transactionId}
     self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
@@ -123,6 +120,21 @@ function BeeServer:BreedCommandHandler(argv)
         return
     end
 
+    if self.botAddr == nil then
+        Print("Error: No comms to bot.")
+        return
+    end
+
+    for _, leaf in ipairs(self.leafSpeciesList) do
+        if leaf == species then
+            -- If we already have the species, then send this as a replicate command.
+            Print("Replicating " .. species .. " from stored drones.")
+            local payload = {species = species}
+            self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ReplicateCommand, payload)
+            return
+        end
+    end
+
     local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species)
     if path == nil then
         Print("Error: Could not find breeding path for species '" .. species .. "'.")
@@ -130,11 +142,12 @@ function BeeServer:BreedCommandHandler(argv)
     end
 
     -- We computed a valid path for this species. Save it to the current breed path and print it out for the user.
-    self.breedPath = UnwrapNull(path)
     Print("Breeding " .. species .. " bees. Full breeding order:")
-    for _, v in ipairs(self.breedPath) do
+    for _, v in ipairs(path) do
         Print(v)
     end
+
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, path)
 end
 
 ---@param argv string[]
@@ -233,7 +246,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
         [CommLayer.MessageCode.LocationRequest] = BeeServer.LocationHandler,
-        [CommLayer.MessageCode.PathRequest] = BeeServer.PathHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler
     }
@@ -280,6 +292,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     obj:IncrementNextChest()
 
     obj.breedPath = nil
+    obj.botAddr = nil
 
     return obj
 end

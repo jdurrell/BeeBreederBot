@@ -9,27 +9,27 @@ local CommLayer = require("Shared.CommLayer")
 local RobotComms = {}
 
 ---@param expectedCode MessageCode
----@param response any
+---@param message any
 ---@param shouldHavePayload boolean
 ---@return boolean
-function RobotComms:ValidateExpectedResponse(expectedCode, response, shouldHavePayload)
-    if response == nil then
+function RobotComms:ValidateExpectedMessage(expectedCode, message, shouldHavePayload)
+    if message == nil then
         Print("Got unexpected nil response when expecting response of type " .. tostring(expectedCode) .. ".")
         return false
     end
 
-    if response.code == CommLayer.MessageCode.CancelRequest then
+    if message.code == CommLayer.MessageCode.CancelRequest then
         Print("Received cancellation request.")
         return false
     end
 
-    if response.code ~= expectedCode then
-        Print("Got unexpected response of type " .. tostring(response.code) .. ". Expected response of type " .. tostring(expectedCode) .. ".")
+    if message.code ~= expectedCode then
+        Print("Got unexpected response of type " .. tostring(message.code) .. ". Expected response of type " .. tostring(expectedCode) .. ".")
         return false
     end
 
-    if shouldHavePayload and (response.payload == nil) then
-        Print("Got unexpected nil payload in response of type " .. tostring(response.code) .. ".")
+    if shouldHavePayload and (message.payload == nil) then
+        Print("Got unexpected nil payload in response of type " .. tostring(message.code) .. ".")
         return false
     end
 
@@ -46,7 +46,7 @@ function RobotComms:EstablishComms()
 
     while true do
         local response, addr = self.comm:GetIncoming(nil)
-        if self:ValidateExpectedResponse(CommLayer.MessageCode.PingResponse, response, true) then
+        if self:ValidateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) then
             response = UnwrapNull(response)
             if response.payload.transactionId == tid then
                 return UnwrapNull(addr)
@@ -72,27 +72,22 @@ function RobotComms:GetBreedInfoFromServer(target)
         self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedResponse(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
         return nil
     end
 
     return UnwrapNull(response).payload
 end
 
----@return BreedPathNode[] | nil
-function RobotComms:GetBreedPathFromServer()
+---@return any
+function RobotComms:GetCommandFromServer()
     ::restart::
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PathRequest, nil)
-
-    local response, _ = self.comm:GetIncoming(5.0)
-    if response == nil then
-        self:EstablishComms()
+    local request, _ = self.comm:GetIncoming(10000)
+    if request == nil then
         goto restart
-    elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.PathResponse, response, true) then
-        return nil
     end
 
-    return UnwrapNull(response).payload
+    return request
 end
 
 ---@param species string
@@ -106,7 +101,7 @@ function RobotComms:GetStorageLocationFromServer(species)
     if response == nil then
         self:EstablishComms()
         goto restart
-    elseif not self:ValidateExpectedResponse(CommLayer.MessageCode.LocationResponse, response, true) then
+    elseif not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
         return nil
     end
 
@@ -125,7 +120,7 @@ function RobotComms:GetTraitInfoFromServer(species)
         self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedResponse(CommLayer.MessageCode.TraitInfoResponse, response, true) then
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
         return nil
     end
 
@@ -146,7 +141,7 @@ function RobotComms:ReportNewSpeciesToServer(species)
         self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedResponse(CommLayer.MessageCode.LocationResponse, response, true) then
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
         return nil
     end
 

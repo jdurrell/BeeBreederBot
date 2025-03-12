@@ -271,11 +271,11 @@ TestGraphQuery = {}
     function TestGraphQuery:TestGraphQueryBasic()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Common")
-        Util.AssertPathIsValidInGraph(graph, path, "Common")
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, "Common")
     end
 
     function TestGraphQuery:TestGraphQueryMultistep()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
         local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
-        Util.AssertPathIsValidInGraph(graph, path, "Cultivated")
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, "Cultivated")
     end

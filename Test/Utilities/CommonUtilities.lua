@@ -53,15 +53,28 @@ function M.CreateLogfileSeed(seedPath, operationalPath)
 end
 
 ---@param graph SpeciesGraph
+---@param leafNodes string[]
 ---@param path BreedPathNode[] | nil
 ---@param target string
-function M.AssertPathIsValidInGraph(graph, path, target)
+function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
     local speciesInPath = {}
 
     Luaunit.assertNotIsNil(path)
+    Luaunit.assertIsTrue(#path > 0)
     path = UnwrapNull(path)
 
+    if path[1].parent1 == nil then
+        Luaunit.assertIsTrue(#path == 1)
+        Luaunit.assertIsNil(path[1].parent2)
+        Luaunit.assertIsTrue(ArrayContains(leafNodes, path[1].target))
+    end
+
     for _, pathNode in ipairs(path) do
+        if #path ~= 1 then
+            Luaunit.assertNotIsNil(pathNode.parent1)
+            Luaunit.assertNotIsNil(pathNode.parent2)
+        end
+
         local graphNode = graph[pathNode.target]
         Luaunit.assertNotIsNil(graphNode)
 
@@ -86,9 +99,9 @@ function M.AssertPathIsValidInGraph(graph, path, target)
             end
             Luaunit.assertNotIsNil(parentMutation)
 
-            -- Assert that both of the parents appeared before this in the path.
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent1))
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent2))
+            -- Assert that both of the parents appeared before this in the path or are leaf nodes.
+            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent1) or ArrayContains(leafNodes, pathNode.parent1))
+            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent2) or ArrayContains(leafNodes, pathNode.parent2))
         end
 
         table.insert(speciesInPath, pathNode.target)

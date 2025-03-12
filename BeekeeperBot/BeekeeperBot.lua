@@ -6,6 +6,7 @@
 -- Import BeeBreederBot libraries.
 require("Shared.Shared")
 local BreederOperation = require("BeekeeperBot.BreederOperation")
+local CommLayer = require("Shared.CommLayer")
 local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
 local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 local RobotComms = require("BeekeeperBot.RobotComms")
@@ -19,6 +20,7 @@ local garbageCollectionAlgorithm = GarbageCollectionPolicies.ClearDronesByFertil
 ---@field event any
 ---@field breeder BreedOperator
 ---@field logFilepath string
+---@field messageHandlerTable table<MessageCode, fun(bot: BeekeeperBot, data: any)>
 ---@field robotComms RobotComms
 local BeekeeperBot = {}
 
@@ -68,6 +70,11 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     end
     obj.breeder = UnwrapNull(breeder)
 
+    obj.messageHandlerTable = {
+        [CommLayer.MessageCode.BreedCommand] = BeekeeperBot.BreedCommandHandler,
+        [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler,
+    }
+
     return obj
 end
 
@@ -83,49 +90,61 @@ end
 -- Runs the main BeekeeperBot operation loop.
 function BeekeeperBot:RunRobot()
     while true do
-        -- Poll the server until it has a path to breed for us.
-        -- TODO: It might be better for the server to actively command this.
-        local breedPath = {}
-        while breedPath == {} do
-            local path = self.robotComms:GetBreedPathFromServer()
-            if path == nil then
-                Print("Unexpected error when retrieving breed path from server.")
+        local request = self.robotComms:GetCommandFromServer()
+
+        if request.code ~= nil then
+            self.messageHandlerTable[request.code](self, request.payload)
+        end
+    end
+end
+
+---@param data ReplicateCommandPayload
+function BeekeeperBot:ReplicateCommandHandler(data)
+    if (data == nil) or (data.species == nil) then
+        return
+    end
+
+    self:ReplicateSpecies(data.species, true, true)
+end
+
+---@param data BreedCommandPayload
+function BeekeeperBot:BreedCommandHandler(data)
+    if data == nil then
+        return
+    end
+
+    local breedPath = data
+
+    -- Breed the commanded species based on the given path.
+    for _, v in ipairs(breedPath) do
+        ::restart::
+        if v.parent1 ~= nil then
+            local retval = self:ReplicateSpecies(v.parent1, true, true)
+            if retval == nil then
+                Print("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
                 self:Shutdown(1)
             end
-            breedPath = UnwrapNull(path)
+            -- Convergence failure is handled inside ReplicateSpecies.
         end
 
-        -- Breed the commanded species based on the given path.
-        for _, v in ipairs(breedPath) do
-            ::restart::
-            if v.parent1 ~= nil then
-                local retval = self:ReplicateSpecies(v.parent1, true, true)
-                if retval == nil then
-                    Print("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
-                    self:Shutdown(1)
-                end
-                -- Convergence failure is handled inside ReplicateSpecies.
-            end
-
-            if v.parent2 ~= nil then
-                local retval = self:ReplicateSpecies(v.parent2, true, false)
-                if retval == nil then
-                    Print("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
-                    self:Shutdown(1)
-                end
-                -- Convergence failure is handled inside ReplicateSpecies.
-            end
-
-            local retval = self:BreedSpecies(v.target, v.parent1, v.parent2, false, true)
+        if v.parent2 ~= nil then
+            local retval = self:ReplicateSpecies(v.parent2, true, false)
             if retval == nil then
-                Print(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
+                Print("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
                 self:Shutdown(1)
-            elseif not retval then
-                -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
-                self.breeder:TrashSlotsFromDroneChest(nil)
-                self.breeder:ReturnActivePrincessesToStock()
-                goto restart
             end
+            -- Convergence failure is handled inside ReplicateSpecies.
+        end
+
+        local retval = self:BreedSpecies(v.target, v.parent1, v.parent2, false, true)
+        if retval == nil then
+            Print(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
+            self:Shutdown(1)
+        elseif not retval then
+            -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
+            self.breeder:TrashSlotsFromDroneChest(nil)
+            self.breeder:ReturnActivePrincessesToStock()
+            goto restart
         end
     end
 end

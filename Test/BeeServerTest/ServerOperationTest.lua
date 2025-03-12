@@ -186,33 +186,6 @@ TestBeeServerStandalone = {}
         StopServerAndVerifyShutdown(serverThread)
     end
 
-    function TestBeeServerStandalone:TestPath()
-        local thisThread = Coroutine.running()
-        Event.__registerThread(thisThread)
-        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
-
-        local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", nil)
-        local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local success = Modem.open(CommLayer.DefaultComPort)
-        Luaunit.assertIsTrue(success)
-
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
-        RunThreadAndVerifyResponse(serverThread, "term_pull")
-        Term.__write(serverThread, "breed forestry.speciesCultivated")
-
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Util.AssertPathIsValidInGraph(server.beeGraph, server.breedPath, "forestry.speciesCultivated")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.PathRequest})
-        RunThreadAndVerifyResponse(serverThread, "modem_send")
-        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PathResponse)
-        Luaunit.assertNotIsNil(response)
-        Util.AssertPathIsValidInGraph(server.beeGraph, response, "forestry.speciesCultivated")
-
-        Modem.close(CommLayer.DefaultComPort)
-        RunThreadAndVerifyResponse(serverThread, "term_pull")
-        StopServerAndVerifyShutdown(serverThread)
-    end
-
     function TestBeeServerStandalone:TestBreedInfo()
         local thisThread = Coroutine.running()
         Event.__registerThread(thisThread)

@@ -11,12 +11,9 @@ local CommLayer = {}
 CommLayer.MessageCode = {
     PingRequest = 0,
     PingResponse = 1,
-    PathRequest = 2,
-    PathResponse = 3,
     CancelRequest = 4,
     -- CancelResponse = 5,        -- Do we really need to send an ACK for this?
     SpeciesFoundRequest = 6,
-    -- SpeciesFoundResponse = 7,  -- Do we really need to send an ACK for this?
     BreedInfoRequest = 8,
     BreedInfoResponse = 9,
     LogStreamRequest = 10,
@@ -24,7 +21,9 @@ CommLayer.MessageCode = {
     LocationRequest = 12,
     LocationResponse = 13,
     TraitInfoRequest = 14,
-    TraitInfoResponse = 15
+    TraitInfoResponse = 15,
+    BreedCommand = 16,
+    ReplicateCommand = 17
 }
 
 CommLayer.DefaultComPort = 34000
