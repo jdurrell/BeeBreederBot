@@ -12471,7 +12471,7 @@ local Res = {
         function Res.BeeGraphActual.GetGraph()
             local graph = {}
             for _, mut in ipairs(Res.BeeGraphActual.GetRawMutationInfo()) do
-                GraphParse.AddMutationToGraph(graph, mut.allele1, mut.allele2, mut.result, mut.chance / 100.0, mut.specialConditions)
+                GraphParse.AddMutationToGraph(graph, mut.allele1, mut.allele2, mut.result, mut.chance / 100.0)
             end
 
             return graph
