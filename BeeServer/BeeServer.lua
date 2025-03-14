@@ -12,8 +12,8 @@ local MutationMath = require("BeeServer.MutationMath")
 local TraitInfo = require("BeeServer.SpeciesDominance")
 
 ---@class BeeServer
----@field event any
----@field term any
+---@field event Event
+---@field term Term
 ---@field beeGraph SpeciesGraph
 ---@field botAddr string
 ---@field comm CommLayer
@@ -201,7 +201,7 @@ function BeeServer:PollForTerminalInputAndHandle(timeout)
     -- Separate command line options.
     -- TODO provide a way for a single argument to have a space in it.
     local argv = {}
-    for arg in string.gmatch(command, "[^%s]+") do
+    for arg in string.gmatch(UnwrapNull(command), "[^%s]+") do
         table.insert(argv, arg)
     end
 
@@ -249,10 +249,10 @@ end
 
 -- Creates a BeeServer and does initial setup (importing the bee graph, etc.).
 -- Requires system libraries as an input.
----@param componentLib any
----@param eventLib any
----@param serialLib any
----@param termLib any
+---@param componentLib Component
+---@param eventLib Event
+---@param serialLib Serialization
+---@param termLib Term
 ---@param logFilepath string
 ---@param port integer
 ---@return BeeServer

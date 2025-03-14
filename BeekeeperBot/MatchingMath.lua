@@ -2,14 +2,12 @@
 local M = {}
 
 -- Calculates the chance that an arbitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
----@param target string
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
----@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@param mathFunc fun(A: string, B: string, C: string, D: string): number
 ---@return number
-function M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, mathFunc)
+function M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, mathFunc)
     -- The "active" and "inactive" alleles that we can see are not necessarily equal to the "primary" and "secondary" alleles in Forestry's
     -- internal representation of the genome. If the secondary allele is dominant, and the primary allele is recessive, then the active trait
     -- will reflect the secondary allele, and the inactive trait will reflect the primary allele. Otherwise, Forestry defers to the primary
@@ -170,7 +168,7 @@ end
 ---@param traitInfo TraitInfoSpecies
 ---@return number
 function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement, traitInfo)
-    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function (A, B, C, D)
+    return M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, function (A, B, C, D)
         local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, A, B, C, D, cacheElement)
 
         -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
@@ -187,7 +185,7 @@ end
 ---@param traitInfo TraitInfoSpecies
 ---@return number
 function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(target, princess, drone, cacheElement, traitInfo)
-    return M.SpeciesPrimarySecondaryInferenceWrapper(target, princess, drone, cacheElement, traitInfo, function(A, B, C, D)
+    return M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, function(A, B, C, D)
         -- Handle possibility of mutation failing, producing a target, or producing a non-target.
         local breedChanceAD = cacheElement[A][D]
         local breedChanceBC = cacheElement[B][C]

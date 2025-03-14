@@ -1,9 +1,9 @@
 -- This file contains code that dscribes the communication between the client (BeekeeperBot) and the server (BeeServer).
 
 ---@class CommLayer
----@field event any
----@field modem any
----@field serial any
+---@field event Event
+---@field modem Modem
+---@field serial Serialization
 ---@field port integer
 local CommLayer = {}
 
@@ -31,9 +31,9 @@ CommLayer.MessageCode = {
 CommLayer.DefaultComPort = 34000
 CommLayer.ModemEventName = "modem_message"
 
----@param eventLib any
----@param modemLib any
----@param serializationLib any
+---@param eventLib Event | nil
+---@param modemLib Modem | nil
+---@param serializationLib Serialization | nil
 ---@param port integer
 ---@return CommLayer | nil
 function CommLayer:Open(eventLib, modemLib, serializationLib, port)
@@ -43,8 +43,25 @@ function CommLayer:Open(eventLib, modemLib, serializationLib, port)
 
     -- Store away system libraries.
     -- These will need to be injected for testing.
+    if eventLib == nil then
+        Print("Error: Failed to find event library when opening CommLayer.")
+        obj:Close()
+        return nil
+    end
     obj.event = eventLib
+
+    if modemLib == nil then
+        Print("Error: Failed to find modem library when opening CommLayer.")
+        obj:Close()
+        return nil
+    end
     obj.modem = modemLib
+
+    if serializationLib == nil then
+        Print("Error: Failed to find serialization library when opening CommLayer.")
+        obj:Close()
+        return nil
+    end
     obj.serial = serializationLib
 
     -- Open port.

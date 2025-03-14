@@ -1,6 +1,7 @@
 -- This is a module that simulates the OpenComputers/Forestry apiary component.
 -- For our purposes, this is only used for importing the Bee Graph, though the
 -- actual component implements other functionality as well.
+---@class ApicultureTile
 local M = {}
 
 ---@type ForestryMutation[]

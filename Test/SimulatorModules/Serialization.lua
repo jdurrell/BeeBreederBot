@@ -3,7 +3,7 @@
 -- Serialization is already implemented by OpenComputers, and all of the
 -- communication during testing is simulated anyway, so we can just hand
 -- over the table directly to keep things simple.
-
+---@class Serialization
 local M = {}
 
 -- Serializes the given table into a string for sending over the wire.

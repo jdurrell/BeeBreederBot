@@ -1,12 +1,11 @@
 -- This module encapsulates various common operations that involve the robot communicating with the server.
-
-require("Shared.Shared")
-local CommLayer = require("Shared.CommLayer")
-
 ---@class RobotComms
 ---@field comm CommLayer
 ---@field serverAddr string
 local RobotComms = {}
+
+require("Shared.Shared")
+local CommLayer = require("Shared.CommLayer")
 
 ---@param expectedCode MessageCode
 ---@param message any
@@ -187,9 +186,9 @@ function RobotComms:Shutdown()
 end
 
 -- Creates a RobotComms object.
----@param eventLib any
----@param modemLib any
----@param serializationLib any
+---@param eventLib Event | nil
+---@param modemLib Modem | nil
+---@param serializationLib Serialization | nil
 ---@param port integer
 ---@return RobotComms | nil
 function RobotComms:Create(eventLib, modemLib, serializationLib, port)

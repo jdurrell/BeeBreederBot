@@ -16,8 +16,8 @@ local garbageCollectionAlgorithm = GarbageCollectionPolicies.ClearDronesByFertil
 
 
 ---@class BeekeeperBot
----@field component any
----@field event any
+---@field component Component
+---@field event Event
 ---@field breeder BreedOperator
 ---@field logFilepath string
 ---@field messageHandlerTable table<MessageCode, fun(bot: BeekeeperBot, data: any)>
@@ -26,10 +26,10 @@ local BeekeeperBot = {}
 
 -- Creates a BeekeeperBot and does initial setup.
 -- Requires system libraries as an input.
----@param componentLib any
----@param eventLib any
+---@param componentLib Component
+---@param eventLib Event | nil
 ---@param robotLib any
----@param serialLib any
+---@param serialLib Serialization | nil
 ---@param sidesLib any
 ---@param port integer
 ---@param numApiaries integer
@@ -55,6 +55,7 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
         Print("Couldn't find 'component' module")
         obj:Shutdown(1)
     end
+    componentLib = UnwrapNull(componentLib)
 
     local robotComms = RobotComms:Create(eventLib, componentLib.modem, serialLib, port)
     if robotComms == nil then
