@@ -162,15 +162,15 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     ::restart::
-    local storagePoint = self.robotComms:GetStorageLocationFromServer(species)
-    if storagePoint == nil then
+    local storageResponse = self.robotComms:GetStorageLocationFromServer(species)
+    if storageResponse == nil then
         Print("Error getting storage location of " .. species .. " from server.")
         return nil
     end
 
     -- Move starter bees to their respective chests.
     -- TODO: This should fail when we are unable to get drones from the chest.
-    self.breeder:RetrieveDronesFromChest(storagePoint, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
+    self.breeder:RetrieveDronesFromChest(storageResponse.loc, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
 
     -- Do the breeding.
     local finishedDroneSlot = self:Breed(species)
@@ -187,14 +187,14 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     -- Double check with the server about the location in case the user changed it during operation.
     -- The user shouldn't really do this, and there's no way to eliminate this conflict entirely,
     -- but this is a mostly trivial way to recover from at least some possible bad behavior.
-    storagePoint = self.robotComms:GetStorageLocationFromServer(species)
-    if storagePoint == nil then
+    storageResponse = self.robotComms:GetStorageLocationFromServer(species)
+    if storageResponse == nil then
         Print("Error getting storage location of " .. species .. " from server.")
         return nil
     end
 
     self.breeder:ExportDroneStackToHoldovers(finishedDroneSlot, 32)
-    self.breeder:StoreDrones(finishedDroneSlot, storagePoint)
+    self.breeder:StoreDrones(finishedDroneSlot, storageResponse.loc, storageResponse.isNew)
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()
@@ -240,13 +240,13 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     end
 
     -- If we have enough of the target species now, then inform the server and store the drones at the new location.
-    local point = self.robotComms:ReportNewSpeciesToServer(target)
-    if point == nil then
+    local storageResponse = self.robotComms:ReportNewSpeciesToServer(target)
+    if storageResponse == nil then
         Print("Error getting storage location of " .. target .. " from server.")
         return nil
     end
 
-    self.breeder:StoreDrones(finishedDroneSlot, point)
+    self.breeder:StoreDrones(finishedDroneSlot, storageResponse.loc, storageResponse.isNew)
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()

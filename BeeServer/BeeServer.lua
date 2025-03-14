@@ -48,7 +48,7 @@ function BeeServer:LocationHandler(addr, data)
         return
     end
 
-    local payload = {loc = self.foundSpecies[data.species]}
+    local payload = {loc = self.foundSpecies[data.species], isNew = false}
     self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
 end
 
@@ -101,9 +101,10 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     if data.species == nil then
         return
     end
+    local isNew = (self.foundSpecies[data.species] == nil)
 
     -- Update the species that was found by the robot in our internal state and on disk.
-    if (self.foundSpecies[data.species] == nil) then
+    if (isNew) then
         self.foundSpecies[data.species] = {loc = Copy(self.nextChest), timestamp = GetCurrentTimestamp()}
         self:IncrementNextChest()
         table.insert(self.leafSpeciesList, data.species)
@@ -111,7 +112,7 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     end
 
     -- Respond back to the robot with the new location for this species.
-    local payload = {loc = self.foundSpecies[data.species].loc}
+    local payload = {loc = self.foundSpecies[data.species].loc, isNew = isNew}
     self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
 end
 

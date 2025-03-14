@@ -223,7 +223,7 @@ TestBeeServerStandalone = {}
         })
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
-        Luaunit.assertEquals(response, {loc={x=1, y=2, z=0}})
+        Luaunit.assertEquals(response, {loc={x=1, y=2, z=0}, isNew=true})
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
         local expectedFoundSpecies = {
@@ -257,7 +257,7 @@ TestBeeServerStandalone = {}
         })
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
-        Luaunit.assertEquals(response, {loc={x=0, y=0, z=0}})
+        Luaunit.assertEquals(response, {loc={x=0, y=0, z=0}, isNew=false})
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
         local expectedFoundSpecies = {

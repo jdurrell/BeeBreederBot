@@ -11,8 +11,9 @@ local BreedOperator = {}
 require("Shared.Shared")
 
 -- Slots for holding items in the robot.
-local PRINCESS_SLOT = 1
-local DRONE_SLOT    = 2
+local PRINCESS_SLOT      = 1
+local DRONE_SLOT         = 2
+local CHEST_SLOT         = 3
 local NUM_INTERNAL_SLOTS = 16
 
 -- Info for chests for analyzed bees at the start of the apiary row.
@@ -176,15 +177,50 @@ end
 -- Starts and ends at the default position in the breeder station.
 ---@param slot integer
 ---@param point Point
-function BreedOperator:StoreDrones(slot, point)
+---@param isNew boolean
+function BreedOperator:StoreDrones(slot, point, isNew)
+    if isNew then
+        -- Grab a new chest from the inputs.
+        self:moveToInputChest()
+
+        -- Block until there is a chest ready.
+        local i = 1
+        while true do
+            local stack = self.ic.getStackInSlot(self.sides.front, i)
+            if string.find(stack.label, "Chest") ~= nil then
+                self.robot.select(CHEST_SLOT)
+                self.ic.suckFromSlot(self.sides.front, i, 1)
+                break
+            end
+
+            i = i + 1
+            if i > self.ic.getInventorySize(self.sides.front) then
+                i = 1
+            end
+        end
+
+        self:returnToBreederStationFromInputChest()
+    end
+
     -- Grab the drones from the chest.
-    self.robot.select(1)
+    self.robot.select(DRONE_SLOT)
     self.robot.turnRight()
     self.ic.suckFromSlot(self.sides.front, slot, 64)
 
     -- Store the drones in the storage column.
     self:moveToStorageColumn()
     self:moveToChestFromStorageColumn(point)
+
+    if isNew then
+        -- Place the chest, then back up to be facing it.
+        self.robot.forward()
+        self.robot.up()
+        self.robot.select(CHEST_SLOT)
+        self.robot.placeDown(self.sides.down, true)
+        self.robot.back()
+        self.robot.down()
+    end
+
     self:unloadInventory()
     self:returnToStorageColumnOriginFromChest(point)
     self:returnToBreederStationFromStorageColumn()

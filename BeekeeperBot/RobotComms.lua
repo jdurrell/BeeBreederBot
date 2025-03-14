@@ -90,7 +90,7 @@ function RobotComms:GetCommandFromServer()
 end
 
 ---@param species string
----@return Point | nil
+---@return LocationResponsePayload | nil
 function RobotComms:GetStorageLocationFromServer(species)
     ::restart::
     local payload = {species = species}
@@ -104,7 +104,7 @@ function RobotComms:GetStorageLocationFromServer(species)
         return nil
     end
 
-    return UnwrapNull(response).payload.loc
+    return UnwrapNull(response).payload
 end
 
 ---@param species string
@@ -128,7 +128,7 @@ end
 
 -- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
 ---@param species string
----@return Point | nil
+---@return LocationResponsePayload | nil
 function RobotComms:ReportNewSpeciesToServer(species)
     ::restart::
     -- Report the update to the server.
@@ -144,7 +144,7 @@ function RobotComms:ReportNewSpeciesToServer(species)
         return nil
     end
 
-    return UnwrapNull(response).payload.loc
+    return UnwrapNull(response).payload
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.
