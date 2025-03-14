@@ -5,8 +5,8 @@
 
 ---@class SpeciesNode
 ---@field speciesName string          The name of this species.
----@field parentMutations {parents: string[], chance: number}[]  All parent mutations that can result in this species.
----@field childMutations table<string, {parent: string, chance: number}[]>    Mapping of results to other parents that combo to yield that result.
+---@field parentMutations {parents: string[], chance: number, specialConditions: string[]}[]  All parent mutations that can result in this species.
+---@field childMutations table<string, {parent: string, chance: number, specialConditions: string[]}[]>    Mapping of results to other parents that combo to yield that result.
 local Speciesnode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
@@ -26,6 +26,13 @@ local BreedPathNode = {}
 ---@field result string
 ---@field specialConditions string[]
 local ForestryMutation = {}
+
+---@class ParentMutation
+---@field allele1 BeeSpecies
+---@field allele2 BeeSpecies
+---@field chance number
+---@field specialConditions string[]
+local ParentMutation = {}
 
 ---@generic T
 ---@class Chromosome<T>: {primary: T, secondary: T}
@@ -180,6 +187,7 @@ local CodedMessage = {}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
 ---@alias BreedCommandPayload BreedPathNode[]
 ---@alias ReplicateCommandPayload {species: string}
+---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}

@@ -65,6 +65,37 @@ function BeeServer:PingHandler(addr, data)
 end
 
 ---@param addr string
+---@param data PromptConditionsPayload
+function BeeServer:PromptConditionsHandler(addr, data)
+    if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
+        return
+    end
+
+    local conditions = nil
+    for _, mut in ipairs(self.beeGraph[data.target].parentMutations) do
+        if (
+            ((mut.parents[1] == data.parent1) and (mut.parents[2] == data.parent2)) or
+            ((mut.parents[1] == data.parent2) and (mut.parents[2] == data.parent1))
+        ) then
+            conditions = mut.specialConditions
+            break
+        end
+    end
+
+    if (conditions == nil) or (#conditions > 0) then
+        -- If there are no conditions, then immediately tell the robot it can continue.
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.", data.target, data.parent1, data.parent2))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
+    else
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:", data.target, data.parent1, data.parent2))
+        for _, condition in ipairs(conditions) do
+            Print(condition)
+        end
+        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
+    end
+end
+
+---@param addr string
 ---@param data SpeciesFoundRequestPayload
 function BeeServer:SpeciesFoundHandler(addr, data)
     if data.species == nil then
@@ -148,6 +179,11 @@ function BeeServer:BreedCommandHandler(argv)
     end
 
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, path)
+end
+
+---@param argv string[]
+function BeeServer:ContinueCommandHandler(argv)
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
 end
 
 ---@param argv string[]
@@ -247,12 +283,15 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
         [CommLayer.MessageCode.LocationRequest] = BeeServer.LocationHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
-        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler
+        [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
+        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
+        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
     }
 
     -- Register command line handlers
     obj.terminalHandlerTable = {
         ["breed"] = BeeServer.BreedCommandHandler,
+        ["continue"] = BeeServer.ContinueCommandHandler,
         ["shutdown"] = BeeServer.ShutdownCommandHandler
     }
 

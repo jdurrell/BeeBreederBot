@@ -23,7 +23,9 @@ CommLayer.MessageCode = {
     TraitInfoRequest = 14,
     TraitInfoResponse = 15,
     BreedCommand = 16,
-    ReplicateCommand = 17
+    ReplicateCommand = 17,
+    PromptConditionsRequest = 18,
+    PromptConditionsResponse = 19
 }
 
 CommLayer.DefaultComPort = 34000

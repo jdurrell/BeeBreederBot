@@ -64,7 +64,7 @@ end
 ---@return BreedInfoResponsePayload | nil
 function RobotComms:GetBreedInfoFromServer(target)
     ::restart::
-    local payload = {target=target}
+    local payload = {target = target}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
     local response, _ = self.comm:GetIncoming(5.0)
@@ -146,6 +146,24 @@ function RobotComms:ReportNewSpeciesToServer(species)
     end
 
     return UnwrapNull(response).payload.loc
+end
+
+-- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.
+---@param target string
+---@param parent1 string
+---@param parent2 string
+function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
+    ::restart::
+    local payload = {target = target, parent1 = parent1, parent2 = parent2}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
+
+    -- TODO: The user could sit on the response for a long time and just not ack it, which will cause this to continually re-request.
+    --      There's a race condition here, but it'll mostly just look ugly rather than causing a problem necessarily.
+    local response, _ = self.comm:GetIncoming(600)
+    if response == nil then
+        self:EstablishComms()
+        goto restart
+    end
 end
 
 -- TODO: Find a replacement for this concept. Using this function is probably architecturally unsound since it could cause us to drop another message.

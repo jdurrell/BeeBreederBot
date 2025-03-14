@@ -254,7 +254,7 @@ TestGraphParse = {}
     end
 
 TestGraphQuery = {}
-    function TestGraphQuery:TestGraphQueryLeafNode()
+    function TestGraphQuery:TestLeafNode()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         for _, spec in ipairs(Res.MundaneBees) do
             local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, spec)
@@ -262,20 +262,31 @@ TestGraphQuery = {}
         end
     end
 
-    function TestGraphQuery:TestGraphQueryNoExist()
+    function TestGraphQuery:TestNoExist()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "shouldntexist")
         Luaunit.assertIsNil(path)
     end
 
-    function TestGraphQuery:TestGraphQueryBasic()
+    function TestGraphQuery:TestBasic()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
-        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Common")
-        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, "Common")
+        local target = "Common"
+        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, target)
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
     end
 
-    function TestGraphQuery:TestGraphQueryMultistep()
+    function TestGraphQuery:TestMultistep()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
-        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "Cultivated")
-        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, "Cultivated")
+        local target = "Cultivated"
+        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, target)
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
+    end
+
+    function TestGraphQuery:TestComplex()
+        local graph = Res.BeeGraphActual.GetGraph()
+        local target = "gregtech.bee.speciesIron"
+        local leafNodes = {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        local path = GraphQuery.QueryBreedingPath(graph, leafNodes, target)
+        Luaunit.assertNotIsNil(path)
+        Util.AssertPathIsValidInGraph(graph, leafNodes, path, target)
     end

@@ -1,10 +1,10 @@
 -- This program handles querying the tree for the bee breeding path.
--- TODO: Consider using numeric IDs instead of string names for indexing to reduce memory usage.
 
 ---@class BFSQueue
+---@field count integer
+---@field pathlookup table<string, string[]>  Table to lookup the path later.
 ---@field queue string[]                      Queue of species for the BFS search.
 ---@field seen table<string, integer>
----@field pathlookup table<string, string[]>  Table to lookup the path later.
 local BFSQueue = {}
 
 -- Create a new BFS queue.
@@ -14,22 +14,24 @@ function BFSQueue:Create()
     setmetatable(obj, self)
     self.__index = self
 
+    obj.count = 0
+    obj.pathlookup = {}
     obj.queue = {}
     obj.seen = {}
-    obj.pathlookup = {}
     return obj
 end
 
 -- Push an item onto the BFS queue.
 ---@param name string
----@param count integer
 ---@param parents string[] | nil
-function BFSQueue:Push(name, count, parents)
+function BFSQueue:Push(name, parents)
     table.insert(self.queue, name)
-    if parents ~= nil then
-        self.seen[name] = count
-        self.pathlookup[name] = parents
+    if self.seen[name] == nil then
+        self.seen[name] = self.count
+        self.count = self.count + 1
     end
+
+    self.pathlookup[name] = parents
 end
 
 -- Pop the next item off the BFS queue.
@@ -53,7 +55,7 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
             return {{target = target, parent1 = nil, parent2 = nil}}
         end
 
-        bfsQueueSearch:Push(spec, 0, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
+        bfsQueueSearch:Push(spec, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
     end
 
     if #(bfsQueueSearch.queue) == 0 then
@@ -63,16 +65,17 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
     end
 
     local found = false
-    local count = 0
     while #(bfsQueueSearch.queue) > 0 do
-        count = count + 1
         local qNode = bfsQueueSearch:Pop()
-        local bNode = graph[qNode]
-        if qNode == target then
+        if qNode == nil then
+            Print("Failed to find path to species " .. target .. " in graph from given leaf nodes.")
+            return nil
+        elseif qNode == target then
             found = true
             break
         end
 
+        local bNode = graph[qNode]
         for result, otherParents in pairs(bNode.childMutations) do
             if bfsQueueSearch.seen[result] == nil then
                 local oCount = 999999  -- Large number to be greater than any count.
@@ -88,7 +91,7 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
 
                 -- If another parent was already found, then push this mutation onto the queue.
                 if minParent ~= nil then
-                    bfsQueueSearch:Push(result, count, {qNode, minParent})
+                    bfsQueueSearch:Push(result, {qNode, minParent})
                 end
             end
         end
@@ -106,30 +109,27 @@ function M.QueryBreedingPath(graph, leafSpecies, target)
     -- In theory, we could have built the path as we did the search, but we are memory-limited,
     -- so we trade off some time to limit the information stored and rebuild the path later.
     local bfsQueueRetrace = BFSQueue:Create()
-    bfsQueueRetrace:Push(target, 0, nil)
+    bfsQueueRetrace:Push(target, nil)
     while #(bfsQueueRetrace.queue) > 0 do
         local name = bfsQueueRetrace:Pop()
         if bfsQueueSearch.pathlookup[name][1] ~= nil or bfsQueueSearch.pathlookup[name][2] then
             table.insert(path, {
-                target=name,
-                parent1=bfsQueueSearch.pathlookup[name][1],
-                parent2=bfsQueueSearch.pathlookup[name][2]
+                target = name,
+                parent1 = bfsQueueSearch.pathlookup[name][1],
+                parent2 = bfsQueueSearch.pathlookup[name][2]
             })
         end
 
         for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
             if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
-                bfsQueueRetrace:Push(parent, 0, nil)
+                bfsQueueRetrace:Push(parent, nil)
             end
         end
     end
 
-    -- Reverse the path to give the forward direction since we built it by retracing.
-    for i=1, math.floor((#path) / 2) do
-        local temp = path[i]
-        path[i] = path[(#path) - (i - 1)]  -- off-by-one because Lua arrays are 1-indexed.
-        path[(#path) - (i - 1)] = temp     -- off-by-one because Lua arrays are 1-indexed.
-    end
+    table.sort(path, function(a, b)
+        return (bfsQueueSearch.seen[a.target] < bfsQueueSearch.seen[b.target])
+    end)
 
     return path
 end

@@ -228,6 +228,9 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     -- Move starter bees to their respective chests.
     self.breeder:ImportHoldoversToDroneChest()
 
+    -- Ensure any necessary special conditions have been met.
+    self.robotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
+
     -- Do the breeding.
     local finishedDroneSlot = self:Breed(target)
     if finishedDroneSlot == -1 then

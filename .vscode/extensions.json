@@ -2,7 +2,8 @@
 	"recommendations": [
 		"sumneko.lua",
 
-		// If you're on a Debian-based distribution, the "official" release might be broken and you may need to compile this from source.
-		"actboy168.lua-debug"
+		// If you're on a Debian-based distribution, the "official" release might be broken and you may need to compile this from source: https://github.com/actboy168/lua-debug/issues/84.
+		"actboy168.lua-debug",
+		"github.copilot"
 	],
 }
