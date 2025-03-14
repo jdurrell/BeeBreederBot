@@ -440,4 +440,25 @@ return {species = {
 
     -- Computronics: https://github.com/GTNewHorizons/Computronics/blob/master/src/main/java/pl/asie/computronics/integration/forestry/IntegrationForestry.java
     ["computronics.speciesScummy"] = false,
+
+    -- Gendustry: https://github.com/GTNewHorizons/gendustry/blob/master/src/main/resources/assets/gendustry/config/bees_color.cfg
+    ["gendustry.bee.black"] = true,
+    ["gendustry.bee.blue"] = true,
+    ["gendustry.bee.brown"] = true,
+    ["gendustry.bee.cyan"] = true,
+    ["gendustry.bee.gray"] = true,
+    ["gendustry.bee.green"] = true,
+    ["gendustry.bee.lightblue"] = true,
+    ["gendustry.bee.lime"] = true,
+    ["gendustry.bee.magenta"] = true,
+    ["gendustry.bee.orange"] = true,
+    ["gendustry.bee.pink"] = true,
+    ["gendustry.bee.purple"] = true,
+    ["gendustry.bee.red"] = true,
+    ["gendustry.bee.silver"] = true,
+    ["gendustry.bee.white"] = true,
+    ["gendustry.bee.yellow"] = true,
+
+    -- Gendustry: https://github.com/GTNewHorizons/gendustry/blob/master/src/main/resources/assets/gendustry/config/bees_patreon.cfg
+    ["gendustry.bee.derpious"] = true,
 }}
