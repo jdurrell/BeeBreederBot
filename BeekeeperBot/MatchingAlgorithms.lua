@@ -31,11 +31,11 @@ function M.HighFertilityAndAllelesMatcher(target, breedInfo, traitInfo)
     end
 end
 
----@param traits AnalyzedBeeTraits
+---@param targetTraits AnalyzedBeeTraits
 ---@return Matcher
-function M.ClosestMatchToTraitsMatcher(traits)
+function M.ClosestMatchToTraitsMatcher(targetTraits)
     local maxScore = 0
-    for trait, value in pairs(traits) do
+    for trait, value in pairs(targetTraits) do
         if trait == "fertility" then
             if value < 2 then
                 maxScore = maxScore + 2
@@ -58,8 +58,8 @@ function M.ClosestMatchToTraitsMatcher(traits)
                 ---@return integer
                 local function numberOfMatchingAlleles(bee, trait)
                     return (
-                        (((bee.active[trait] == traits[trait]) and 1) or 0) +
-                        (((bee.inactive[trait] == traits[trait]) and 1) or 0)
+                        (((bee.active[trait] == targetTraits[trait]) and 1) or 0) +
+                        (((bee.inactive[trait] == targetTraits[trait]) and 1) or 0)
                     )
                 end
 
@@ -69,7 +69,7 @@ function M.ClosestMatchToTraitsMatcher(traits)
                 -- If breeding for low fertility, then this should always take lowest priority.
                 -- This ensures safer convergence by giving us more chances for better offspring.
                 local matchingFertilityAlleles = numberOfMatchingAlleles(droneStack.individual, "fertility")
-                if traits.fertility > 1 then
+                if targetTraits.fertility > 1 then
                     score = score + (matchingFertilityAlleles << 14)
                 else
                     score = score + matchingFertilityAlleles
@@ -78,7 +78,7 @@ function M.ClosestMatchToTraitsMatcher(traits)
                 local numTraitsAtLeastOneAllele = 0
                 local numTraitsAtLeastTwoAlleles = 0
                 local totalNumMatchingAlleles = 0
-                for trait, _ in pairs(traits) do
+                for trait, _ in pairs(targetTraits) do
                     if trait == "fertility" then
                         goto continue
                     end
@@ -103,7 +103,7 @@ function M.ClosestMatchToTraitsMatcher(traits)
                 -- Lastly, prioritize getting the maximum number of target alleles to eventually get pure-breds.
                 score = score + totalNumMatchingAlleles << 2
 
-                return 0
+                return score
             end,
             maxScore
         )
