@@ -64,8 +64,8 @@ local function ContainsNumberOf(list, number, legalValues)
     return numberFound == number
 end
 
-TestClearDronesByFertilityPurityStackSize = {}
-    function TestClearDronesByFertilityPurityStackSize:TestClearAllLessThanTwoFertility()
+TestClearDronesByFertilityPurityStackSizeCollector = {}
+    function TestClearDronesByFertilityPurityStackSizeCollector:TestClearAllLessThanTwoFertility()
         local droneStacks = MakeEmptyChest(27)
         local target = "A"
         droneStacks[1] = MakeDroneStack(1, 1, 1, target, target)
@@ -78,11 +78,11 @@ TestClearDronesByFertilityPurityStackSize = {}
         droneStacks[9] = MakeDroneStack(1, 2, 2, "B", "B")
         SetStackSlots(droneStacks)
 
-        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 1, target)
+        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 1)
         Luaunit.assertItemsEquals(slotsToRemove, {1, 2, 3, 6, 7, 8})
     end
 
-    function TestClearDronesByFertilityPurityStackSize:TestClearLowestStackSizes()
+    function TestClearDronesByFertilityPurityStackSizeCollector:TestClearLowestStackSizes()
         local droneStacks = MakeEmptyChest(27)
         local target = "A"
         droneStacks[1] = MakeDroneStack(11, 2, 2, target, target)
@@ -95,19 +95,19 @@ TestClearDronesByFertilityPurityStackSize = {}
         droneStacks[13] = MakeDroneStack(3, 2, 2, target, target)
         SetStackSlots(droneStacks)
 
-        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 1, target)
+        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 1)
         Luaunit.assertItemsEquals(slotsToRemove, {9})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 2, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 2)
         Luaunit.assertItemsEquals(slotsToRemove, {9, 4})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 3, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 3)
         Luaunit.assertItemsEquals(slotsToRemove, {9, 4, 13})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 4, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 4)
         Luaunit.assertItemsEquals(slotsToRemove, {9, 4, 13, 10})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 5, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 5)
         Luaunit.assertItemsEquals(slotsToRemove, {9, 4, 13, 10, 1})
     end
 
-    function TestClearDronesByFertilityPurityStackSize:TestClearLowestNumberAlleles()
+    function TestClearDronesByFertilityPurityStackSizeCollector:TestClearLowestNumberAlleles()
         local droneStacks = MakeEmptyChest(27)
         local target = "A"
         droneStacks[1] = MakeDroneStack(11, 2, 2, "B", "B")
@@ -120,21 +120,21 @@ TestClearDronesByFertilityPurityStackSize = {}
         droneStacks[13] = MakeDroneStack(3, 2, 2, target, target)
         SetStackSlots(droneStacks)
 
-        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 2, target)
+        local slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 2)
         Luaunit.assertItemsEquals(slotsToRemove, {1, 4})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 3, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 3)
         Luaunit.assertIsTrue(ContainsNumberOf(slotsToRemove, 2, {1, 4}))
         Luaunit.assertIsTrue(ContainsNumberOf(slotsToRemove, 1, {3, 9, 10}))
         Luaunit.assertEquals(#slotsToRemove, 3)
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 5, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 5)
         Luaunit.assertItemsEquals(slotsToRemove, {1, 4, 3, 9, 10})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 6, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 6)
         Luaunit.assertIsTrue(ContainsNumberOf(slotsToRemove, 5, {1, 4, 3, 9, 10}))
         Luaunit.assertIsTrue(ContainsNumberOf(slotsToRemove, 1, {2, 5, 13}))
         Luaunit.assertEquals(#slotsToRemove, 6)
     end
 
-    function TestClearDronesByFertilityPurityStackSize:TestClearCorrectAmountWhenFertilityBelowTwo()
+    function TestClearDronesByFertilityPurityStackSizeCollector:TestClearCorrectAmountWhenFertilityBelowTwo()
         local droneStacks = MakeEmptyChest(27)
         local target = "A"
         droneStacks[1] = MakeDroneStack(11, 2, 2, target, target)
@@ -153,21 +153,21 @@ TestClearDronesByFertilityPurityStackSize = {}
 
         local slotsToRemove
         for i = 1, 5 do
-            slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, i, target)
+            slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, i)
             Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17})
         end
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 6, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 6)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 7, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 7)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 8, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 8)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9, 16})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 9, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 9)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9, 16, 10})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 10, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 10)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9, 16, 10, 1})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 11, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 11)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9, 16, 10, 1, 2})
-        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize(droneStacks, 12, target)
+        slotsToRemove = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target)(droneStacks, 12)
         Luaunit.assertItemsEquals(slotsToRemove, {4, 5, 13, 15, 17, 18, 9, 16, 10, 1, 2, 3})
     end

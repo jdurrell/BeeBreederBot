@@ -2,58 +2,112 @@
 local M = {}
 local MatchingMath = require("BeekeeperBot.MatchingMath")
 
----@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[], target: string, cacheElement: BreedInfoCacheElement, traitInfo: TraitInfoSpecies): integer
+---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): integer
+---@alias StackFinisher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): {princess: integer | nil, drones: integer | nil}
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number
 
--- Matches `princessStack` to the drone with the highest chance to immediately create at least one pure-bred target offspring drone.
----@type Matcher
-function M.HighestPureBredChance(princessStack, droneStackList, target, cacheElement, traitInfo)
-    return M.GenericHighestScore(
-        droneStackList,
-        function (droneStack)
-            return MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
-                target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
-            )
-        end,
-        1
-    )
+---@param target string
+---@param breedInfo BreedInfoCache
+---@param traitInfo TraitInfoSpecies
+---@return Matcher
+function M.HighFertilityAndAllelesMatcher(target, breedInfo, traitInfo)
+    return function (princessStack, droneStackList)
+        return M.GenericHighestScore(
+            droneStackList,
+            function (droneStack)
+                -- Always attempt to choose a drone with which the princess has a chance to produce a target allele.
+                -- If one exists, then prioritize fertility above all else.
+                local score = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
+                    target, princessStack.individual, droneStack.individual, breedInfo[target], traitInfo
+                )
+                if score > 0 then
+                    -- TODO: This should still filter for zero fertility.
+                    score = score + (10000 * (droneStack.individual.active.fertility + droneStack.individual.inactive.fertility))
+                end
+
+                return score
+            end
+        )
+    end
 end
 
----@type Matcher
-function M.HighestAverageExpectedAllelesGenerationalPositiveFertility(princessStack, droneStackList, target, cacheElement, traitInfo)
-    return M.GenericHighestScore(
-        droneStackList,
-        function (droneStack)
-            if (droneStack.individual.active.fertility < 2) or (droneStack.individual.inactive.fertility < 2) then
-                return 0
+---@param traits AnalyzedBeeTraits
+---@return Matcher
+function M.ClosestMatchToTraitsMatcher(traits)
+    local maxScore = 0
+    for trait, value in pairs(traits) do
+        if trait == "fertility" then
+            if value < 2 then
+                maxScore = maxScore + 2
+            else
+                maxScore = maxScore + (2 << 14)
             end
-
-            return MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
-            )
-        end,
-        2
-    )
-end
-
----@type Matcher
-function M.HighFertilityAndAlleles(princessStack, droneStackList, target, cacheElement, traitInfo)
-    return M.GenericHighestScore(
-        droneStackList,
-        function (droneStack)
-            -- Always attempt to choose a drone with which the princess has a chance to produce a target allele.
-            -- If one exists, then prioritize fertility above all else.
-            local score = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                target, princessStack.individual, droneStack.individual, cacheElement, traitInfo
-            )
-            if score > 0 then
-                -- TODO: This should still filter for zero fertility.
-                score = score + (10000 * (droneStack.individual.active.fertility + droneStack.individual.inactive.fertility))
-            end
-
-            return score
+        else
+            maxScore = maxScore + (4 << 10)
+            maxScore = maxScore + (4 << 6)
+            maxScore = maxScore + (4 << 2)
         end
-    )
+    end
+
+    return function (princessStack, droneStackList)
+        return M.GenericHighestScore(
+            droneStackList,
+            function (droneStack)
+                ---@param bee AnalyzedBeeIndividual
+                ---@param trait string
+                ---@return integer
+                local function numberOfMatchingAlleles(bee, trait)
+                    return (
+                        (((bee.active[trait] == traits[trait]) and 1) or 0) +
+                        (((bee.inactive[trait] == traits[trait]) and 1) or 0)
+                    )
+                end
+
+                local score = 0
+
+                -- If breeding for high fertility, then this should always takes highest priority.
+                -- If breeding for low fertility, then this should always take lowest priority.
+                -- This ensures safer convergence by giving us more chances for better offspring.
+                local matchingFertilityAlleles = numberOfMatchingAlleles(droneStack.individual, "fertility")
+                if traits.fertility > 1 then
+                    score = score + (matchingFertilityAlleles << 14)
+                else
+                    score = score + matchingFertilityAlleles
+                end
+
+                local numTraitsAtLeastOneAllele = 0
+                local numTraitsAtLeastTwoAlleles = 0
+                local totalNumMatchingAlleles = 0
+                for trait, _ in pairs(traits) do
+                    if trait == "fertility" then
+                        goto continue
+                    end
+
+                    local numberMatchingAllelesOfTrait = numberOfMatchingAlleles(droneStack.individual, trait) + numberOfMatchingAlleles(princessStack.individual, trait)
+
+                    if numberMatchingAllelesOfTrait >= 1 then
+                        numTraitsAtLeastOneAllele = numTraitsAtLeastOneAllele + 1
+                    end
+                    if numberMatchingAllelesOfTrait >= 2 then
+                        numTraitsAtLeastTwoAlleles = numTraitsAtLeastTwoAlleles + 1
+                    end
+                    totalNumMatchingAlleles = totalNumMatchingAlleles + numberMatchingAllelesOfTrait
+                    ::continue::
+                end
+
+                -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
+                -- getting as many traits with a target allele as possible.
+                score = score + numTraitsAtLeastOneAllele << 10
+                score = score + numTraitsAtLeastTwoAlleles << 6
+
+                -- Lastly, prioritize getting the maximum number of target alleles to eventually get pure-breds.
+                score = score + totalNumMatchingAlleles << 2
+
+                return 0
+            end,
+            maxScore
+        )
+    end
 end
 
 -- Generic function to wrap algorithms that calculate a score for each drone and pick the one with the highest score.
@@ -87,24 +141,25 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
     return maxDroneStack.slotInChest
 end
 
--- If the target has been reached, returns the slot of the finished stack in ANALYZED_DRONE_CHEST.
--- Otherwise, returns nil.
----@param droneStackList AnalyzedBeeStack[]
+-- Returns a stack finisher that returns the slot of the finished stack in ANALYZED_DRONE_CHEST if a full stack
+-- of drones of the given species has been found. Otherwise, the stack finisher returns nil.
 ---@param target string
----@return integer | nil
-function M.GetFinishedDroneStack(droneStackList, target)
-    for _, droneStack in ipairs(droneStackList) do
-        -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to
-        --       deal with this possibility or just force them to stack up. For now, it is simplest to force them to stack.
-        if (droneStack.individual ~= nil) and (droneStack.individual.active.fertility >= 2) and
-            (droneStack.individual.inactive.fertility >=2) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
+---@return StackFinisher
+function M.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)
+    return function (princessStack, droneStackList)
+        for _, droneStack in ipairs(droneStackList) do
+            -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to
+            --       deal with this possibility or just force them to stack up. For now, it is simplest to force them to stack.
+            if (droneStack.individual ~= nil) and (droneStack.individual.active.fertility >= 2) and
+                (droneStack.individual.inactive.fertility >= 2) and M.isPureBred(droneStack.individual, target) and droneStack.size == 64 then
 
                 -- If we have a full stack of our target, then we are done.
-            return droneStack.slotInChest
+                return {drones = droneStack.slotInChest}
+            end
         end
-    end
 
-    return nil
+        return {}
+    end
 end
 
 -- Returns whether the bee represented by the given stack is a pure bred version of the given species.

@@ -11,7 +11,6 @@ local Speciesnode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
 ---@alias BreedInfo table<string, table<string, number>>
----@alias BreedInfo2 table<string, table<string, table<string, {targetMutChance: number, nonTargetMutChance: number}>>>
 
 ---@class BreedPathNode
 ---@field target string

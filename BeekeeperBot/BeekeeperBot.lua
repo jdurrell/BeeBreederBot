@@ -11,10 +11,6 @@ local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicie
 local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 local RobotComms = require("BeekeeperBot.RobotComms")
 
-local matchingAlgorithm = MatchingAlgorithms.HighFertilityAndAlleles
-local garbageCollectionAlgorithm = GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSize
-
-
 ---@class BeekeeperBot
 ---@field component Component
 ---@field event Event
@@ -173,8 +169,19 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     self.breeder:RetrieveDronesFromChest(storageResponse.loc, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
 
     -- Do the breeding.
-    local finishedDroneSlot = self:Breed(species)
-    if finishedDroneSlot == -1 then
+    local breedInfoCache = {}
+    local traitInfoCache = {species = {}}
+    local finishedDroneSlot = self:Breed(
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher(species, breedInfoCache, traitInfoCache),
+        MatchingAlgorithms.GetFinishedDroneStack(species),
+        GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
+        function (princessStack, droneStackList)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCache)
+            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+        end
+    ).drones
+
+    if finishedDroneSlot == nil then
         -- This should never really happen since we're starting with an absurdly high number of drones.
         -- The only way this should ever happen is if it picked an unfortunate princess that actually has
         -- a mutation with `species` and the user was also using frenzy frames (which they shouldn't do anyways).
@@ -233,8 +240,19 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     self.robotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
 
     -- Do the breeding.
-    local finishedDroneSlot = self:Breed(target)
-    if finishedDroneSlot == -1 then
+    local breedInfoCache = {}
+    local traitInfoCache = {species = {}}
+    local finishedDroneSlot = self:Breed(
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfoCache),
+        MatchingAlgorithms.GetFinishedDroneStack(target),
+        GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
+        function (princessStack, droneStackList)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
+            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+        end
+    ).drones
+
+    if finishedDroneSlot == nil then
         Print(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", target, parent1, parent2))
         return false
     end
@@ -255,44 +273,39 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     return true
 end
 
--- Breeds the target species using the drones and princesses in the active chests.
----@param target string
----@return integer slot The slot of the finished drone stack, or -1 on failure.
-function BeekeeperBot:Breed(target)
-    ---@type BreedInfoCache
-    local breedInfoCache = {}
-    ---@type TraitInfoSpecies
-    local traitInfoCache = {species = {}}
+-- Breeds the target using the drones and princesses in the active chests.
+---@param matchingAlgorithm Matcher
+---@param finishedSlotAlgorithm StackFinisher
+---@param garbageCollectionAlgorithm GarbageCollector
+---@param populateCaches fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[])
+---@return {princess: integer | nil, drones: integer | nil}
+function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCollectionAlgorithm, populateCaches)
+    local finishedPrincessSlot = nil
+    local finishedDroneSlot = nil
 
-    local finishedDroneSlot
+    -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
     local iteration = 0
     while iteration < 300 do
         local princessStack = self.breeder:GetPrincessInChest()
         local droneStackList = self.breeder:GetDronesInChest()
-        finishedDroneSlot = MatchingAlgorithms.GetFinishedDroneStack(droneStackList, target)
-        if finishedDroneSlot ~= nil then
+        local slots = finishedSlotAlgorithm(princessStack, droneStackList)
+        if (slots.princess ~= nil) or (slots.drones ~= nil) then
             break
         end
 
         -- Not finished, but haven't failed. Continue breeding.
-        self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
-        self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-        local droneSlot = matchingAlgorithm(princessStack, droneStackList, target, breedInfoCache[target], traitInfoCache)
+        populateCaches(princessStack, droneStackList)
+        local droneSlot = matchingAlgorithm(princessStack, droneStackList)
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
         if princessStack.individual.active.fertility > (27 - #droneStackList) then
-            local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility, target)
+            local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility)
             self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
         end
 
         iteration = iteration + 1
     end
 
-    -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
-    if iteration >= 300 then
-        return -1
-    end
-
-    return UnwrapNull(finishedDroneSlot)
+    return {princess = finishedPrincessSlot, drones = finishedDroneSlot}
 end
 
 --- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
