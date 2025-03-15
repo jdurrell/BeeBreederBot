@@ -12,5 +12,8 @@ local BeekeeperBot = require("BeekeeperBot.BeekeeperBot")
 local comPort = CommLayer.DefaultComPort
 local numApiaries = 1
 
+---@cast component Component
+---@cast event Event
+---@cast serial Serialization
 local bot = BeekeeperBot:Create(component, event, robot, serial, sides, comPort, numApiaries)
 bot:RunRobot()
