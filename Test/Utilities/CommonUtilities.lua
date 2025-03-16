@@ -239,6 +239,36 @@ function M.CreateGenome(species1, species2, fertility)
     }
 end
 
+---@param traits AnalyzedBeeTraits
+---@return ForestryGenome
+function M.CreatePureGenome(traits)
+    ---@generic T
+    ---@param value T
+    ---@return Chromosome<T>
+    local function makeChromosomeBoth(value)
+        return {
+            primary = value,
+            secondary = value
+        }
+    end
+
+    return {
+        caveDwelling = makeChromosomeBoth(((traits.caveDwelling ~= nil) and traits.caveDwelling) or false),
+        effect = makeChromosomeBoth(((traits.effect ~= nil) and traits.effect) or "forestry.allele.effect.none"),
+        fertility = makeChromosomeBoth(((traits.fertility ~= nil) and traits.fertility) or 2),
+        flowering = makeChromosomeBoth(((traits.flowering ~= nil) and traits.flowering) or 20),
+        flowerProvider = makeChromosomeBoth(((traits.flowerProvider ~= nil) and traits.flowerProvider) or "flowersVanilla"),
+        humidityTolerance = makeChromosomeBoth(((traits.humidityTolerance ~= nil) and traits.humidityTolerance) or "BOTH_5"),
+        lifespan = makeChromosomeBoth(((traits.lifespan ~= nil) and traits.lifespan) or 20),
+        nocturnal = makeChromosomeBoth(((traits.nocturnal ~= nil) and traits.nocturnal) or false),
+        species = makeChromosomeBoth(((traits.species ~= nil) and Copy(traits.species)) or {uid = "forestry.speciesForest"}),
+        speed = makeChromosomeBoth(((traits.speed ~= nil) and traits.speed) or 0.60000002384186),
+        temperatureTolerance = makeChromosomeBoth(((traits.temperatureTolerance ~= nil) and traits.temperatureTolerance) or "BOTH_5"),
+        territory = makeChromosomeBoth(((traits.territory ~= nil) and Copy(traits.territory)) or {[1] = 9, [2] = 6, [3] = 9}),
+        tolerantFlyer = makeChromosomeBoth(((traits.tolerantFlyer ~= nil) and traits.tolerantFlyer) or false)
+    }
+end
+
 ---@param genome ForestryGenome
 ---@param traitInfo TraitInfoFull | nil
 ---@return AnalyzedBeeIndividual

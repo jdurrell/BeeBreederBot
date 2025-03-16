@@ -143,7 +143,7 @@ TestArbitraryOffspringIsPureBredTarget = {}
 TestAtLeastOneOffspringIsPureBredTarget = {}
     function TestAtLeastOneOffspringIsPureBredTarget:TestNoChanceAnyOffspringIsPure()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
-        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetTraitInfo()
         local target = "Cultivated"
         local cacheElement = Util.BreedCacheTargetLoad(target, graph)
 
@@ -163,7 +163,7 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
 
     function TestAtLeastOneOffspringIsPureBredTarget:TestOffspringPurityIsUncertain()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
-        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetTraitInfo()
         local target = "Cultivated"
         local cacheElement = Util.BreedCacheTargetLoad(target, graph)
 
@@ -183,7 +183,7 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
 
     function TestAtLeastOneOffspringIsPureBredTarget:TestParentsAlreadyPure()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
-        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetTraitInfo()
         local target = "Cultivated"
         local cacheElement = Util.BreedCacheTargetLoad(target, graph)
 
@@ -203,7 +203,7 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
 
     function TestAtLeastOneOffspringIsPureBredTarget:TestNoExistingPurityWithDominance()
         local graph = Res.BeeGraphSimpleDominance.GetGraph()
-        local traitInfo = Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphSimpleDominance.GetTraitInfo()
         local target = "RecessiveResult"
         local cacheElement = Util.BreedCacheTargetLoad(target, graph)
 
@@ -223,7 +223,7 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
 
     function TestAtLeastOneOffspringIsPureBredTarget:TestPartialPurityWithDominance()
         local graph = Res.BeeGraphSimpleDominance.GetGraph()
-        local traitInfo = Res.BeeGraphSimpleDominance.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphSimpleDominance.GetTraitInfo()
         local target = "DominantResult"
         local cacheElement = Util.BreedCacheTargetLoad(target, graph)
 
@@ -265,7 +265,7 @@ TestAtLeastOneOffspringIsPureBredTarget = {}
 
     function TestAtLeastOneOffspringIsPureBredTarget:TestDominanceMultipleMutations()
         local graph = Res.BeeGraphSimpleDominanceDuplicateMutations.GetGraph()
-        local traitInfo = Res.BeeGraphSimpleDominanceDuplicateMutations.GetSpeciesTraitInfo()
+        local traitInfo = Res.BeeGraphSimpleDominanceDuplicateMutations.GetTraitInfo()
         local cache = Util.BreedCachePreloadAll(graph)
 
         Luaunit.assertAlmostEquals(MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(

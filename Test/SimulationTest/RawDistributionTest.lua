@@ -96,7 +96,7 @@ end
 local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpecies2, droneSpecies1, droneSpecies2, resourceProvider, numTrials, alphaLevel, seed)
     numTrials = ((numTrials ~= nil) and numTrials) or 100000
     math.randomseed(((seed ~= nil) and seed) or 456)
-    local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), resourceProvider.GetSpeciesTraitInfo())
+    local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), resourceProvider.GetTraitInfo())
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)
     local queen = Util.CreateBee(Util.CreateGenome(queenSpecies1, queenSpecies2))
@@ -155,7 +155,7 @@ end
 local function RunAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, queenSpeciesInactive, droneSpeciesActive, droneSpeciesInactive, queenFertility, resourceProvider, numTrials, alphaLevel)
     math.randomseed(456)
     numTrials = ((numTrials ~= nil) and numTrials) or 100000
-    local traitInfo = resourceProvider.GetSpeciesTraitInfo()
+    local traitInfo = resourceProvider.GetTraitInfo()
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), traitInfo)
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)
@@ -301,7 +301,7 @@ TestAtLeastOneOffspringIsPureBredTargetSimulation = {}
 local function RunExpectedTargetAllelesTest(target, queenSpeciesActive, queenSpeciesInactive, droneSpeciesActive, droneSpeciesInactive, resourceProvider, numTrials, alphaLevel)
     math.randomseed(789)
     numTrials = ((numTrials ~= nil) and numTrials) or 100000
-    local traitInfo = resourceProvider.GetSpeciesTraitInfo()
+    local traitInfo = resourceProvider.GetTraitInfo()
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), traitInfo)
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)

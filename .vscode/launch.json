@@ -21,7 +21,7 @@
             "request": "launch",
             "name": "Debug Specific Test",
             "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
-            "arg": ["--pattern", "TestTwoSimpleSpecies"],
+            "arg": ["--pattern", "<put-test-here>"],
             "stopOnEntry": false
         }
     ]
