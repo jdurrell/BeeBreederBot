@@ -92,6 +92,9 @@ end
 ---@param species string
 ---@return LocationResponsePayload | nil
 function RobotComms:GetStorageLocationFromServer(species)
+    -- TODO: This concept probably shouldn't exist at all. Originally, it seemed simpler for the server to manage
+    --       storage locations, but it is probably easier for the drone to jam drones and princesses wherever they
+    --       fit in a chest row and just search for them by scanning.
     ::restart::
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LocationRequest, payload)

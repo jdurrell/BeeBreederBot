@@ -187,6 +187,7 @@ local CodedMessage = {}
 ---@alias BreedCommandPayload BreedPathNode[]
 ---@alias ReplicateCommandPayload {species: string}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string}
+---@alias PropagateTemplatePayload {traits: AnalyzedBeeTraits}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}

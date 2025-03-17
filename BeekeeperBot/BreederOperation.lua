@@ -1,5 +1,7 @@
 -- This module contains logic used by the breeder robot to manipulate bees and the apiaries.
 -- TODO: A lot of "return" logic could really just keep track of the moves and then retrace, which would likely be simpler to use.
+-- TODO: This entire class assumes that nobody is messing with the system while it is running, so it doesn't check for error on
+--       most operations. Although we likely can't recover from any errors, it might be useful to check for them and fail.
 ---@class BreedOperator
 ---@field bk any beekeeper library  TODO: Is this even necessary?
 ---@field ic any inventory controller library
@@ -9,6 +11,7 @@
 local BreedOperator = {}
 
 require("Shared.Shared")
+local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT      = 1
@@ -69,7 +72,7 @@ function BreedOperator:GetPrincessInChest()
     ---@type AnalyzedBeeStack
     local princess = nil
     while princess == nil do
-        for i = 1, BASIC_CHEST_INVENTORY_SLOTS do
+        for i = 1, self.ic.getInventorySize() do
             local stack = self.ic.getStackInSlot(self.sides.front, i)
             if stack ~= nil then
                 princess = stack
@@ -414,46 +417,197 @@ function BreedOperator:RetrieveDronesFromChest(loc, number)
     self.robot.turnLeft()
 end
 
--- Retrieves the first two stacks from the holdovers chest and places them in the analyzed drone chest.
+-- Retrieves a stack of drones and a princess with the given template and places them in the active chests.
+---@param templateTraits AnalyzedBeeTraits
+function BreedOperator:RetrieveBeesWithTemplate(templateTraits)
+    -- Move to the templates chest.
+    self:moveToStorageColumn()
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnLeft()
+    self.robot.up()
+
+    -- TODO: Deal with the case where the template doesn't actually exist.
+    local hasDrones = false
+    local hasPrincess = false
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack == nil) or AnalysisUtil.AllTraitsEqual(stack.individual, templateTraits) then
+            goto continue
+        end
+
+        if (not hasDrones) and (string.find(stack.label, "Drone") ~= nil) then
+            self.robot.select(DRONE_SLOT)
+            self.ic.suckFromSlot(self.sides.front, i, 64)
+            hasDrones = true
+        elseif (not hasPrincess) and (string.find(stack.label, "[P|p]rincess") ~= nil) then
+            self.robot.select(PRINCESS_SLOT)
+            self.ic.suckFromSlot(self.sides.front, i, 1)
+            hasPrincess = true
+        end
+
+        if hasDrones and hasPrincess then
+            break
+        end
+
+        ::continue::
+    end
+
+    -- Return to the breeder station.
+    self.robot.down()
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnRight()
+    self:returnToBreederStationFromStorageColumn()
+
+    -- Unload the bees, then return to starting orientation.
+    self.robot.turnRight()
+    self.robot.select(DRONE_SLOT)
+    self.robot.drop(64)
+    self.robot.turnLeft()
+    self.robot.turnLeft()
+    self.robot.select(PRINCESS_SLOT)
+    self.robot.drop(1)
+    self.robot.turnRight()
+end
+
+---@param droneChestSlot integer
+---@param princessChestSlot integer
+function BreedOperator:StoreBeesInTemplate(droneChestSlot, princessChestSlot)
+    -- Grab drones.
+    self.robot.turnRight()
+    self.robot.select(DRONE_SLOT)
+    self.ic.suckFromSlot(self.sides.front, droneChestSlot, 64)
+
+    -- Grab princess.
+    self.robot.turnLeft()
+    self.robot.turnLeft()
+    self.robot.select(PRINCESS_SLOT)
+    self.ic.suckFromSlot(self.sides.front, princessChestSlot, 1)
+
+    -- Move to templates chest.
+    self:moveToStorageColumn()
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnLeft()
+    self.robot.up()
+
+    -- Unload the bees.
+    self.robot.select(DRONE_SLOT)
+    self.robot.drop(64)
+    self.robot.select(PRINCESS_SLOT)
+    self.robot.drop(1)
+
+    -- Return to the breeder station.
+    self.robot.down()
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnRight()
+    self:returnToBreederStationFromStorageColumn()
+end
+
+-- Retrieves the first two stacks from the holdover chest and places them in the analyzed drone chest.
 -- Starts and ends at the breeder station.
-function BreedOperator:ImportHoldoversToDroneChest()
+---@param holdoverChestSlots integer[]
+---@param amounts integer[]
+---@param droneChestSlots integer[]
+function BreedOperator:ImportHoldoverStacksToDroneChest(holdoverChestSlots, amounts, droneChestSlots)
     -- Move to the Holdover chest, located 1 block vertical from the robot's default position at the breeder station.
     self.robot.up()
-    self.robot.turnLeft()
+    self.robot.turnRight()
 
     -- Get the drone stacks out of the Holdover chest.
-    for i = 1, 2 do
+    for i, slot in ipairs(holdoverChestSlots) do
         self.robot.select(i)
-        self.ic.suckFromSlot(self.sides.front, i, 64)
+        self.ic.suckFromSlot(self.sides.front, slot, amounts[i])
     end
 
     -- Place the drone stacks into the Drone chest.
     self.robot.down()
-    for i = 1, 2 do
+    for i, slot in ipairs(droneChestSlots) do
         self.robot.select(i)
-        self.robot.drop(64)
+        self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
+    end
+
+    -- Clean up by returning to starting position.
+    self.robot.turnLeft()
+end
+
+---@param holdoverChestSlots integer[]
+---@param amounts integer[]
+---@param princessChestSlots integer[]
+function BreedOperator:ImportHoldoverStacksToPrincessChest(holdoverChestSlots, amounts, princessChestSlots)
+    -- Move to the Holdover chest, located 1 block vertical from the robot's default position at the breeder station.
+    self.robot.up()
+    self.robot.turnRight()
+
+    -- Get the princess stacks out of the Holdover chest.
+    for i, slot in ipairs(holdoverChestSlots) do
+        self.robot.select(i)
+        self.ic.suckFromSlot(self.sides.front, slot, amounts[i])
+    end
+
+    -- Place the princess stacks into the Drone chest.
+    self.robot.down()
+    self.robot.turnLeft()
+    self.robot.turnLeft()
+    for i, slot in ipairs(princessChestSlots) do
+        self.robot.select(i)
+        self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
     end
 
     -- Clean up by returning to starting position.
     self.robot.turnRight()
 end
 
--- Moves the given amount of drones from the given slot from the drone chest to the holdover chest.
----@param slot integer
----@param amount integer
-function BreedOperator:ExportDroneStackToHoldovers(slot, amount)
-    -- Take stack out of the drone chest.
-    self.robot.turnLeft()
-    self.robot.select(1)
-    self.ic.suckFromSlot(self.sides.front, slot, amount)
+-- Moves the given drones from the drone chest to the holdover chest.
+---@param droneChestSlots integer[]
+---@param amounts integer[]
+---@param holdoverChestSlots integer[]
+function BreedOperator:ExportDroneStacksToHoldovers(droneChestSlots, amounts, holdoverChestSlots)
+    -- Take stacks out of the drone chest.
+    self.robot.turnRight()
+    for i, slot in ipairs(droneChestSlots) do
+        self.robot.select(i)
+        self.ic.suckFromSlot(self.sides.front, slot, amounts[i])
+    end
 
     -- Place stack in the holdover chest.
     self.robot.up()
-    self.robot.drop(amount)
+    for i, slot in ipairs(holdoverChestSlots) do
+        self.robot.select(i)
+        self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
+    end
 
     -- Clean up by returning to starting position.
     self.robot.down()
+    self.robot.turnLeft()
+end
+
+-- Moves the given princesses from the princess chest to the holdover chest.
+---@param princessChestSlots integer[]
+---@param amounts integer[]
+---@param holdoverChestSlots integer[]
+function BreedOperator:ExportPrincessStacksToHoldovers(princessChestSlots, amounts, holdoverChestSlots)
+    -- Take stacks out of the princess chest.
+    self.robot.turnLeft()
+    for i, slot in ipairs(princessChestSlots) do
+        self.robot.select(i)
+        self.ic.suckFromSlot(self.sides.front, slot, amounts[i])
+    end
+
+    -- Place stack in the holdover chest.
     self.robot.turnRight()
+    self.robot.turnRight()
+    self.robot.up()
+    for i, slot in ipairs(holdoverChestSlots) do
+        self.robot.select(i)
+        self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
+    end
+
+    -- Clean up by returning to starting position.
+    self.robot.down()
+    self.robot.turnLeft()
 end
 
 -- Moves the princesses in the import chest to the breeding stock chest.
@@ -494,7 +648,7 @@ end
 
 -- Moves the specified number of drones from the given slot in the active chest to the output chest.
 ---@param slot integer
-function BreedOperator:ExportDroneToOutput(slot, number)
+function BreedOperator:ExportDroneStackToOutput(slot, number)
     self.robot.select(1)
 
     -- Pick up drones.
@@ -510,7 +664,7 @@ end
 
 -- Moves the specified number of princesses from the given slot in the active chest to the output chest.
 ---@param slot integer
-function BreedOperator:ExportPrincessToOutput(slot, number)
+function BreedOperator:ExportPrincessStackToOutput(slot, number)
     self.robot.select(1)
 
     -- Pick up princesses.
