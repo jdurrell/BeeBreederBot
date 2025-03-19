@@ -59,11 +59,13 @@ function RobotComms:EstablishComms()
     end
 end
 
+---@param parent1 string,
+---@param parent2 string,
 ---@param target string
 ---@return BreedInfoResponsePayload | nil
-function RobotComms:GetBreedInfoFromServer(target)
+function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
     ::restart::
-    local payload = {target = target}
+    local payload = {parent1 = parent1, parent2 = parent2, target = target}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
     local response, _ = self.comm:GetIncoming(5.0)

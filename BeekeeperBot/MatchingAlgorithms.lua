@@ -10,11 +10,12 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- Returns a matcher that prioritizes drones that are expected to produce the highest number of target species alleles
 -- with the given princess while also prioritizing the highest fertility trait available in the pool and filtering out
 -- fertility of 1 or lower.
----@param target string
----@param breedInfo BreedInfoCache
+---@param targetTrait string
+---@param targetValue any
+---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
-function M.HighFertilityAndAllelesMatcher(target, breedInfo, traitInfo)
+function M.HighFertilityAndAllelesMatcher(targetTrait, targetValue, cacheElement, traitInfo)
     return function (princessStack, droneStackList)
         return M.GenericHighestScore(
             droneStackList,
@@ -22,7 +23,7 @@ function M.HighFertilityAndAllelesMatcher(target, breedInfo, traitInfo)
                 -- Always attempt to choose a drone with which the princess has a chance to produce a target allele.
                 -- If one exists, then prioritize fertility above all else.
                 local score = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    target, princessStack.individual, droneStack.individual, breedInfo[target], traitInfo
+                    princessStack.individual, droneStack.individual, targetTrait, targetValue, cacheElement, traitInfo
                 )
                 if score > 0 then
                     -- TODO: This should still filter for zero fertility.

@@ -228,7 +228,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "forestry.speciesCommon"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 32, 1),
@@ -237,7 +237,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -255,7 +255,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "computronics.speciesScummy"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 32, 1),
@@ -264,7 +264,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -282,7 +282,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "extrabees.species.rock"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
@@ -291,7 +291,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -309,7 +309,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "extrabees.species.rock"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
@@ -318,7 +318,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -336,7 +336,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "extrabees.species.rock"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 8, 1),
@@ -345,7 +345,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -363,7 +363,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "extrabees.species.rock"
-        local breedInfoCache = {[target] = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())}
+        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
@@ -372,7 +372,7 @@ TestConvergenceHighFertilityAndAlleles = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfo),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
             commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,

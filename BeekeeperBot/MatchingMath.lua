@@ -1,7 +1,11 @@
 -- This module contains helper functions for doing calculations related to princess-drone matching.
 local M = {}
 
+local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
+
 -- Calculates the chance that an arbitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
+-- This function only requires a TraitInfoSpecies instead of a TraitInfoFull. Although other traits can be dominant or recessive, we
+-- don't need to care about it here since dominance information is only relevant for mutation chances, not Punnet Square inheritance.
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param traitInfo TraitInfoSpecies
@@ -178,13 +182,14 @@ function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, 
     end)
 end
 
----@param target string
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
+---@param targetTrait string
+---@param targetValue any
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@return number
-function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(target, princess, drone, cacheElement, traitInfo)
+function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(princess, drone, targetTrait, targetValue, cacheElement, traitInfo)
     return M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, function(A, B, C, D)
         -- Handle possibility of mutation failing, producing a target, or producing a non-target.
         local breedChanceAD = cacheElement[A][D]
@@ -230,11 +235,12 @@ function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(target, princess, 
         -- The outcomes listed above are disjoint. Therefore, we can obtain the expected number of pure-bred alleles by adding up the expected
         -- number of pure-bred alleles in each case multiplied by the probability of each case occurring.
         -- Randomness at each stage is independent, so the probability of an outcome is the product of the probabilities of the required events.
+        -- Technically, these don't actually change with dominance, so get them directly from the princess and drone objects.
         local expectedPureBredAlleles = 0.0
-        local numA = ((A == target) and 1) or 0
-        local numB = ((B == target) and 1) or 0
-        local numC = ((C == target) and 1) or 0
-        local numD = ((D == target) and 1) or 0
+        local numA = (AnalysisUtil.TraitIsEqual(princess.active, targetTrait, targetValue) and 1) or 0
+        local numB = (AnalysisUtil.TraitIsEqual(princess.inactive, targetTrait, targetValue) and 1) or 0
+        local numC = (AnalysisUtil.TraitIsEqual(drone.active, targetTrait, targetValue) and 1) or 0
+        local numD = (AnalysisUtil.TraitIsEqual(drone.inactive, targetTrait, targetValue) and 1) or 0
 
         -- A + C (requires no mutations and has 1 valid Punnet Square outcome).
         expectedPureBredAlleles = expectedPureBredAlleles + ((numA + numC) * (probNoMut * probNoMut * 0.25))

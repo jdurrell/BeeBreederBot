@@ -306,9 +306,10 @@ local function RunExpectedTargetAllelesTest(target, queenSpeciesActive, queenSpe
     local graph = resourceProvider.GetGraph()
     local cacheElement = Util.BreedCacheTargetLoad(target, graph)
     local expectedAlleles = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-        target,
         Util.CreateBee(Util.CreateGenome(queenSpeciesActive, queenSpeciesInactive)),
         Util.CreateBee(Util.CreateGenome(droneSpeciesActive, droneSpeciesInactive)),
+        "species",
+        {uid = target},
         cacheElement,
         traitInfo
     )

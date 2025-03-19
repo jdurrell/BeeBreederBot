@@ -28,25 +28,28 @@ end
 ---@return boolean
 function M.AllTraitsEqual(bee, targetTraits)
     for trait, value in pairs(targetTraits) do
-        -- "Species" and "Territory" traits are tables, so compare them one level deeper.
-        -- TODO: This would look nicer as a "deep equal" that could be used for all of them,
-        --       but I'm not sure that the test infrastructure is actually setting every field.
-        if trait == "species" then
-            if ((bee.active.species.uid ~= targetTraits.species.uid) or (bee.inactive.species.uid ~= targetTraits.species.uid)) then
-                return false
-            end
-        elseif trait == "territory" then
-            if ((bee.active.territory[1] ~= targetTraits.territory[1]) or (bee.inactive.territory[1] ~= targetTraits.territory[1])) then
-                return false
-            end
-        else
-            if (bee.active[trait] ~= value) or (bee.inactive[trait] ~= value) then
-                return false
-            end
+        if (not M.TraitIsEqual(bee.active, trait, value)) or (not M.TraitIsEqual(bee.inactive, trait, value)) then
+            return false
         end
     end
 
     return true
+end
+
+---@param beeTraits AnalyzedBeeTraits
+---@param trait string
+---@param value any
+function M.TraitIsEqual(beeTraits, trait, value)
+    -- "Species" and "Territory" traits are tables, so compare them one level deeper.
+    -- TODO: This would look nicer as a "deep equal" that could be used for all of them,
+    --       but I'm not sure that the test infrastructure is actually setting every field.
+    if trait == "species" then
+        return (beeTraits.species.uid == value.uid)
+    elseif trait == "territory" then
+        return (beeTraits.territory[1] == value[1])
+    end
+
+    return (beeTraits[trait] == value)
 end
 
 -- Returns whether the bee represented by the given stack is a pure bred version of the given species.

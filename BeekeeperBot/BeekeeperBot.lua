@@ -264,14 +264,14 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     self.breeder:RetrieveDronesFromChest(storageResponse.loc, 32)  -- TODO: Is 32 a good number? Should this be dependent on number of apiaries?
 
     -- Do the breeding.
-    local breedInfoCache = {}
+    local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndAllelesMatcher(species, breedInfoCache, traitInfoCache),
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = species}, breedInfoCacheElement, traitInfoCache),
         MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(species),
         GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
         function (princessStack, droneStackList)
-            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCache)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCacheElement)
             self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
         end
     ).drones
@@ -335,14 +335,14 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     self.robotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
 
     -- Do the breeding.
-    local breedInfoCache = {}
+    local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndAllelesMatcher(target, breedInfoCache, traitInfoCache),
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfoCache),
         MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target),
         GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
         function (princessStack, droneStackList)
-            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCacheElement)
             self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
         end
     ).drones
@@ -405,18 +405,13 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
     return {princess = finishedPrincessSlot, drones = finishedDroneSlot}
 end
 
---- Populates `breedInfoCache` with any required information to allow for breeding calculations between the given princess and any drone in
---- the drone chest.
+--- Populates `cacheElement` with any required information to allow for breeding calculations between the
+--- given princess and any drone in `droneStackList`.
 ---@param princessStack AnalyzedBeeStack
 ---@param droneStackList AnalyzedBeeStack[]
 ---@param target string
----@param breedInfoCache BreedInfoCache  The cache to be populated.
-function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCache)
-    if breedInfoCache[target] == nil then
-        breedInfoCache[target] = {}
-    end
-    local cacheElement = breedInfoCache[target]
-
+---@param cacheElement BreedInfoCacheElement  The cache to be populated.
+function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, target, cacheElement)
     for _, droneStack in ipairs(droneStackList) do
         -- Forestry only checks for mutations between the princess's primary and drone's secondary species and the princess's secondary and
         -- drone's primary species.
@@ -429,7 +424,7 @@ function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, targ
             cacheElement[combo[2]] = ((cacheElement[combo[2]] == nil) and {}) or cacheElement[combo[2]]
 
             if (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) then
-                local breedInfo = self.robotComms:GetBreedInfoFromServer(target)
+                local breedInfo = self.robotComms:GetBreedInfoFromServer(combo[1], combo[2], target)
                 if breedInfo == nil then
                     Print("Unexpected error when retrieving target's breed info from server.")
                     return  -- Internal error. TODO: Handle this up the stack.
