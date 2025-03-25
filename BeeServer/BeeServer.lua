@@ -194,7 +194,9 @@ end
 function BeeServer:ShutdownCommandHandler(argv)
     -- This may or may not cause the robot to actually shut down, but it will prevent it from continuing to start apiaries.
     -- When using this command, expect to have to reset the system manually.
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.CancelCommand)
+    if self.botAddr ~= nil then
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.CancelCommand)
+    end
     self:Shutdown(0)
 end
 

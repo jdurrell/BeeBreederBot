@@ -15,6 +15,27 @@ local CommLayer = require("Shared.CommLayer")
 local Logger = require("BeeServer.Logger")
 
 
+---@param receiverExpected thread
+---@param senderExpected thread
+---@param portExpected integer
+---@param codeExpected MessageCode
+---@return any -- The payload of the message. Verifying this is caller-specific.
+local function VerifyModemResponse(receiverExpected, senderExpected, portExpected, codeExpected)
+    local event, receiverActual, senderActual, portActual, _, code, payload = Event.__pullNoYield("modem_message")
+    Luaunit.assertNotIsNil(event)
+    Luaunit.assertEquals(receiverActual, receiverExpected)
+    Luaunit.assertEquals(senderActual, senderExpected)
+    Luaunit.assertEquals(portActual, portExpected)
+    Luaunit.assertEquals(code, codeExpected)
+
+    return payload
+end
+
+local function VerifyNoModemResponse()
+    local event = Event.__pullNoYield("modem_message")
+    Luaunit.assertIsNil(event)
+end
+
  ---@param thread thread
 ---@return ... Returns the response from the thread.
 local function RunThreadAndVerifyRan(thread)
@@ -64,12 +85,13 @@ local function VerifyModemStateAfterServerStart(port, thread)
 end
 
 -- Verifies that the state of the modem is correct directly after server shutdown.
-local function VerifyModemStateAfterServerShutdown()
+---@param serverThread thread
+local function VerifyModemStateAfterServerShutdown(serverThread)
     -- After shutting down normally, the modem should have been closed.
     -- Since the server object in the test is the only object accessing the
     -- modem in these tests, no port should have any receivers at this point.
     for _, receiverList in pairs(Component.modem.__openPorts) do
-        Luaunit.assertEquals(receiverList, {})
+        Luaunit.assertNotTableContains(receiverList, serverThread)
     end
 end
 
@@ -88,37 +110,21 @@ local function StartServerAndVerifyStartup(logfile, port)
     return serverThread, UnwrapNull(server)
 end
 
+---@param server BeeServer
 ---@param serverThread thread
-local function StopServerAndVerifyShutdown(serverThread)
+local function StopServerAndVerifyShutdown(server, serverThread)
     -- Now command the server to shut down and verify that it did so correctly.
     Term.__write(serverThread, "shutdown")
+    if server.botAddr ~= nil then
+        RunThreadAndVerifyResponse(serverThread, "modem_send")
+        local thisThread = Coroutine.running()
+        VerifyModemResponse(thisThread, serverThread, server.comm.port, CommLayer.MessageCode.CancelCommand)
+    end
     local ran, response, exitCode = Coroutine.resume(serverThread)
     Luaunit.assertIsTrue(ran)
     Luaunit.assertEquals(response, "exit")
     Luaunit.assertEquals(exitCode, 0)
-    VerifyModemStateAfterServerShutdown()
-end
-
----@param receiverExpected thread
----@param senderExpected thread
----@param portExpected integer
----@param codeExpected MessageCode
----@return any -- The payload of the message. Verifying this is caller-specific.
-local function VerifyModemResponse(receiverExpected, senderExpected, portExpected, codeExpected)
-    local event, receiverActual, senderActual, portActual, _, message = Event.__pullNoYield("modem_message")
-    Luaunit.assertNotIsNil(event)
-    Luaunit.assertEquals(receiverActual, receiverExpected)
-    Luaunit.assertEquals(senderActual, senderExpected)
-    Luaunit.assertEquals(portActual, portExpected)
-    Luaunit.assertNotIsNil(message)
-    Luaunit.assertEquals(message.code, codeExpected)
-
-    return message.payload
-end
-
-local function VerifyNoModemResponse()
-    local event = Event.__pullNoYield("modem_message")
-    Luaunit.assertIsNil(event)
+    VerifyModemStateAfterServerShutdown(serverThread)
 end
 
 TestBeeServerStandalone = {}
@@ -131,7 +137,7 @@ TestBeeServerStandalone = {}
     function TestBeeServerStandalone:TestLaunchAndShutdown()
         local logFilepath = Util.CreateLogfileSeed(nil, nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
     end
 
     function TestBeeServerStandalone:TestLaunchIdleShutdown()
@@ -143,7 +149,7 @@ TestBeeServerStandalone = {}
             RunThreadAndVerifyResponse(serverThread, "event_pull")
             RunThreadAndVerifyResponse(serverThread, "term_pull")
         end
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
     end
 
     function TestBeeServerStandalone:TestLaunchWithLogAndShutdown()
@@ -153,7 +159,7 @@ TestBeeServerStandalone = {}
 
         -- Verify that the server read the log correctly.
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
     end
 
     function TestBeeServerStandalone:TestLaunchWithEmptyLogAndShutdown()
@@ -163,7 +169,7 @@ TestBeeServerStandalone = {}
 
         -- Verify that the server didn't fail on an empty log.
         Luaunit.assertItemsEquals(server.leafSpeciesList, {})
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
     end
 
     function TestBeeServerStandalone:TestPing()
@@ -176,14 +182,14 @@ TestBeeServerStandalone = {}
 
         local success = Modem.open(CommLayer.DefaultComPort)
         Luaunit.assertIsTrue(success)
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.PingRequest, payload={transactionId=456789}})
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId=456789})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
         Luaunit.assertEquals(response, {transactionId=456789})
 
-        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
+        Modem.close(CommLayer.DefaultComPort)
     end
 
     function TestBeeServerStandalone:TestBreedInfo()
@@ -197,14 +203,14 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {code=CommLayer.MessageCode.BreedInfoRequest, payload={parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"}})  -- Pick a simple species that's easy to verify.
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoRequest, {parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"})  -- Pick a simple species that's easy to verify.
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
         Luaunit.assertEquals(response, {targetMutChance=0.08, nonTargetMutChance=0})
 
-        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
+        Modem.close(CommLayer.DefaultComPort)
     end
 
     function TestBeeServerStandalone:TestSpeciesFoundNewSpecies()
@@ -218,9 +224,7 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
-            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesIndustrious"}
-        })
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesIndustrious"})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
         Luaunit.assertEquals(response, {loc={x=1, y=2, z=0}, isNew=true})
@@ -236,9 +240,9 @@ TestBeeServerStandalone = {}
         Util.AssertAllKnowableFields(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
         Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
 
-        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
+        Modem.close(CommLayer.DefaultComPort)
     end
 
     function TestBeeServerStandalone:TestSpeciesFoundExistingSpecies()
@@ -252,9 +256,7 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, {
-            code=CommLayer.MessageCode.SpeciesFoundRequest, payload={species="forestry.speciesForest"}
-        })
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
         Luaunit.assertEquals(response, {loc={x=0, y=0, z=0}, isNew=false})
@@ -269,7 +271,7 @@ TestBeeServerStandalone = {}
         Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
         Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
 
-        Modem.close(CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "term_pull")
-        StopServerAndVerifyShutdown(serverThread)
+        StopServerAndVerifyShutdown(server, serverThread)
+        Modem.close(CommLayer.DefaultComPort)
     end

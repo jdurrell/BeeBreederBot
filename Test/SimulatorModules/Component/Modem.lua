@@ -58,8 +58,9 @@ end
 
 -- Transmits the given message to all other receivers that have opened this port.
 ---@param port integer
+---@param code MessageCode
 ---@param message string
-function M.broadcast(port, message)
+function M.broadcast(port, code, message)
     local thread = Coroutine.running()
 
     Luaunit.assertTableContains(M.__openPorts[port], thread)
@@ -81,10 +82,11 @@ end
 -- Transmits the given message to the receiver identified by addr.
 ---@param addr string
 ---@param port integer
----@param message string
-function M.send(addr, port, message)
+---@param code MessageCode
+---@param payload string
+function M.send(addr, port, code, payload)
 
-    M.__sendNoYield(addr, port, message)
+    M.__sendNoYield(addr, port, code, payload)
 
     -- We must yield here to give receivers a chance to respond to this.
     -- Because broadcast messages have (possibly) multiple receivers, we
@@ -98,8 +100,9 @@ end
 -- This does not yield the coroutine so that it can be called from test verification code.
 ---@param addr any
 ---@param port integer
----@param message any
-function M.__sendNoYield(addr, port, message)
+---@param code MessageCode
+---@param payload any
+function M.__sendNoYield(addr, port, code, payload)
     local thread = Coroutine.running()
     Luaunit.assertNotIsNil(M.__openPorts[port])
 
@@ -111,7 +114,7 @@ function M.__sendNoYield(addr, port, message)
     -- TODO: Refactor M.__openPorts[port] to be a set instead of a list so we don't have to do this nonsense.
     for _, receiver in ipairs(M.__openPorts[port]) do
         if receiver == addr then
-            Event.__push(receiver, "modem_message", M.__CreateModemEvent(receiver, thread, port, message))
+            Event.__push(receiver, "modem_message", M.__CreateModemEvent(receiver, thread, port, code, payload))
         end
     end
 end
@@ -119,10 +122,11 @@ end
 ---@param receiver thread
 ---@param sender thread
 ---@param port integer
----@param message any
+---@param code MessageCode
+---@param payload any
 ---@return any
-function M.__CreateModemEvent(receiver, sender, port, message)
-    return {receiver, sender, port, 0, message}
+function M.__CreateModemEvent(receiver, sender, port, code, payload)
+    return {receiver, sender, port, 0, code, payload}
 end
 
 return M

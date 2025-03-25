@@ -79,13 +79,11 @@ end
 ---@param messageCode MessageCode
 ---@param payload table | nil
 function CommLayer:SendMessage(addr, messageCode, payload)
-    local message = {code=messageCode, payload=payload}
-
     local sent
     if addr == nil then
-        sent = self.modem.broadcast(self.port, self.serial.serialize(message))
+        sent = self.modem.broadcast(self.port, messageCode, self.serial.serialize(payload))
     else
-        sent = self.modem.send(addr, self.port, self.serial.serialize(message))
+        sent = self.modem.send(addr, self.port, messageCode, self.serial.serialize(payload))
     end
 
     if not sent then
