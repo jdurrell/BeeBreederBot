@@ -17,6 +17,7 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field beeGraph SpeciesGraph
 ---@field botAddr string
 ---@field comm CommLayer
+---@field conditionsPending boolean
 ---@field foundSpecies ChestArray
 ---@field messageHandlerTable table<integer, function>
 ---@field nextChest Point
@@ -67,7 +68,7 @@ end
 ---@param addr string
 ---@param data PromptConditionsPayload
 function BeeServer:PromptConditionsHandler(addr, data)
-    if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
+    if self.conditionsPending or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
         return
     end
 
@@ -87,6 +88,7 @@ function BeeServer:PromptConditionsHandler(addr, data)
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.", data.target, data.parent1, data.parent2))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
     else
+        self.conditionsPending = true
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:", data.target, data.parent1, data.parent2))
         for _, condition in ipairs(conditions) do
             Print(condition)
@@ -125,7 +127,7 @@ end
 
 ---@param timeout number
 function BeeServer:PollForMessageAndHandle(timeout)
-    local response, addr = self.comm:GetIncoming(timeout)
+    local response, addr = self.comm:GetIncoming(timeout, nil)
     if response ~= nil then
         if self.messageHandlerTable[response.code] == nil then
             Print("Received unidentified code " .. tostring(response.code))
@@ -184,11 +186,15 @@ end
 
 ---@param argv string[]
 function BeeServer:ContinueCommandHandler(argv)
+    self.conditionsPending = false
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
 end
 
 ---@param argv string[]
 function BeeServer:ShutdownCommandHandler(argv)
+    -- This may or may not cause the robot to actually shut down, but it will prevent it from continuing to start apiaries.
+    -- When using this command, expect to have to reset the system manually.
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.CancelCommand)
     self:Shutdown(0)
 end
 
@@ -333,6 +339,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
 
     obj.breedPath = nil
     obj.botAddr = nil
+    obj.conditionsPending = false
 
     return obj
 end

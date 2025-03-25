@@ -11,7 +11,7 @@ local CommLayer = {}
 CommLayer.MessageCode = {
     PingRequest = 0,
     PingResponse = 1,
-    CancelRequest = 4,
+    CancelCommand = 4,
     -- CancelResponse = 5,        -- Do we really need to send an ACK for this?
     SpeciesFoundRequest = 6,
     BreedInfoRequest = 8,
@@ -96,20 +96,19 @@ end
 
 -- Checks for an incoming message. Returns nil if no message was received before the timeout.
 ---@param timeout number | nil
+---@param messageCode number | nil
 ---@return Message | nil, string | nil
-function CommLayer:GetIncoming(timeout)
-    local event, _, addr, _, _, response = self.event.pull(timeout, CommLayer.ModemEventName)
+function CommLayer:GetIncoming(timeout, messageCode)
+    local event, _, addr, _, _, code, payload = self.event.pull(timeout, CommLayer.ModemEventName, nil, nil, nil, nil, messageCode)
     if event == nil then
         return nil, nil
     end
 
-    response = self:DeserializeMessage(response)
-
-    return response, addr
+    return {code = code, payload = self:DeserializeMessage(payload)}, addr
 end
 
 ---@param message string
----@return Message
+---@return table
 function CommLayer:DeserializeMessage(message)
     if message == nil then
 -- Disable this because this condition is likely better checked by checking for `event` == nil.

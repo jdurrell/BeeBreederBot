@@ -52,7 +52,7 @@ end
 ---@param timeout? number
 ---@param name string
 ---@return string | nil, ...
-function M.pull(timeout, name)
+function M.pull(timeout, name, ...)
     -- We actually ignore the timeout since it's largely pointless in the testing environment.
 
     -- Yield from code under test in case we want something to respond here.

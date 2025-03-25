@@ -17,7 +17,7 @@ function RobotComms:ValidateExpectedMessage(expectedCode, message, shouldHavePay
         return false
     end
 
-    if message.code == CommLayer.MessageCode.CancelRequest then
+    if message.code == CommLayer.MessageCode.CancelCommand then
         Print("Received cancellation request.")
         return false
     end
@@ -39,23 +39,25 @@ end
 function RobotComms:EstablishComms()
     Print("Establishing conection to server...")
 
-    local tid = math.floor(math.random(65535))
-    local payload = {transactionId=tid}
-    self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
-
     while true do
-        local response, addr = self.comm:GetIncoming(nil)
-        if self:ValidateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) then
-            response = UnwrapNull(response)
-            if response.payload.transactionId == tid then
-                return UnwrapNull(addr)
-            else
-                Print("Got unexpected ping response with transaction id " .. tostring(response.payload.transactionId) .. ".")
-            end
-        end
+        local tid = math.floor(math.random(65535))
+        local payload = {transactionId = tid}
+        self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
 
-        -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
-        -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous instance of this program.
+        while true do
+            local response, addr = self.comm:GetIncoming(10, nil)  -- Explicitly don't filter for PingRequest to clean out old messages.
+            if response == nil then
+                -- If we didn't get a response, then we will need to re-send the request.
+                break
+            elseif (self:ValidateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) and
+                (response.payload.transactionId == tid)
+            ) then
+                return UnwrapNull(addr)
+            end
+
+            -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
+            -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous request.
+        end
     end
 end
 
@@ -68,9 +70,9 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
     local payload = {parent1 = parent1, parent2 = parent2, target = target}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse)
     if response == nil then
-        self:EstablishComms()
+        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
@@ -83,8 +85,9 @@ end
 ---@return any
 function RobotComms:GetCommandFromServer()
     ::restart::
-    local request, _ = self.comm:GetIncoming(10000)
+    local request, _ = self.comm:GetIncoming(60)
     if request == nil then
+        self.serverAddr = self:EstablishComms()
         goto restart
     end
 
@@ -101,9 +104,9 @@ function RobotComms:GetStorageLocationFromServer(species)
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LocationRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.LocationResponse)
     if response == nil then
-        self:EstablishComms()
+        self.serverAddr = self:EstablishComms()
         goto restart
     elseif not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
         return nil
@@ -119,9 +122,9 @@ function RobotComms:GetTraitInfoFromServer(species)
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse)
     if response == nil then
-        self:EstablishComms()
+        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
@@ -140,9 +143,9 @@ function RobotComms:ReportNewSpeciesToServer(species)
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.LocationResponse)
     if response == nil then
-        self:EstablishComms()
+        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
@@ -161,24 +164,22 @@ function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
     local payload = {target = target, parent1 = parent1, parent2 = parent2}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
 
-    -- TODO: The user could sit on the response for a long time and just not ack it, which will cause this to continually re-request.
-    --      There's a race condition here, but it'll mostly just look ugly rather than causing a problem necessarily.
-    local response, _ = self.comm:GetIncoming(600)
+    local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse)
     if response == nil then
-        self:EstablishComms()
+        self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PingRequest)
+        self.serverAddr = self:EstablishComms()
         goto restart
     end
 end
 
--- TODO: Find a replacement for this concept. Using this function is probably architecturally unsound since it could cause us to drop another message.
 ---@return boolean
 function RobotComms:PollForCancel()
-    local response, _ self.comm:GetIncoming(0)
+    local response, _ self.comm:GetIncoming(0, CommLayer.MessageCode.CancelCommand)
     if response == nil then
         return false
     end
 
-    return response.code == CommLayer.MessageCode.CancelRequest
+    return true
 end
 
 -- Closes the communications to the server.

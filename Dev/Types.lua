@@ -176,7 +176,6 @@ local CodedMessage = {}
 
 ---@alias BreedInfoRequestPayload {parent1: string, parent2: string, target: string}
 ---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
----@alias CancelRequestPayload nil
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string}

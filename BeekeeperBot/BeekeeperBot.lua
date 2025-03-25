@@ -69,6 +69,7 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
 
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.BreedCommand] = BeekeeperBot.BreedCommandHandler,
+        [CommLayer.MessageCode.CancelCommand] = BeekeeperBot.CancelCommandHandler,
         [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler,
     }
 
@@ -89,10 +90,16 @@ function BeekeeperBot:RunRobot()
     while true do
         local request = self.robotComms:GetCommandFromServer()
 
-        if request.code ~= nil then
+        if (request.code == nil) or (self.messageHandlerTable[request.code] == nil) then
+            Print("Received unrecognized code: " .. request.code .. ".")
+        else
             self.messageHandlerTable[request.code](self, request.payload)
         end
     end
+end
+
+function BeekeeperBot:CancelCommandHandler(data)
+    self:Shutdown(0)
 end
 
 ---@param data ReplicateCommandPayload
@@ -393,6 +400,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
             populateCaches(princessStack, droneStackList)
         end
         local droneSlot = matchingAlgorithm(princessStack, droneStackList)
+        self:ShutdownOnCancel()
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
         if princessStack.individual.active.fertility > (27 - #droneStackList) then
             local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility)
@@ -483,6 +491,12 @@ function BeekeeperBot:PopulateTraitInfoCache(princessStack, droneStackList, trai
 
             traitInfoCache[droneSpecies2] = dominance
         end
+    end
+end
+
+function BeekeeperBot:ShutdownOnCancel()
+    if self.robotComms:PollForCancel() then
+        self:Shutdown(1)
     end
 end
 
