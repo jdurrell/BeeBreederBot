@@ -16,6 +16,7 @@ local Speciesnode = {}
 ---@field target string
 ---@field parent1 string
 ---@field parent2 string
+---@field foundation string | nil
 local BreedPathNode = {}
 
 ---@class ForestryMutation

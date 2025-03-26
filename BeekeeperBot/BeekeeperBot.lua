@@ -121,6 +121,10 @@ function BeekeeperBot:BreedCommandHandler(data)
 
     -- Breed the commanded species based on the given path.
     for _, v in ipairs(breedPath) do
+        if (v.foundation ~= nil) and (not self:FoundationIsManual(v.foundation)) then
+            self.breeder:PlaceFoundations(v.foundation)
+        end
+
         ::restart::
         if v.parent1 ~= nil then
             local retval = self:ReplicateSpecies(v.parent1, true, true, 1)
@@ -149,6 +153,10 @@ function BeekeeperBot:BreedCommandHandler(data)
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock()
             goto restart
+        end
+
+        if v.foundation ~= nil then
+            self.breeder:BreakAndReturnFoundationsToInputChest()
         end
     end
 end
@@ -492,6 +500,21 @@ function BeekeeperBot:PopulateTraitInfoCache(princessStack, droneStackList, trai
             traitInfoCache[droneSpecies2] = dominance
         end
     end
+end
+
+---@param foundation string
+---@return boolean
+function BeekeeperBot:FoundationIsManual(foundation)
+    return (
+        (foundation ~= "α Centauri Bb Surface Block")  -- TODO: Verify whether this name will match correctly. It might not need to be manual.
+        (foundation ~= "Aura node") and
+        (foundation ~= "Ender Goo") and
+        (foundation ~= "IC2 Coolant") and
+        (foundation ~= "IC2 Hot Coolant") and
+        (foundation ~= "Lava") and
+        (foundation ~= "Short Mead") and
+        (foundation ~= "Water")
+    )
 end
 
 function BeekeeperBot:ShutdownOnCancel()

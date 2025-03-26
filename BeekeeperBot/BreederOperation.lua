@@ -712,4 +712,61 @@ function BreedOperator:returnToBreederStationFromOutputChest()
     self.robot.down()
 end
 
+function BreedOperator:BreakAndReturnFoundationsToInputChest()
+    -- Get pickaxe from inputs chest.
+    -- TODO: Deal with pickaxes not being there.
+    self:moveToInputChest()
+    self.robot.select(1)
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack ~= nil) and (string.find(stack.label, "[P|p]ickaxe") ~= nil) then
+            self.ic.suckFromSlot(self.sides.front, i, 1)
+            break
+        end
+    end
+    self:returnToBreederStationFromInputChest()
+
+    -- Break the existing foundation blocks, then return to the breeder station.
+    self.robot.forward()
+    for i = 1, self.numApiaries do
+        self.robot.forward()
+        self.robot.turnLeft()
+        self.robot.swing()
+        self.robot.turnRight()
+    end
+    self:moveBackwards(self.numApiaries + 1)
+
+    -- Return the pickaxe and the foundation blocks to the inputs chest.
+    self:moveToInputChest()
+    self:unloadInventory()
+
+    self:returnToBreederStationFromInputChest()
+end
+
+---@param block string
+function BreedOperator:PlaceFoundations(block)
+    -- Get foundations from chest.
+    -- TODO: Deal with foundations not being there.
+    self:moveToInputChest()
+    self.robot.select(1)
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) then
+            self.ic.suckFromSlot(self.sides.front, i, self.numApiaries)
+            break
+        end
+    end
+    self:returnToBreederStationFromInputChest()
+
+    -- Place the foundations.
+    self.robot.forward()
+    for i = 1, self.numApiaries do
+        self.robot.forward()
+        self.robot.turnLeft()
+        self.robot.place()
+        self.robot.turnRight()
+    end
+    self:moveBackwards(self.numApiaries + 1)
+end
+
 return BreedOperator

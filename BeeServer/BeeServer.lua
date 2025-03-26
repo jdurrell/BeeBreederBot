@@ -175,11 +175,41 @@ function BeeServer:BreedCommandHandler(argv)
         return
     end
 
-    -- We computed a valid path for this species. Save it to the current breed path and print it out for the user.
+    -- We computed a valid path for this species. Send it to the robot and print it out for the user.
     Print("Breeding " .. species .. " bees. Full breeding order:")
-    for _, v in ipairs(path) do
-        Print(v)
+    local printstr = ""
+    for _, node in ipairs(path) do
+        printstr = string.format("%s, %s", printstr, node.target)
     end
+    Print(printstr)
+
+    Sleep(0.5)
+    Print("Required foundation blocks:")
+    printstr = ""
+    for _, node in ipairs(path) do
+        ---@type string[] | nil
+        local conditions = nil
+        for _, mut in ipairs(self.beeGraph[node.target].parentMutations) do
+            if (
+                ((mut.parents[1] == node.parent1) and (mut.parents[2] == node.parent2)) or
+                ((mut.parents[1] == node.parent2) and (mut.parents[2] == node.parent1))
+            ) then
+                conditions = mut.specialConditions
+                break
+            end
+        end
+        if (conditions ~= nil) and (#conditions > 0) then
+            for _, condition in ipairs(conditions) do
+                local foundation = condition:find(" as a foundation")
+                if foundation ~= nil then
+                    local foundationStr = condition:gsub("Requires ", ""):gsub(" as a foundation.", "")
+                    printstr = string.format("%s, %s", printstr, foundationStr)
+                    node.foundation = foundationStr
+                end
+            end
+        end
+    end
+    Print(printstr)
 
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, path)
 end
