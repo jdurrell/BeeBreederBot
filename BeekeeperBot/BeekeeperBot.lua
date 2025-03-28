@@ -121,10 +121,6 @@ function BeekeeperBot:BreedCommandHandler(data)
 
     -- Breed the commanded species based on the given path.
     for _, v in ipairs(breedPath) do
-        if (v.foundation ~= nil) and (not self:FoundationIsManual(v.foundation)) then
-            self.breeder:PlaceFoundations(v.foundation)
-        end
-
         ::restart::
         if v.parent1 ~= nil then
             local retval = self:ReplicateSpecies(v.parent1, true, true, 1)
@@ -144,7 +140,7 @@ function BeekeeperBot:BreedCommandHandler(data)
             -- Convergence failure is handled inside ReplicateSpecies.
         end
 
-        local retval = self:BreedSpecies(v.target, v.parent1, v.parent2, false, true)
+        local retval = self:BreedSpecies(v, false, true)
         if retval == nil then
             Print(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
             self:Shutdown(1)
@@ -153,10 +149,6 @@ function BeekeeperBot:BreedCommandHandler(data)
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock()
             goto restart
-        end
-
-        if v.foundation ~= nil then
-            self.breeder:BreakAndReturnFoundationsToInputChest()
         end
     end
 end
@@ -323,15 +315,13 @@ end
 -- Breeds the target species from the two given parents.
 -- Requires drones of each species as inputs already in the holdover chest.
 -- Places finished breed output in the storage columns.
----@param target string
----@param parent1 string
----@param parent2 string
+---@param node BreedPathNode
 ---@param retrievePrincessesFromStock boolean
 ---@param returnPrincessesToStock boolean
 ---@return boolean | nil success  `true` indicates a success. `false` indicates a convergence failure. `nil` indicates a fatal error.
-function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesFromStock, returnPrincessesToStock)
+function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrincessesToStock)
     if retrievePrincessesFromStock then
-        self.breeder:RetrieveStockPrincessesFromChest(1, {parent1, parent2})
+        self.breeder:RetrieveStockPrincessesFromChest(1, {node.parent1, node.parent2})
     end
 
     -- Breed the target using the left-over drones from both parents and the princesses
@@ -346,31 +336,32 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
     -- Move starter bees to their respective chests.
     self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
 
-    -- Ensure any necessary special conditions have been met.
-    self.robotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
+    self:EnsureSpecialConditionsMet(node)
 
     -- Do the breeding.
     local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfoCache),
-        MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target),
-        GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = node.target}, breedInfoCacheElement, traitInfoCache),
+        MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(node.target),
+        GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(node.target),
         function (princessStack, droneStackList)
-            self:PopulateBreedInfoCache(princessStack, droneStackList, target, breedInfoCacheElement)
+            self:PopulateBreedInfoCache(princessStack, droneStackList, node.target, breedInfoCacheElement)
             self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
         end
     ).drones
 
     if finishedDroneSlot == nil then
-        Print(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", target, parent1, parent2))
+        Print(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", node.target, node.parent1, node.parent2))
+        self.breeder:BreakAndReturnFoundationsToInputChest()  -- Avoid double-prompting for foundations.
         return false
     end
 
     -- If we have enough of the target species now, then inform the server and store the drones at the new location.
-    local storageResponse = self.robotComms:ReportNewSpeciesToServer(target)
+    local storageResponse = self.robotComms:ReportNewSpeciesToServer(node.target)
     if storageResponse == nil then
-        Print("Error getting storage location of " .. target .. " from server.")
+        Print("Error getting storage location of " .. node.target .. " from server.")
+        self.breeder:BreakAndReturnFoundationsToInputChest()
         return nil
     end
 
@@ -380,6 +371,7 @@ function BeekeeperBot:BreedSpecies(target, parent1, parent2, retrievePrincessesF
         self.breeder:ReturnActivePrincessesToStock()
     end
 
+    self.breeder:BreakAndReturnFoundationsToInputChest()
     return true
 end
 
@@ -502,9 +494,33 @@ function BeekeeperBot:PopulateTraitInfoCache(princessStack, droneStackList, trai
     end
 end
 
----@param foundation string
+---@param node BreedPathNode
+function BeekeeperBot:EnsureSpecialConditionsMet(node)
+    -- Encase this in a loop in case the user doesn't provide the foundations correctly.
+    local promptedOnce = false
+    while true do
+        local shouldPlaceFoundation = self:MustPlaceFoundation(node.foundation)
+        if shouldPlaceFoundation then
+            local retval = self.breeder:PlaceFoundations(node.foundation)
+            shouldPlaceFoundation = (retval == "no foundation")
+        end
+
+        if promptedOnce and (not shouldPlaceFoundation) then
+            break
+        end
+
+        self.robotComms:WaitForConditionsAcknowledged(node.target, node.parent1, node.parent2, shouldPlaceFoundation)
+        promptedOnce = true
+    end
+end
+
+---@param foundation string | nil
 ---@return boolean
-function BeekeeperBot:FoundationIsManual(foundation)
+function BeekeeperBot:MustPlaceFoundation(foundation)
+    if foundation == nil then
+        return false
+    end
+
     return (
         (foundation ~= "α Centauri Bb Surface Block")  -- TODO: Verify whether this name will match correctly. It might not need to be manual.
         (foundation ~= "Aura node") and

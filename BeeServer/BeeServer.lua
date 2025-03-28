@@ -78,8 +78,13 @@ function BeeServer:PromptConditionsHandler(addr, data)
             ((mut.parents[1] == data.parent1) and (mut.parents[2] == data.parent2)) or
             ((mut.parents[1] == data.parent2) and (mut.parents[2] == data.parent1))
         ) then
-            conditions = mut.specialConditions
-            break
+            conditions = {}
+            for _, condition  in ipairs(mut.specialConditions) do
+                local isAFoundation = condition:find("foundation") == nil
+                if (not isAFoundation) or (data.promptFoundation) then
+                    table.insert(conditions, condition)
+                end
+            end
         end
     end
 

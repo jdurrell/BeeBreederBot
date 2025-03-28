@@ -159,9 +159,10 @@ end
 ---@param target string
 ---@param parent1 string
 ---@param parent2 string
-function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2)
+---@param needsFoundation boolean
+function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2, needsFoundation)
     ::restart::
-    local payload = {target = target, parent1 = parent1, parent2 = parent2}
+    local payload = {target = target, parent1 = parent1, parent2 = parent2, promptFoundation = needsFoundation}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
 
     local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse)

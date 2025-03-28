@@ -744,19 +744,25 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
 end
 
 ---@param block string
+---@return "success" | "no foundation"
 function BreedOperator:PlaceFoundations(block)
     -- Get foundations from chest.
-    -- TODO: Deal with foundations not being there.
     self:moveToInputChest()
     self.robot.select(1)
+    local hasStack = false
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
-        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) then
+        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) and (stack.size >= self.numApiaries) then  -- TODO: Allow foundation blocks to be spread out over multiple stacks.
             self.ic.suckFromSlot(self.sides.front, i, self.numApiaries)
+            hasStack = true
             break
         end
     end
     self:returnToBreederStationFromInputChest()
+
+    if not hasStack then
+        return "no foundation"
+    end
 
     -- Place the foundations.
     self.robot.forward()
@@ -767,6 +773,8 @@ function BreedOperator:PlaceFoundations(block)
         self.robot.turnRight()
     end
     self:moveBackwards(self.numApiaries + 1)
+
+    return "success"
 end
 
 return BreedOperator
