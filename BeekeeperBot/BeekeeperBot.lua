@@ -76,22 +76,13 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     return obj
 end
 
----@param code integer
-function BeekeeperBot:Shutdown(code)
-    if self.robotComms ~= nil then
-        self.robotComms:Shutdown()
-    end
-
-    ExitProgram(code)
-end
-
 -- Runs the main BeekeeperBot operation loop.
 function BeekeeperBot:RunRobot()
     while true do
         local request = self.robotComms:GetCommandFromServer()
 
         if (request.code == nil) or (self.messageHandlerTable[request.code] == nil) then
-            Print("Received unrecognized code: " .. request.code .. ".")
+            self:OutputError("Received unrecognized code: " .. request.code .. ".")
         else
             self.messageHandlerTable[request.code](self, request.payload)
         end
@@ -125,7 +116,7 @@ function BeekeeperBot:BreedCommandHandler(data)
         if v.parent1 ~= nil then
             local retval = self:ReplicateSpecies(v.parent1, true, true, 1)
             if retval == nil then
-                Print("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
+                self:OutputError("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
                 self:Shutdown(1)
             end
             -- Convergence failure is handled inside ReplicateSpecies.
@@ -134,7 +125,7 @@ function BeekeeperBot:BreedCommandHandler(data)
         if v.parent2 ~= nil then
             local retval = self:ReplicateSpecies(v.parent2, true, false, 2)
             if retval == nil then
-                Print("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
+                self:OutputError("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
                 self:Shutdown(1)
             end
             -- Convergence failure is handled inside ReplicateSpecies.
@@ -142,7 +133,7 @@ function BeekeeperBot:BreedCommandHandler(data)
 
         local retval = self:BreedSpecies(v, false, true)
         if retval == nil then
-            Print(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
+            self:OutputError(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
             self:Shutdown(1)
         elseif not retval then
             -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
@@ -156,14 +147,14 @@ end
 ---@param data PropagateTemplatePayload
 function BeekeeperBot:PropagateTemplateHandler(data)
     if (data == nil) or (data.traits == nil) or (data.traits.species == nil) or (data.traits.species.uid == nil) then
-        Print("Received invalid PropagateTemplate payload.")
+        self:OutputError("Received invalid PropagateTemplate payload.")
         return
     end
 
     -- Retrieve drones that have the requested species allele. Convert a stock princess to a pure-bred of that species.
     local locationPoint = self.robotComms:GetStorageLocationFromServer(data.traits.species.uid)
     if locationPoint == nil then
-        Print("Failed to get location of species " .. data.traits.species.uid .. " from server.")
+        self:OutputError("Failed to get location of species " .. data.traits.species.uid .. " from server.")
         return
     end
     self.breeder:RetrieveDronesFromChest(locationPoint.loc, 64)
@@ -186,7 +177,8 @@ function BeekeeperBot:PropagateTemplateHandler(data)
     local existingSpeciesTemplate = self.breeder:GetDronesInChest()[1].individual.active  -- TODO: Make it strictly impossible for the retrieved set of drones to have mixed traits.
     local slots = self:ReplicateTemplate(existingSpeciesTemplate)
     if slots.drones == nil then
-        Print("Error replicating template of starting species.")
+        -- This should never error.
+        self:OutputError("Error replicating template of starting species.")
         return
     end
     self.breeder:ExportDroneStacksToHoldovers({slots.drones, slots.drones}, {48, 16}, {2, 27})
@@ -197,7 +189,8 @@ function BeekeeperBot:PropagateTemplateHandler(data)
     self.breeder:ImportHoldoverStacksToPrincessChest({10}, {1}, {1})
     slots = self:ReplicateTemplate(data.traits)
     if slots.drones == nil then
-        Print("Error replicating starting template.")
+        -- This should never error.
+        self:OutputError("Error replicating starting template.")
         return
     end
     self.breeder:ExportDroneStacksToHoldovers({slots.drones, slots.drones}, {48, 16}, {1, 26})
@@ -240,7 +233,7 @@ function BeekeeperBot:ReplicateTemplate(traits)
 
     if (finishedSlots.drones == nil) or (finishedSlots.princess == nil) then
         -- This should never really happen since we're starting with pure-breds of drones and princesses.
-        Print("Error replicating traits.")
+        self:OutputError("Error replicating traits.")
         return {nil, nil}
     end
 
@@ -262,7 +255,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     ::restart::
     local storageResponse = self.robotComms:GetStorageLocationFromServer(species)
     if storageResponse == nil then
-        Print("Error getting storage location of " .. species .. " from server.")
+        self:OutputError("Error getting storage location of " .. species .. " from server.")
         return nil
     end
 
@@ -287,7 +280,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         -- This should never really happen since we're starting with an absurdly high number of drones.
         -- The only way this should ever happen is if it picked an unfortunate princess that actually has
         -- a mutation with `species` and the user was also using frenzy frames (which they shouldn't do anyways).
-        Print("Error replicating " .. species .. ". Retrying with another drone batch.")
+        self:OutputError("Error replicating " .. species .. ". Retrying with another drone batch.")
         self.breeder:TrashSlotsFromDroneChest(nil)
         self.breeder:ReturnActivePrincessesToStock()
         goto restart
@@ -298,7 +291,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     -- but this is a mostly trivial way to recover from at least some possible bad behavior.
     storageResponse = self.robotComms:GetStorageLocationFromServer(species)
     if storageResponse == nil then
-        Print("Error getting storage location of " .. species .. " from server.")
+        self:OutputError("Error getting storage location of " .. species .. " from server.")
         return nil
     end
 
@@ -352,7 +345,7 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     ).drones
 
     if finishedDroneSlot == nil then
-        Print(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", node.target, node.parent1, node.parent2))
+        self:OutputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", node.target, node.parent1, node.parent2))
         self.breeder:BreakAndReturnFoundationsToInputChest()  -- Avoid double-prompting for foundations.
         return false
     end
@@ -360,7 +353,7 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     -- If we have enough of the target species now, then inform the server and store the drones at the new location.
     local storageResponse = self.robotComms:ReportNewSpeciesToServer(node.target)
     if storageResponse == nil then
-        Print("Error getting storage location of " .. node.target .. " from server.")
+        self:OutputError("Error getting storage location of " .. node.target .. " from server.")
         self.breeder:BreakAndReturnFoundationsToInputChest()
         return nil
     end
@@ -434,7 +427,7 @@ function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, targ
             if (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) then
                 local breedInfo = self.robotComms:GetBreedInfoFromServer(combo[1], combo[2], target)
                 if breedInfo == nil then
-                    Print("Unexpected error when retrieving target's breed info from server.")
+                    self:OutputError("Unexpected error when retrieving target's breed info from server.")
                     return  -- Internal error. TODO: Handle this up the stack.
                 end
                 breedInfo = UnwrapNull(breedInfo)
@@ -531,6 +524,21 @@ function BeekeeperBot:MustPlaceFoundation(foundation)
         (foundation ~= "Short Mead") and
         (foundation ~= "Water")
     )
+end
+
+---@param errMsg string
+function BeekeeperBot:OutputError(errMsg)
+    self.robotComms:ReportErrorToServer(errMsg)
+    Print(errMsg)
+end
+
+---@param code integer
+function BeekeeperBot:Shutdown(code)
+    if self.robotComms ~= nil then
+        self.robotComms:Shutdown()
+    end
+
+    ExitProgram(code)
 end
 
 function BeekeeperBot:ShutdownOnCancel()

@@ -188,6 +188,7 @@ local CodedMessage = {}
 ---@alias ReplicateCommandPayload {species: string}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PropagateTemplatePayload {traits: AnalyzedBeeTraits}
+---@alias PrintErrorPayload {errorMessage: string}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}

@@ -25,7 +25,8 @@ CommLayer.MessageCode = {
     BreedCommand = 16,
     ReplicateCommand = 17,
     PromptConditionsRequest = 18,
-    PromptConditionsResponse = 19
+    PromptConditionsResponse = 19,
+    PrintErrorRequest = 20
 }
 
 CommLayer.DefaultComPort = 34000

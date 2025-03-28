@@ -66,6 +66,16 @@ function BeeServer:PingHandler(addr, data)
 end
 
 ---@param addr string
+---@param data PrintErrorPayload
+function BeeServer:PrintErrorHandler(addr, data)
+    if data.errorMessage == nil then
+        Print("Robot error: unknown.")
+    else
+        Print(string.format("Robot error: %s", data.errorMessage))
+    end
+end
+
+---@param addr string
 ---@param data PromptConditionsPayload
 function BeeServer:PromptConditionsHandler(addr, data)
     if self.conditionsPending or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
@@ -327,6 +337,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
         [CommLayer.MessageCode.LocationRequest] = BeeServer.LocationHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
         [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler

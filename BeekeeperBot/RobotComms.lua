@@ -134,6 +134,12 @@ function RobotComms:GetTraitInfoFromServer(species)
     return UnwrapNull(response).payload.dominant
 end
 
+---@param errorMessage string
+function RobotComms:ReportErrorToServer(errorMessage)
+    local payload = {errorMessage = errorMessage}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PrintErrorRequest, payload)
+end
+
 -- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
 ---@param species string
 ---@return LocationResponsePayload | nil
