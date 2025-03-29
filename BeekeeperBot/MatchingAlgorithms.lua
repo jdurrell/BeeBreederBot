@@ -7,7 +7,7 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@alias StackFinisher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): {princess: integer | nil, drones: integer | nil}
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number
 
--- Returns a matcher that prioritizes drones that are expected to produce the highest number of target species alleles
+-- Returns a matcher that prioritizes drones that are expected to produce the highest number of target alleles
 -- with the given princess while also prioritizing the highest fertility trait available in the pool and filtering out
 -- fertility of 1 or lower.
 ---@param targetTrait string

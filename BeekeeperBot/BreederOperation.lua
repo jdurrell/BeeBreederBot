@@ -123,7 +123,6 @@ end
 
 -- Robot walks the apiary row and starts an empty apiary with the bees in the inventories in the given slots.
 -- Starts at the breeding station and ends at the breeding station.
--- TODO: Deal with the possibility of foundation blocks or special "flowers" being required and tracking which apiaries have them.
 ---@param princessSlot integer
 ---@param droneSlot integer
 function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
@@ -148,6 +147,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     local distFromStart = 0
     local scanForwards = true
     while true do
+        -- TODO: This isn't necessarily a good condition because there could be problematic environments.
         if self.bk.getBeeProgress(self.sides.left) == 0 then
             -- This apiary is empty. Place the princess and drone here.
            self:swapBees(self.sides.left)
@@ -227,6 +227,81 @@ function BreedOperator:StoreDrones(slot, point, isNew)
     self:unloadInventory()
     self:returnToStorageColumnOriginFromChest(point)
     self:returnToBreederStationFromStorageColumn()
+end
+
+-- Returns a list of bees in the storage system and where to find them.
+---@return {loc: Point, traits: AnalyzedBeeTraits}[]
+function BreedOperator:ScanAllDroneStacks()
+    local droneStacks = {}
+    ---@param loc Point
+    local function addDronesInChestToList(loc)
+        for i = 1, self.ic.getInventorySize(self.sides.front) do
+            ---@type AnalyzedBeeStack | nil
+            local stack = self.ic.getStackInSlot(self.sides.front, i)
+            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size == 64) then
+                -- This is a valid drone stack, so add it to the list.
+                -- All drones in storage are pure-bred, so we only need to add one set of traits.
+                table.insert(droneStacks, {loc = loc, traits = stack.individual.active})
+            end
+        end
+    end
+
+    self:moveToStorageColumn()
+
+    -- Check the template chest first.
+    self.robot.turnRight()
+    self.robot.forward()
+    self.robot.turnLeft()
+    self.robot.up()
+    addDronesInChestToList({x = -1, y = 1, z = 0})
+
+    -- Move back to the start of the storage column.
+    self.robot.down()
+    self.robot.turnLeft()
+    self.robot.forward()
+    self.robot.turnRight()
+
+    -- Now, scan the entire storage column for other sets of drones.
+    local point = {x = 0, y = 0, z = 0}
+    self:moveToChestFromStorageColumn(point)
+    while true do
+        addDronesInChestToList(point)
+
+        -- Search for the next chest dynamically since we don't know exactly what the storage column looks like right now.
+        self.robot.up()
+        point.y = point.y + 1
+        if self.ic.getInventorySize(self.sides.front) == nil then
+            -- If no chest in the y direction, then drop to the ground and continue in the x direction.
+            self:moveDownwards(point.y)
+            point.y = 0
+
+            self.robot.turnLeft()
+            self.robot.forward()
+            self.robot.turnRight()
+            point.x = point.x + 1
+            if self.ic.getInventorySize(self.sides.front) == nil then
+                -- If no chest on the ground in the x direction, then return to the start of the row and continue in z direction.
+                self.robot.turnRight()
+                self:moveForwards(point.x + 1)
+                self.robot.turnLeft()
+                point.x = 0
+
+                self:moveForwards(2)
+                self.robot.turnLeft()
+                self.robot.forward()
+                self.robot.turnRight()
+                point.z = point.z + 1
+                if self.ic.getInventorySize(self.sides.front) == nil then
+                    -- There are no more chests. Return to the start.
+                    self:returnToStorageColumnOriginFromChest(point)
+                    self:returnToBreederStationFromStorageColumn()
+                    break
+                end
+            end
+        end
+    end
+
+    return droneStacks
 end
 
 ---@param dist integer

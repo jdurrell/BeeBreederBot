@@ -144,6 +144,18 @@ function BeekeeperBot:BreedCommandHandler(data)
     end
 end
 
+---@param data MakeTemplatePayload
+function BeekeeperBot:MakeTemplateHandler(data)
+    -- Look for existing bees that are the closest to the template.
+    -- Probably check the templates chest first because we're likely to build one at a time.
+
+    -- Add traits into the starting template one at a time.
+    -- If the trait doesn't exist yet, then use the HighFertilityAndAlleles matcher to breed the species we need with the right trait mutation.
+    -- Then, use the ClosestMatchToTraits matcher to breed the trait into the template.
+    -- Repeat until finished.
+    -- Place the final drone stack and princess into the template chest.
+end
+
 ---@param data PropagateTemplatePayload
 function BeekeeperBot:PropagateTemplateHandler(data)
     if (data == nil) or (data.traits == nil) or (data.traits.species == nil) or (data.traits.species.uid == nil) then
