@@ -2,9 +2,11 @@
 -- The breeder robot works "in the field" and uses information queried
 -- from the bee-graph server to determine pairings of princesses and drones
 -- and manipulate inventories to move the bees between breeding or storage.
+-- TODO: Clean up and unify all the different breeding mechanisms.
 
 -- Import BeeBreederBot libraries.
 require("Shared.Shared")
+local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 local BreederOperation = require("BeekeeperBot.BreederOperation")
 local CommLayer = require("Shared.CommLayer")
 local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
@@ -146,14 +148,248 @@ end
 
 ---@param data MakeTemplatePayload
 function BeekeeperBot:MakeTemplateHandler(data)
-    -- Look for existing bees that are the closest to the template.
-    -- Probably check the templates chest first because we're likely to build one at a time.
+    if data.traits == nil then
+        self:OutputError("Got unexpected MakeTemplatePayload: traits not found.")
+        return
+    end
+
+    local beeTraitSets = self.breeder:ScanAllDroneStacks()
+    if (beeTraitSets == nil) or (#beeTraitSets == 0) then
+        self:OutputError("Failed to find any bees when searching for best initial trait match.")
+        return
+    end
+
+    -- If we don't actually have all of the traits, then figure out how to breed them into the storage population.
+    ---@type {trait: string, path: BreedPathNode[]}[]
+    local traitPaths = {}
+    for trait, value in pairs(data.traits) do
+        local traitExisting = false
+        for _, v  in ipairs(beeTraitSets) do
+            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
+                traitExisting = true
+                break
+            end
+        end
+
+        if not traitExisting then
+            -- If we don't have the trait already, then check with the server whether we are able to breed that trait.
+            ---@type TraitBreedPathResponsePayload | nil
+            local path = self.robotComms:GetBreedPathForTraitFromServer(trait, value)
+            if path == nil then
+                self:OutputError("Failed to get a valid breeding for the requested mutation.")
+                return
+            end
+
+            table.insert(traitPaths, {trait = trait, path = path})
+        end
+    end
+
+    -- Now, actually breed those traits into the storage population, if necessary.
+    for _, v in ipairs(traitPaths) do
+        for _, pathNode in ipairs(v.path) do
+            ::restart::
+            if pathNode.parent1 ~= nil then
+                local retval = self:ReplicateSpecies(pathNode.parent1, true, true, 1)
+                if retval == nil then
+                    self:OutputError("Fatal error: Replicate species '" .. pathNode.parent1 .. "' failed.")
+                    self:Shutdown(1)
+                end
+                -- Convergence failure is handled inside ReplicateSpecies.
+            end
+
+            if pathNode.parent2 ~= nil then
+                local retval = self:ReplicateSpecies(pathNode.parent2, true, false, 2)
+                if retval == nil then
+                    self:OutputError("Fatal error: Replicate species '" .. pathNode.parent2 .. "' failed.")
+                    self:Shutdown(1)
+                end
+                -- Convergence failure is handled inside ReplicateSpecies.
+            end
+
+            -- Set up the breeding station.
+            self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
+            self:EnsureSpecialConditionsMet(pathNode)
+
+            -- Do the breeding.
+            local breedInfoCacheElement = {}
+            local traitInfoCache = {species = {}}
+            local finishedDroneSlot = self:Breed(
+                MatchingAlgorithms.HighFertilityAndAllelesMatcher(v.trait, data.traits[v.trait], breedInfoCacheElement, traitInfoCache),
+                MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target),
+                GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
+                function (princessStack, droneStackList)
+                    self:PopulateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCacheElement)
+                    self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+                end
+            ).drones
+
+            if finishedDroneSlot == nil then
+                self:OutputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", pathNode.target, pathNode.parent1, pathNode.parent2))
+                self.breeder:BreakAndReturnFoundationsToInputChest()  -- Avoid double-prompting for foundations.
+                goto restart
+            end
+
+            -- If we have enough of the target species now, then inform the server and store the drones at the new location.
+            -- Technically, we only require the finished stack to have the desired trait, which doesn't require it to be the "target" species.
+            local species = UnwrapNull(self.breeder:GetStackInDroneSlot(finishedDroneSlot)).individual.active.species.uid
+            local storageResponse = self.robotComms:ReportNewSpeciesToServer(species)
+            if storageResponse == nil then
+                self:OutputError("Error getting storage location of " .. species .. " from server.")
+                self.breeder:BreakAndReturnFoundationsToInputChest()
+                return
+            end
+
+            self.breeder:StoreDrones(finishedDroneSlot, storageResponse.loc, storageResponse.isNew)
+            self.breeder:TrashSlotsFromDroneChest(nil)
+            self.breeder:ReturnActivePrincessesToStock()
+            self.breeder:BreakAndReturnFoundationsToInputChest()
+        end
+    end
+
+    -- Now that all the required traits bees are present, refresh our view and look for existing bees that are the closest to the template.
+    beeTraitSets = self.breeder:ScanAllDroneStacks()
+    if (beeTraitSets == nil) or (#beeTraitSets == 0) then
+        self:OutputError("Failed to find any bees when searching for best initial trait match.")
+        return
+    end
+
+    local maxTraitSet = nil
+    local maxMatchingTraits = 0
+    for _, v in ipairs(beeTraitSets) do
+        local matchingTraits = 0
+        for trait, value in pairs(data.traits) do
+            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
+                matchingTraits = matchingTraits + 1
+            end
+        end
+        if (maxTraitSet == nil) or (matchingTraits > maxMatchingTraits) then
+            maxTraitSet = v
+            maxMatchingTraits = matchingTraits
+        end
+    end
+
+    -- Retrieve the existing bees with the highest number of matching traits to have the best starting point.
+    self.breeder:RetrieveDronesFromChest(maxTraitSet.loc, 64, maxTraitSet.traits)
+    self.breeder:RetrieveStockPrincessesFromChest(1, {maxTraitSet.traits.species.uid})
+    local mustReturnToStorage = true
+
+    -- Duplicate this starter template up front, and put the rest of it back into storage.
+    -- TODO: This duplication is hacky.
+    -- self.breeder:ExportDroneStacksToHoldovers({1}, {32}, {1})
+    -- local replicated = self:ReplicateTemplate(maxTraitSet.traits)
+    -- self.breeder:ExportDroneStacksToHoldovers({UnwrapNull(replicated.drones)}, {32}, {1})
+    -- replicated = self:ReplicateTemplate(maxTraitSet.traits)
+    -- self.breeder:StoreDrones(UnwrapNull(replicated.drones), maxTraitSet.loc, false)
+
+    -- Now put the princesses in the holdover chest.
+    self.breeder:RetrieveStockPrincessesFromChest(1, nil)
+    self.breeder:ExportPrincessStacksToHoldovers({1, 2}, {1, 1}, {10, 11})
+
+    local finishedTraits = {}
+    for trait, value in pairs(data.traits) do
+        if AnalysisUtil.TraitIsEqual(maxTraitSet.traits, trait, value) then
+            finishedTraits[trait] = value
+        end
+    end
 
     -- Add traits into the starting template one at a time.
-    -- If the trait doesn't exist yet, then use the HighFertilityAndAlleles matcher to breed the species we need with the right trait mutation.
-    -- Then, use the ClosestMatchToTraits matcher to breed the trait into the template.
-    -- Repeat until finished.
-    -- Place the final drone stack and princess into the template chest.
+    for trait, value in pairs(data.traits) do
+        if finishedTraits[trait] ~= nil then
+            -- We only need to breed in traits that we haven't finished with yet.
+            goto continue
+        end
+
+        -- Retrieve drones that have the requested trait and convert a stock princess to a pure-bred.
+        ---@type {loc: Point, traits: AnalyzedBeeTraits}
+        local traitSet = {}
+        for _, beeTraitSet in ipairs(beeTraitSets) do
+            if (beeTraitSet ~= maxTraitSet) and AnalysisUtil.TraitIsEqual(beeTraitSet, trait, value) then
+                traitSet = beeTraitSet
+                break
+            end
+        end
+        -- `traitSet` should never be empty because we guaranteed that the bees were available earlier.
+        self.breeder:RetrieveDronesFromChest(traitSet.loc, 64, traitSet.traits)
+        self.breeder:ExportDroneStacksToHoldovers({1}, {64}, {2})
+
+        local outSlots = {drones = nil, princess = nil}
+        while outSlots.drones == nil do
+            -- For safety, replicate extras of our starting sets to ensure we don't accidentally breed them out.
+            -- We only need 16 more of these, so retrieve 64 - 16 = 48.
+            self.breeder:ImportHoldoverStacksToDroneChest({2}, {48}, {1})
+            self.breeder:ImportHoldoverStacksToPrincessChest({11}, {1}, {1})
+            local slots = self:ReplicateTemplate(self.breeder:GetDronesInChest()[1].individual.active)
+            if slots.drones == nil then
+                -- This should never error.
+                self:OutputError("Error replicating template of starting species.")
+                self:Shutdown(1)
+            end
+            self.breeder:ExportDroneStacksToHoldovers({slots.drones, slots.drones}, {48, 16}, {2, 27})
+            self.breeder:ExportPrincessStacksToHoldovers({slots.princess}, {1}, {11})
+
+            -- We only need 16 more of these, so retrieve 64 - 16 = 48.
+            self.breeder:ImportHoldoverStacksToDroneChest({1}, {48}, {1})
+            self.breeder:ImportHoldoverStacksToPrincessChest({10}, {1}, {1})
+            slots = self:ReplicateTemplate(self.breeder:GetDronesInChest()[1].individual.active)
+            if slots.drones == nil then
+                -- This should never error.
+                self:OutputError("Error replicating starting template.")
+                self:Shutdown(1)
+            end
+            self.breeder:ExportDroneStacksToHoldovers({slots.drones, slots.drones}, {48, 16}, {1, 26})
+            self.breeder:ExportPrincessStacksToHoldovers({slots.princess}, {1}, {10})
+
+            -- Now breed the desired traits into the working template.
+            self.breeder:ImportHoldoverStacksToDroneChest({26, 27}, {16, 16}, {1, 2})
+            self.breeder:ImportHoldoverStacksToPrincessChest({11}, {1}, {1})
+            outSlots = self:ReplicateTemplate(data.traits)
+            if outSlots.drones == nil then
+                -- Set back up to restart.
+                self.breeder:ExportPrincessStacksToHoldovers({1}, {1}, {11})
+                self.breeder:TrashSlotsFromDroneChest(nil)
+            end
+        end
+
+        -- We now have a princess and full drone stack of the template with this trait added in.
+        -- Update the finished traits. We only tried for `trait`, but technically we might have added others by luck.
+        local newTraits = self.breeder:GetStackInDroneSlot(outSlots.drones).individual.active
+        for newTrait, _ in pairs(newTraits) do
+            if finishedTraits[newTrait] == nil and AnalysisUtil.TraitIsEqual(newTraits, newTrait, data.traits[newTrait]) then
+                finishedTraits[newTrait] = data.traits[newTrait]
+            end
+        end
+
+        -- Save these away from the active chests, then clear out the drone chest.
+        self.breeder:ExportDroneStacksToHoldovers({outSlots.drones}, {64}, {19})
+        self.breeder:ExportPrincessStacksToHoldovers({outSlots.princess}, {1}, {20})
+        self.breeder:TrashSlotsFromDroneChest(nil)
+
+        -- Shuffle items around in the holdover chest to place the newest generation at the right locations.
+        -- TODO: This is hacky.
+        self.breeder:ImportHoldoverStacksToDroneChest({1, 2, 19}, {64, 64, 64}, {1, 2, 3})
+        self.breeder:ImportHoldoverStacksToPrincessChest({10, 20}, {64}, {1, 2})
+        self.breeder:ExportDroneStacksToHoldovers({3}, {64}, {1})
+        self.breeder:ExportPrincessStacksToHoldovers({1, 2}, {1, 1}, {11, 10})  -- Flip the princess order because the resultant one is now the same as the 
+
+        -- Now, return the drones from the previous generation to storage because we no longer need them.
+        self.breeder:StoreDrones(2, traitSet.loc, false)
+        if mustReturnToStorage then
+            -- If this was a pre-existing set of drones, return them to storage.
+            self.breeder:StoreDrones(1, maxTraitSet.loc, false)
+            mustReturnToStorage = false
+        else
+            -- Otherwise, they were an intermediate result. Simply remove them.
+            self.breeder:TrashSlotsFromDroneChest({1})
+        end
+
+        ::continue::
+    end
+
+    -- Final bee stacks are in the holdover chest. Pull them out and store them.
+    self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
+    self.breeder:ImportHoldoverStacksToPrincessChest({10, 11}, {1, 1}, {1, 2})
+    self.breeder:StoreBeesInTemplate(1, 1)
+    self.breeder:ReturnActivePrincessesToStock()
 end
 
 ---@param data PropagateTemplatePayload

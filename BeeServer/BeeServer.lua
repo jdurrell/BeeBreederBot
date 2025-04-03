@@ -134,6 +134,38 @@ function BeeServer:SpeciesFoundHandler(addr, data)
 end
 
 ---@param addr string
+---@param data TraitBreedPathRequestPayload
+function BeeServer:TraitBreedPathHandler(addr, data)
+    if (data.trait == nil) or (data.value == nil) then
+        Print("Got unexpected TraitBreedPathRequestPayload format.")
+        return
+    end
+
+    Print(string.format("Trait '%s: %s' is not found in the bee storage.", data.trait, tostring(data.value)))
+    local path = nil
+    while path == nil do
+        -- TODO: Figure this out from a list of default chromosomes, and don't force the player to figure this out manually.
+        --       There may be some portability and memory to that, though.
+        Print("Enter a species to breed with the desired trait mutation: ")
+        local species = self.term.pull(40000)
+        if (species == nil) or self.beeGraph[species] == nil then
+            goto continue
+        elseif species == "cancel" then
+            -- Give the user a way to break out of this, if they need to.
+            return
+        end
+
+        path = self:GetBreedPath(species, true)
+        if path == nil then
+            Print(string.format("No path found for species '%s'.", species))
+        end
+        ::continue::
+    end
+
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathRequest, path)
+end
+
+---@param addr string
 ---@param data TraitInfoRequestPayload
 function BeeServer:TraitInfoHandler(addr, data)
     local payload = {dominant = TraitInfo[data.species]}
@@ -184,47 +216,11 @@ function BeeServer:BreedCommandHandler(argv)
         end
     end
 
-    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species)
+    local path = self:GetBreedPath(species, false)
     if path == nil then
         Print("Error: Could not find breeding path for species '" .. species .. "'.")
         return
     end
-
-    -- We computed a valid path for this species. Send it to the robot and print it out for the user.
-    Print("Breeding " .. species .. " bees. Full breeding order:")
-    local printstr = ""
-    for _, node in ipairs(path) do
-        printstr = string.format("%s, %s", printstr, node.target)
-    end
-    Print(printstr)
-
-    Sleep(0.5)
-    Print("Required foundation blocks:")
-    printstr = ""
-    for _, node in ipairs(path) do
-        ---@type string[] | nil
-        local conditions = nil
-        for _, mut in ipairs(self.beeGraph[node.target].parentMutations) do
-            if (
-                ((mut.parents[1] == node.parent1) and (mut.parents[2] == node.parent2)) or
-                ((mut.parents[1] == node.parent2) and (mut.parents[2] == node.parent1))
-            ) then
-                conditions = mut.specialConditions
-                break
-            end
-        end
-        if (conditions ~= nil) and (#conditions > 0) then
-            for _, condition in ipairs(conditions) do
-                local foundation = condition:find(" as a foundation")
-                if foundation ~= nil then
-                    local foundationStr = condition:gsub("Requires ", ""):gsub(" as a foundation.", "")
-                    printstr = string.format("%s, %s", printstr, foundationStr)
-                    node.foundation = foundationStr
-                end
-            end
-        end
-    end
-    Print(printstr)
 
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, path)
 end
@@ -274,6 +270,56 @@ end
 
 ---------------------
 --- Other instance functions.
+
+---@param species string
+---@param forceRebreed boolean
+---@return BreedPathNode[] | nil
+function BeeServer:GetBreedPath(species, forceRebreed)
+    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species, forceRebreed)
+    if path == nil then
+        Print("Error: Could not find breeding path for species '" .. species .. "'.")
+        return nil
+    end
+
+    -- We computed a valid path for this species. Send it to the robot and print it out for the user.
+    Print("Will breed " .. species .. " bees. Full breeding order:")
+    local printstr = ""
+    for _, node in ipairs(path) do
+        printstr = string.format("%s, %s", printstr, node.target)
+    end
+    Print(printstr)
+
+    Sleep(0.5)
+    Print("Required foundation blocks:")
+    printstr = ""
+    for _, node in ipairs(path) do
+        ---@type string[] | nil
+        local conditions = nil
+        for _, mut in ipairs(self.beeGraph[node.target].parentMutations) do
+            if (
+                ((mut.parents[1] == node.parent1) and (mut.parents[2] == node.parent2)) or
+                ((mut.parents[1] == node.parent2) and (mut.parents[2] == node.parent1))
+            ) then
+                conditions = mut.specialConditions
+                break
+            end
+        end
+        if (conditions ~= nil) and (#conditions > 0) then
+            for _, condition in ipairs(conditions) do
+                local foundation = condition:find(" as a foundation")
+                if foundation ~= nil then
+                    local foundationStr = condition:gsub("Requires ", ""):gsub(" as a foundation.", "")
+                    printstr = string.format("%s, %s", printstr, foundationStr)
+                    node.foundation = foundationStr
+                end
+            end
+        end
+    end
+    Print(printstr)
+
+    return path
+end
+
 
 -- Shuts down the server.
 ---@param code integer

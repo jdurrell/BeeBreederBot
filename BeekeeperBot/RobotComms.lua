@@ -75,7 +75,27 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
         self.serverAddr = self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, payload, true) then
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, response, true) then
+        return nil
+    end
+
+    return UnwrapNull(response).payload
+end
+
+---@param trait string
+---@param value any
+---@return TraitBreedPathResponsePayload | nil
+function RobotComms:GetBreedPathForTraitFromServer(trait, value)
+    ::restart::
+    local payload = {trait = trait, value = value}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, payload)
+
+    local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse)
+    if response == nil then
+        self.serverAddr = self:EstablishComms()
+        goto restart
+    end
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, response, true) then
         return nil
     end
 

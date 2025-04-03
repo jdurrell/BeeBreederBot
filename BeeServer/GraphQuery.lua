@@ -45,13 +45,14 @@ local M = {}
 ---@param graph SpeciesGraph
 ---@param leafSpecies string[]
 ---@param target string
+---@param forceRebreed boolean
 ---@return BreedPathNode[] | nil
-function M.QueryBreedingPath(graph, leafSpecies, target)
+function M.QueryBreedingPath(graph, leafSpecies, target, forceRebreed)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
     for _, spec in ipairs(leafSpecies) do
-        -- If we already have the species, then it should be the only thing in the breed path.
-        if spec == target then
+        -- If we can just re-use the drones we've already bred, then it should be the only thing in the breed path.
+        if (not forceRebreed) and (spec == target) then
             return {{target = target, parent1 = nil, parent2 = nil}}
         end
 

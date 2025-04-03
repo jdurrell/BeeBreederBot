@@ -190,6 +190,8 @@ local CodedMessage = {}
 ---@alias PropagateTemplatePayload {traits: AnalyzedBeeTraits}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias MakeTemplatePayload {traits: AnalyzedBeeTraits}
+---@alias TraitBreedPathRequestPayload {trait: string, value: any}
+---@alias TraitBreedPathResponsePayload BreedPathNode[]
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}
