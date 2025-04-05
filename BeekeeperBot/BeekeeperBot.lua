@@ -17,7 +17,6 @@ local RobotComms = require("BeekeeperBot.RobotComms")
 ---@field component Component
 ---@field event Event
 ---@field breeder BreedOperator
----@field logFilepath string
 ---@field messageHandlerTable table<MessageCode, fun(bot: BeekeeperBot, data: any)>
 ---@field robotComms RobotComms
 local BeekeeperBot = {}
