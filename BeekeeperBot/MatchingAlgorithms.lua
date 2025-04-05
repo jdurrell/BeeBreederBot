@@ -38,7 +38,7 @@ end
 
 -- Returns matcher that prioritizes drones that, when combined with the princess, give the greatest number of target alleles
 -- in the two parents.
----@param targetTraits AnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits
 ---@return Matcher
 function M.ClosestMatchToTraitsMatcher(targetTraits)
     local maxScore = 0
@@ -141,7 +141,7 @@ end
 
 -- Returns a stack finisher that returns the slot of the finished princess in ANALYZED_PRINCESS_CHEST and then slot of
 -- the finished drones in ANALYZED_DRONE_CHEST if both the princess and a full stack of drones have all the target traits.
----@param targetTraits AnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits
 ---@return StackFinisher
 function M.FullDroneStackAndPrincessOfTraitsFinisher(targetTraits)
     return function (princessStack, droneStackList)

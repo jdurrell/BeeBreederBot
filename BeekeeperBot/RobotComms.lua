@@ -37,6 +37,7 @@ end
 
 ---@return string addr  The address of the server that responded to the ping.
 function RobotComms:EstablishComms()
+    -- TODO: Do addresses even change when a computer reboots, or can the address be in the config?
     Print("Establishing conection to server...")
 
     while true do
@@ -115,27 +116,6 @@ function RobotComms:GetCommandFromServer()
 end
 
 ---@param species string
----@return LocationResponsePayload | nil
-function RobotComms:GetStorageLocationFromServer(species)
-    -- TODO: This concept probably shouldn't exist at all. Originally, it seemed simpler for the server to manage
-    --       storage locations, but it is probably easier for the drone to jam drones and princesses wherever they
-    --       fit in a chest row and just search for them by scanning.
-    ::restart::
-    local payload = {species = species}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.LocationRequest, payload)
-
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.LocationResponse)
-    if response == nil then
-        self.serverAddr = self:EstablishComms()
-        goto restart
-    elseif not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
-        return nil
-    end
-
-    return UnwrapNull(response).payload
-end
-
----@param species string
 ---@return boolean | nil
 function RobotComms:GetTraitInfoFromServer(species)
     ::restart::
@@ -162,23 +142,21 @@ end
 
 -- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
 ---@param species string
----@return LocationResponsePayload | nil
 function RobotComms:ReportNewSpeciesToServer(species)
     ::restart::
     -- Report the update to the server.
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.LocationResponse)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.SpeciesFoundResponse)
     if response == nil then
         self.serverAddr = self:EstablishComms()
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.LocationResponse, response, true) then
+    if not self:ValidateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
         return nil
     end
 
-    return UnwrapNull(response).payload
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.

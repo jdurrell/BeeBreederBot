@@ -2,6 +2,10 @@
 
 IS_TEST = false  -- Backdoor for testing to suppress print statements, sleeps, and other things.
 
+function __ActivateTestMode()
+    IS_TEST = true
+end
+
 function GetCurrentTimestamp()
     return math.floor(os.time())
 end
@@ -45,8 +49,18 @@ function ExitProgram(code)
     end
 end
 
-function __ActivateTestMode()
-    IS_TEST = true
+---@generic T
+---@param arr T[]
+---@param value T
+---@return boolean
+function ArrayContains(arr, value)
+    for _, v in ipairs(arr) do
+        if v == value then
+            return true
+        end
+    end
+
+    return false
 end
 
 -- This function taken from http://lua-users.org/wiki/CopyTable.

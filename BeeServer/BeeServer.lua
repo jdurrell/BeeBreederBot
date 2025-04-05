@@ -18,9 +18,7 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field botAddr string
 ---@field comm CommLayer
 ---@field conditionsPending boolean
----@field foundSpecies ChestArray
 ---@field messageHandlerTable table<integer, function>
----@field nextChest Point
 ---@field leafSpeciesList string[]
 ---@field logFilepath string
 ---@field terminalHandlerTable table<string, function>
@@ -40,17 +38,6 @@ function BeeServer:BreedInfoHandler(addr, data)
     local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
     local payload = {targetMutChance=targetMutChance, nonTargetMutChance=nonTargetMutChance}
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
-end
-
----@param addr string
----@param data LocationRequestPayload
-function BeeServer:LocationHandler(addr, data)
-    if (data == nil) or (data.species == nil) then
-        return
-    end
-
-    local payload = {loc = self.foundSpecies[data.species], isNew = false}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
 end
 
 ---@param addr string
@@ -118,19 +105,15 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     if data.species == nil then
         return
     end
-    local isNew = (self.foundSpecies[data.species] == nil)
 
     -- Update the species that was found by the robot in our internal state and on disk.
-    if (isNew) then
-        self.foundSpecies[data.species] = {loc = Copy(self.nextChest), timestamp = GetCurrentTimestamp()}
-        self:IncrementNextChest()
+    if not ArrayContains(self.leafSpeciesList, data.species) then
         table.insert(self.leafSpeciesList, data.species)
-        Logger.LogSpeciesToDisk(self.logFilepath, data.species, self.foundSpecies[data.species].loc, self.foundSpecies[data.species].timestamp)
+        Logger.LogSpeciesToDisk(self.logFilepath, data.species)
     end
 
-    -- Respond back to the robot with the new location for this species.
-    local payload = {loc = self.foundSpecies[data.species].loc, isNew = isNew}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.LocationResponse, payload)
+    -- Respond back to the robot acknowledging that we have recorded the new find.
+    self.comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundResponse)
 end
 
 ---@param addr string
@@ -320,7 +303,6 @@ function BeeServer:GetBreedPath(species, forceRebreed)
     return path
 end
 
-
 -- Shuts down the server.
 ---@param code integer
 function BeeServer:Shutdown(code)
@@ -329,18 +311,6 @@ function BeeServer:Shutdown(code)
     end
 
     ExitProgram(code)
-end
-
-function BeeServer:IncrementNextChest()
-    self.nextChest.x = self.nextChest.x + 1
-    if self.nextChest.x >= 8 then
-        self.nextChest.x = 0
-        self.nextChest.y = self.nextChest.y + 1
-        if self.nextChest.y >=  8 then
-            self.nextChest.y = 0
-            self.nextChest.z = self.nextChest.z + 1
-        end
-    end
 end
 
 
@@ -381,7 +351,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     -- Register request handlers.
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [CommLayer.MessageCode.LocationRequest] = BeeServer.LocationHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
@@ -406,30 +375,8 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
 
-    -- Read our local logfile to figure out which species we already have and where they're stored.
-    obj.foundSpecies = Logger.ReadSpeciesLogFromDisk(logFilepath)
-    if obj.foundSpecies == nil then
-        Print("Got an error while reading logfile.")
-        obj:Shutdown(1)
-    end
-    obj.leafSpeciesList = {}
-    for spec, _ in pairs(obj.foundSpecies) do
-        table.insert(obj.leafSpeciesList, spec)
-    end
-
-    -- Figure out the next viable storage location based on the locations in the log.
-    local maxPoint = {x = 0, y = 0, z = 0}
-    for _, node in pairs(obj.foundSpecies) do
-        if (
-            (node.loc.z > maxPoint.z) or
-            ((node.loc.z == maxPoint.z) and (node.loc.y > maxPoint.y)) or
-            ((node.loc.z == maxPoint.z) and (node.loc.y == maxPoint.y) and (node.loc.x > maxPoint.x))
-        ) then
-            maxPoint = node.loc
-        end
-    end
-    obj.nextChest = Copy(maxPoint)
-    obj:IncrementNextChest()
+    -- Read our local logfile to figure out which species we already have.
+    obj.leafSpeciesList = Logger.ReadSpeciesLogFromDisk(logFilepath)
 
     obj.breedPath = nil
     obj.botAddr = nil

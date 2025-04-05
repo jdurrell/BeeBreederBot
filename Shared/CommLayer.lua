@@ -14,6 +14,7 @@ CommLayer.MessageCode = {
     CancelCommand = 4,
     -- CancelResponse = 5,        -- Do we really need to send an ACK for this?
     SpeciesFoundRequest = 6,
+    SpeciesFoundResponse = 7,  -- Basically just an ACK for SpeciesFoundRequest.
     BreedInfoRequest = 8,
     BreedInfoResponse = 9,
     LogStreamRequest = 10,

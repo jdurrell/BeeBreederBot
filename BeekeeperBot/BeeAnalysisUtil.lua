@@ -24,7 +24,7 @@ function M.NumberOfMatchingAlleles(bee, trait, value)
 end
 
 ---@param bee AnalyzedBeeIndividual
----@param targetTraits AnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits
 ---@return boolean
 function M.AllTraitsEqual(bee, targetTraits)
     for trait, value in pairs(targetTraits) do

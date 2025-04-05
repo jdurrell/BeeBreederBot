@@ -285,8 +285,8 @@ TestConvergenceHighFertilityAndAlleles = {}
         local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesVindictive"], traitInfo), 32, 2)
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesVindictive"], traitInfo), 16, 2)
         }
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
 
@@ -312,8 +312,8 @@ TestConvergenceHighFertilityAndAlleles = {}
         local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 32, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 32, 2)
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 16, 2)
         }
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
 

@@ -26,7 +26,7 @@ function M.ClearDronesByFertilityPurityStackSizeCollector(target)
     end
 end
 
----@param targetTraits AnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits
 ---@return GarbageCollector
 function M.ClearDronesByFurthestAlleleMatchingCollector(targetTraits)
     return function (droneStackList, minDronesToClear)

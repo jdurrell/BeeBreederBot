@@ -1,12 +1,11 @@
 -- This file contains types for easy reference and external Intellisense.
 -- It isn't needed on the in-game devices since it provides no direct functionality.
-
 ---@meta
 
 ---@class SpeciesNode
----@field speciesName string          The name of this species.
+---@field speciesName string  The uid of this species.
 ---@field parentMutations {parents: string[], chance: number, specialConditions: string[]}[]  All parent mutations that can result in this species.
----@field childMutations table<string, {parent: string, chance: number, specialConditions: string[]}[]>    Mapping of results to other parents that combo to yield that result.
+---@field childMutations table<string, {parent: string, chance: number, specialConditions: string[]}[]>  Mapping of results to other parents that combo to yield that result.
 local Speciesnode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
@@ -78,7 +77,6 @@ local TraitInfoSpecies = {}
 ---@field tolerantFlyer table<boolean, boolean>
 local TraitInfoFull = {}
 
-
 -- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
 -- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
 ---@class AnalyzedBeeStack
@@ -132,31 +130,28 @@ local AnalyzedBeeIndividual = {}
 ---@field tolerantFlyer boolean  Whether this bee can work in the rain.
 local AnalyzedBeeTraits = {}
 
+---@class PartialAnalyzedBeeTraits
+---@field caveDwelling boolean | nil  Whether this bee can work without access to the sky above its housing.
+---@field effect string | nil  The effect provided by this bee, or "NONE" if no effect.
+---@field fertility integer | nil  The number of drones produced by this bee upon dying.
+---@field flowering integer | nil  The degree to which this bee spreads flowers.
+---@field flowerProvider string | nil  Describes the flowers required by this bee. TODO: Verify these values and possibly include logic for placing correct flowers.
+---@field humidityTolerance string | nil  The humidity tolerance of this bee, or "NONE" if none.
+---@field lifespan integer | nil
+---@field nocturnal boolean | nil  Whether this bee can work at night.
+---@field species BeeSpecies | nil  Information on the species of this bee.
+---@field speed number | nil
+---@field temperatureTolerance string | nil  The temperature tolerance of this bee, of "NONE" if none.
+---@field territory integer[] | nil
+---@field tolerantFlyer boolean | nil  Whether this bee can work in the rain.
+local PartialAnalyzedBeeTraits = {}
+
 ---@class BeeSpecies
 ---@field humidity string  The humidity required by this species for its jubilant state.
 ---@field name string  The "common" name of this species.
 ---@field temperature string  The temperature required by this species for its jubilant state.
 ---@field uid string  The unique identifier for this species like "forestry.speciesForest".
 local BeeSpecies = {}
-
----@class StorageNode
----@field loc Point
----@field timestamp integer
-local StorageNode = {}
-
----@alias ChestArray table<string, StorageNode>
-
-
----@class StorageInfo
----@field nextChest Point  The next open chest to use for a new species.
----@field chestArray ChestArray  Mapping of species to the chest where they are stored.
-local StorageInfo = {}
-
----@class Point
----@field x integer
----@field y integer
----@field z integer
-local Point = {}
 
 -- TODO: Define types for message payloads.
 --- Generics are still in progress, which is why this looks a little weird compared to the other types.
@@ -180,16 +175,14 @@ local CodedMessage = {}
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias SpeciesFoundRequestPayload {species: string}
----@alias LocationRequestPayload {species: string}
----@alias LocationResponsePayload {loc: Point, isNew: boolean}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
 ---@alias BreedCommandPayload BreedPathNode[]
 ---@alias ReplicateCommandPayload {species: string}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
----@alias PropagateTemplatePayload {traits: AnalyzedBeeTraits}
+---@alias PropagateTemplatePayload {traits: PartialAnalyzedBeeTraits}
 ---@alias PrintErrorPayload {errorMessage: string}
----@alias MakeTemplatePayload {traits: AnalyzedBeeTraits}
+---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits}
 ---@alias TraitBreedPathRequestPayload {trait: string, value: any}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 

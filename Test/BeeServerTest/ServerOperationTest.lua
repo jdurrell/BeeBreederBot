@@ -185,7 +185,7 @@ TestBeeServerStandalone = {}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId=456789})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
-        Luaunit.assertEquals(response, {transactionId=456789})
+        Luaunit.assertEquals(response, {transactionId = 456789})
 
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(server, serverThread)
@@ -206,7 +206,7 @@ TestBeeServerStandalone = {}
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoRequest, {parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"})  -- Pick a simple species that's easy to verify.
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
-        Luaunit.assertEquals(response, {targetMutChance=0.08, nonTargetMutChance=0})
+        Luaunit.assertEquals(response, {targetMutChance = 0.08, nonTargetMutChance = 0})
 
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(server, serverThread)
@@ -224,21 +224,12 @@ TestBeeServerStandalone = {}
         Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesIndustrious"})
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species = "forestry.speciesIndustrious"})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
-        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
-        Luaunit.assertEquals(response, {loc={x=1, y=2, z=0}, isNew=true})
+        VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
-        local expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
-            ["forestry.speciesIndustrious"]={loc={x=1, y=2, z=0}}
-        }
-        Util.AssertAllKnowableFields(server.foundSpecies, expectedFoundSpecies)
-        Util.AssertAllKnowableFields(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
-        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+        Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
 
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(server, serverThread)
@@ -258,18 +249,10 @@ TestBeeServerStandalone = {}
         RunThreadAndVerifyResponse(serverThread, "event_pull")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
-        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.LocationResponse)
-        Luaunit.assertEquals(response, {loc={x=0, y=0, z=0}, isNew=false})
+        VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
-        local expectedFoundSpecies = {
-            ["forestry.speciesForest"]={loc={x=0, y=0, z=0}, timestamp=123456},
-            ["forestry.speciesMeadows"]={loc={x=0, y=1, z=0}, timestamp=123456},
-            ["forestry.speciesTropical"]={loc={x=0, y=2, z=0}, timestamp=123456},
-        }
-        Luaunit.assertEquals(server.foundSpecies, expectedFoundSpecies)
-        Luaunit.assertEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), expectedFoundSpecies)
-        Util.VerifyLogIsValidLog(Util.DEFAULT_LOG_PATH)
+        Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
 
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(server, serverThread)

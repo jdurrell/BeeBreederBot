@@ -88,20 +88,6 @@ function AssertGraphsEquivalent(graph1, graph2)
     end
 end
 
----@generic T
----@param arr T[]
----@param value T
----@return boolean
-function ArrayContains(arr, value)
-    for _, v in ipairs(arr) do
-        if v == value then
-            return true
-        end
-    end
-
-    return false
-end
-
 TestGraphParse = {}
     function TestGraphParse:TestAddMutationToEmptyGraph()
         local expected = {
