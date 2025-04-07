@@ -40,6 +40,7 @@ function BeeServer:BreedInfoHandler(addr, data)
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
 end
 
+-- Handles requests for dynamically changing addresses.
 ---@param addr string
 ---@param data PingRequestPayload
 function BeeServer:PingHandler(addr, data)
@@ -184,11 +185,6 @@ function BeeServer:BreedCommandHandler(argv)
         return
     end
 
-    if self.botAddr == nil then
-        Print("Error: No comms to bot.")
-        return
-    end
-
     for _, leaf in ipairs(self.leafSpeciesList) do
         if leaf == species then
             -- If we already have the species, then send this as a replicate command.
@@ -323,10 +319,9 @@ end
 ---@param eventLib Event
 ---@param serialLib Serialization
 ---@param termLib Term
----@param logFilepath string
----@param port integer
+---@param config BeeServerConfig
 ---@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepath, port)
+function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -336,9 +331,10 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     -- own system libraries for testing.
     obj.event = eventLib
     obj.term = termLib
-    obj.logFilepath = logFilepath
+    obj.botAddr = config.botAddr
+    obj.logFilepath = config.logFilepath
 
-    obj.comm = CommLayer:Open(eventLib, componentLib.modem, serialLib, port)
+    obj.comm = CommLayer:Open(eventLib, componentLib.modem, serialLib, config.port)
     if obj.comm == nil then
         Print("Failed to open communication layer.")
 
@@ -376,10 +372,9 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, logFilepat
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
 
     -- Read our local logfile to figure out which species we already have.
-    obj.leafSpeciesList = Logger.ReadSpeciesLogFromDisk(logFilepath)
+    obj.leafSpeciesList = Logger.ReadSpeciesLogFromDisk(config.logFilepath)
 
     obj.breedPath = nil
-    obj.botAddr = nil
     obj.conditionsPending = false
 
     return obj

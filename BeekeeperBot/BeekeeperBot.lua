@@ -28,10 +28,9 @@ local BeekeeperBot = {}
 ---@param robotLib any
 ---@param serialLib Serialization | nil
 ---@param sidesLib any
----@param port integer
----@param numApiaries integer
+---@param config BeekeeperBotConfig
 ---@return BeekeeperBot
-function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesLib, port, numApiaries)
+function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesLib, config)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -54,14 +53,14 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     end
     componentLib = UnwrapNull(componentLib)
 
-    local robotComms = RobotComms:Create(eventLib, componentLib.modem, serialLib, port)
+    local robotComms = RobotComms:Create(eventLib, componentLib.modem, serialLib, config.serverAddr, config.port)
     if robotComms == nil then
         Print("Failed to initialize RobotComms during BeekeeperBot initialization.")
         obj:Shutdown(1)
     end
     obj.robotComms = UnwrapNull(robotComms)
 
-    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, robotLib, sidesLib, numApiaries)
+    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, robotLib, sidesLib, config.apiaries)
     if breeder == nil then
         Print("Failed to initialize breeding operator during BeekeeperBot initialization.")
         obj:Shutdown(1)

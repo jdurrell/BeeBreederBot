@@ -56,8 +56,10 @@ end
 ---@param port integer
 local function CreateServerInstance(logfile, port)
     local server = nil
+    local parentThread = Coroutine.running()
     local thread = Coroutine.create(function ()
-        server = BeeServer:Create(Component, Event, Serialization, Term, logfile, port)
+        local config = {port = port, logFilepath = logfile, botAddr = parentThread}
+        server = BeeServer:Create(Component, Event, Serialization, Term, config)
         Coroutine.yield("startup success")
         server:RunServer()
     end)
@@ -73,15 +75,9 @@ end
 ---@param port integer
 ---@param thread thread
 local function VerifyModemStateAfterServerStart(port, thread)
-    -- After starting the server normally, the modem should have only
-    -- one port open (the port we gave it) and that port should have
-    -- only one receiver (the thread we started the server on).
-    local expected = {
-        [port] = {
-            [1] = thread
-        }
-    }
-    Luaunit.assertEquals(Component.modem.__openPorts, expected)
+    -- After starting the server normally, the server should have opened a port.
+    Luaunit.assertNotIsNil(Component.modem.__openPorts[port])
+    Luaunit.assertTableContains(Component.modem.__openPorts[port], thread)
 end
 
 -- Verifies that the state of the modem is correct directly after server shutdown.
@@ -132,6 +128,11 @@ TestBeeServerStandalone = {}
         Event.__Initialize()
         Component.modem.__Initialize()
         Component.tile_for_apiculture_0_name.__Initialize({})  -- Each test is responsible for setting this up themselves.
+
+        local thisThread = Coroutine.running()
+        Event.__registerThread(thisThread)
+        local success = Modem.open(CommLayer.DefaultComPort)
+        Luaunit.assertIsTrue(success, "Test setup failed.")
     end
 
     function TestBeeServerStandalone:TestLaunchAndShutdown()
@@ -174,15 +175,12 @@ TestBeeServerStandalone = {}
 
     function TestBeeServerStandalone:TestPing()
         local thisThread = Coroutine.running()
-        Event.__registerThread(thisThread)
 
         local logFilepath = Util.CreateLogfileSeed(nil, nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
         RunThreadAndVerifyResponse(serverThread, "event_pull")
 
-        local success = Modem.open(CommLayer.DefaultComPort)
-        Luaunit.assertIsTrue(success)
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId=456789})
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId = 456789})
         RunThreadAndVerifyResponse(serverThread, "modem_send")
         local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
         Luaunit.assertEquals(response, {transactionId = 456789})
@@ -194,13 +192,10 @@ TestBeeServerStandalone = {}
 
     function TestBeeServerStandalone:TestBreedInfo()
         local thisThread = Coroutine.running()
-        Event.__registerThread(thisThread)
         ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local success = Modem.open(CommLayer.DefaultComPort)
-        Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoRequest, {parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"})  -- Pick a simple species that's easy to verify.
@@ -215,13 +210,10 @@ TestBeeServerStandalone = {}
 
     function TestBeeServerStandalone:TestSpeciesFoundNewSpecies()
         local thisThread = Coroutine.running()
-        Event.__registerThread(thisThread)
         ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local success = Modem.open(CommLayer.DefaultComPort)
-        Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species = "forestry.speciesIndustrious"})
@@ -238,13 +230,10 @@ TestBeeServerStandalone = {}
 
     function TestBeeServerStandalone:TestSpeciesFoundExistingSpecies()
         local thisThread = Coroutine.running()
-        Event.__registerThread(thisThread)
         ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local success = Modem.open(CommLayer.DefaultComPort)
-        Luaunit.assertIsTrue(success)
 
         RunThreadAndVerifyResponse(serverThread, "event_pull")
         Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})

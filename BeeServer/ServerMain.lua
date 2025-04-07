@@ -5,15 +5,22 @@ local serial = require("serialization")
 local term = require("term")
 
 local BeeServer = require("BeeServer.BeeServer")
-local CommLayer = require("Shared.CommLayer")
+local ConfigService = require("Shared.Config")
 
--- TODO: Read from config file?
-local logFilepath = "/home/BeeBreederBot/DroneLocations.log"
-local comPort = CommLayer.DefaultComPort
+local config = {port = 34000, logFilepath = "./species.log", botAddr = ""}
+if not ConfigService.LoadConfig("./server.cfg", config, false) then
+    Print("Failed to read configuration.")
+    return
+end
+
+if config.botAddr == "" then
+    Print("Error: required parameter 'botAddr' not specified.")
+    return
+end
 
 ---@cast component Component
 ---@cast event Event
 ---@cast serial Serialization
 ---@cast term Term
-local server = BeeServer:Create(component, event, serial, term, logFilepath, comPort)
+local server = BeeServer:Create(component, event, serial, term, config)
 server:RunServer()

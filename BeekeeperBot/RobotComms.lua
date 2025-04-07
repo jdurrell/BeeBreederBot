@@ -35,7 +35,8 @@ function RobotComms:ValidateExpectedMessage(expectedCode, message, shouldHavePay
     return true
 end
 
----@return string addr  The address of the server that responded to the ping.
+-- Broadcasts a message to all servers and establishes communication with the one that responds.
+-- Sets the serverAddr to the address of the server that responds.
 function RobotComms:EstablishComms()
     -- TODO: Do addresses even change when a computer reboots, or can the address be in the config?
     Print("Establishing conection to server...")
@@ -53,7 +54,8 @@ function RobotComms:EstablishComms()
             elseif (self:ValidateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) and
                 (response.payload.transactionId == tid)
             ) then
-                return UnwrapNull(addr)
+                self.serverAddr = UnwrapNull(addr)
+                return
             end
 
             -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
@@ -73,7 +75,6 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
 
     local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse)
     if response == nil then
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, response, true) then
@@ -93,7 +94,6 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value)
 
     local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse)
     if response == nil then
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, response, true) then
@@ -108,7 +108,6 @@ function RobotComms:GetCommandFromServer()
     ::restart::
     local request, _ = self.comm:GetIncoming(60)
     if request == nil then
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
 
@@ -124,7 +123,6 @@ function RobotComms:GetTraitInfoFromServer(species)
 
     local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse)
     if response == nil then
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
@@ -150,7 +148,6 @@ function RobotComms:ReportNewSpeciesToServer(species)
 
     local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.SpeciesFoundResponse)
     if response == nil then
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
@@ -172,7 +169,6 @@ function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2, need
     local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse)
     if response == nil then
         self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PingRequest)
-        self.serverAddr = self:EstablishComms()
         goto restart
     end
 end
@@ -200,9 +196,10 @@ end
 ---@param eventLib Event | nil
 ---@param modemLib Modem | nil
 ---@param serializationLib Serialization | nil
+---@param serverAddr string
 ---@param port integer
 ---@return RobotComms | nil
-function RobotComms:Create(eventLib, modemLib, serializationLib, port)
+function RobotComms:Create(eventLib, modemLib, serializationLib, serverAddr, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -214,7 +211,7 @@ function RobotComms:Create(eventLib, modemLib, serializationLib, port)
     end
     obj.comm = comm
 
-    obj.serverAddr = obj:EstablishComms()
+    obj.serverAddr = serverAddr
 
     return obj
 end

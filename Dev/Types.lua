@@ -153,6 +153,18 @@ local PartialAnalyzedBeeTraits = {}
 ---@field uid string  The unique identifier for this species like "forestry.speciesForest".
 local BeeSpecies = {}
 
+---@class BeekeeperBotConfig
+---@field apiaries integer
+---@field port integer
+---@field serverAddr string
+local BeekeeperBotConfig = {}
+
+---@class BeeServerConfig
+---@field botAddr string
+---@field logFilepath string
+---@field port integer
+local BeeServerConfig = {}
+
 -- TODO: Define types for message payloads.
 --- Generics are still in progress, which is why this looks a little weird compared to the other types.
 ---@class Message
