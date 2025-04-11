@@ -16,7 +16,11 @@ function M.LoadConfig(path, config, debug)
     end
 
     for line in configfile:lines("l") do
-        local fields = line:gmatch("[^=]+")
+        local fields = {}
+        for match in line:gmatch("[^=]+") do
+            table.insert(fields, match)
+        end
+
         if #fields ~= 2 then
             Print(string.format("Failed to parse config file. Invalid line: '%s'.", line))
             configfile:close()
@@ -38,6 +42,13 @@ function M.LoadConfig(path, config, debug)
 
     configfile:close()
     return true
+end
+
+function M.PrintConfig(config)
+    for k, v in pairs(config) do
+        Print(string.format("%s=%s", k, tostring(v)))
+    end
+    Print("")
 end
 
 return M

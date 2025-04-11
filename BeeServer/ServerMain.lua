@@ -18,6 +18,10 @@ if config.botAddr == "" then
     return
 end
 
+Print("Starting BeeServer with configuration: ")
+ConfigService.PrintConfig(config)
+Sleep(1)
+
 ---@cast component Component
 ---@cast event Event
 ---@cast serial Serialization

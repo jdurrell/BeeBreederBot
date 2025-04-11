@@ -8,7 +8,7 @@ local sides = require("sides")
 local ConfigService = require("Shared.Config")
 local BeekeeperBot = require("BeekeeperBot.BeekeeperBot")
 
-local config = {port = "34000", apiaries = "1", serverAddr = ""}
+local config = {port = 34000, apiaries = 1, serverAddr = ""}
 
 if not ConfigService.LoadConfig("./bot.cfg", config, false) then
     Print("Failed to read configuration.")
@@ -19,6 +19,10 @@ if config.serverAddr == "" then
     Print("Error: Required parameter 'serverAddr' not specified.")
     return
 end
+
+Print("Starting BeekeeperBot with configuration: ")
+ConfigService.PrintConfig(config)
+Sleep(1)
 
 ---@cast component Component
 ---@cast event Event
