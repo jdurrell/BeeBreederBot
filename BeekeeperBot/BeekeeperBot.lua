@@ -63,11 +63,16 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
         [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler,
     }
 
+    Print("Pinging server for startup...")
+    obj.robotComms:EstablishComms()
+    Print("Got response from server " .. obj.robotComms.serverAddr .. ".")
+
     return obj
 end
 
 -- Runs the main BeekeeperBot operation loop.
 function BeekeeperBot:RunRobot()
+    Print("Startup success!")
     while true do
         local request = self.robotComms:GetCommandFromServer()
 

@@ -387,6 +387,7 @@ end
 
 -- Runs the main BeeServer operation loop.
 function BeeServer:RunServer()
+    Print("Startup Success!")
     while true do
         self:PollForTerminalInputAndHandle(0.2)
         self:PollForMessageAndHandle(0.2)
