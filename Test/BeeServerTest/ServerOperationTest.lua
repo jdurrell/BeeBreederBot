@@ -8,6 +8,7 @@ local Modem = require("Test.SimulatorModules.Component.Modem")
 local Res = require("Test.Resources.TestData")
 local Serialization = require("Test.SimulatorModules.Serialization")
 local Term = require("Test.SimulatorModules.Term")
+local Thread = require("Test.SimulatorModules.Thread")
 local Util = require("Test.Utilities.CommonUtilities")
 
 local BeeServer = require("BeeServer.BeeServer")
@@ -55,19 +56,22 @@ end
 ---@param logfile string
 ---@param port integer
 local function CreateServerInstance(logfile, port)
-    local server = nil
+    local server = nil  ---@type BeeServer
     local parentThread = Coroutine.running()
     local thread = Coroutine.create(function ()
         local config = {port = port, logFilepath = logfile, botAddr = parentThread}
-        server = BeeServer:Create(Component, Event, Serialization, Term, config)
+        server = BeeServer:Create(Component, Event, Serialization, Term, Thread, config)
+        Luaunit.assertNotIsNil(server)
         Coroutine.yield("startup success")
         server:RunServer()
     end)
     Event.__registerThread(thread)
     Term.__registerThread(thread)
 
-    local response = RunThreadAndVerifyRan(thread)
-    Luaunit.assertEquals(response, "startup success")
+    RunThreadAndVerifyResponse(thread, "startup success")
+    Luaunit.assertNotIsNil(server)
+    RunThreadAndVerifyResponse(server.messagingThreadHandle.__thread, "event_pull")
+
     return thread, server
 end
 
@@ -147,8 +151,14 @@ TestBeeServerStandalone = {}
 
         -- Let the server idle for a while, then shut it down.
         for i = 1, 10 do
-            RunThreadAndVerifyResponse(serverThread, "event_pull")
             RunThreadAndVerifyResponse(serverThread, "term_pull")
+        end
+        for i = 1, 10 do
+            RunThreadAndVerifyResponse(server.messagingThreadHandle.__thread, "event_pull")
+        end
+        for i = 1, 10 do
+            RunThreadAndVerifyResponse(serverThread, "term_pull")
+            RunThreadAndVerifyResponse(server.messagingThreadHandle.__thread, "event_pull")
         end
         StopServerAndVerifyShutdown(server, serverThread)
     end
@@ -178,11 +188,12 @@ TestBeeServerStandalone = {}
 
         local logFilepath = Util.CreateLogfileSeed(nil, nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
+        local serverMessagingThread = server.messagingThreadHandle.__thread
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
 
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId = 456789})
-        RunThreadAndVerifyResponse(serverThread, "modem_send")
-        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
+        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingRequest, {transactionId = 456789})
+        RunThreadAndVerifyResponse(serverMessagingThread, "modem_send")
+        local response = VerifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.PingResponse)
         Luaunit.assertEquals(response, {transactionId = 456789})
 
         RunThreadAndVerifyResponse(serverThread, "term_pull")
@@ -196,13 +207,15 @@ TestBeeServerStandalone = {}
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", nil)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverMessagingThread = server.messagingThreadHandle.__thread
 
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoRequest, {parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"})  -- Pick a simple species that's easy to verify.
-        RunThreadAndVerifyResponse(serverThread, "modem_send")
-        local response = VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
+        RunThreadAndVerifyResponse(serverThread, "term_pull")
+        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoRequest, {parent1="forestry.speciesDiligent", parent2="forestry.speciesUnweary", target="forestry.speciesIndustrious"})  -- Pick a simple species that's easy to verify.
+        RunThreadAndVerifyResponse(server.messagingThreadHandle.__thread, "modem_send")
+        local response = VerifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.BreedInfoResponse)
         Luaunit.assertEquals(response, {targetMutChance = 0.08, nonTargetMutChance = 0})
 
+        RunThreadAndVerifyResponse(serverMessagingThread, "event_pull")
         RunThreadAndVerifyResponse(serverThread, "term_pull")
         StopServerAndVerifyShutdown(server, serverThread)
         Modem.close(CommLayer.DefaultComPort)
@@ -214,11 +227,12 @@ TestBeeServerStandalone = {}
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverMessagingThread = server.messagingThreadHandle.__thread
 
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species = "forestry.speciesIndustrious"})
-        RunThreadAndVerifyResponse(serverThread, "modem_send")
-        VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
+        RunThreadAndVerifyResponse(serverMessagingThread, "event_pull")
+        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species = "forestry.speciesIndustrious"})
+        RunThreadAndVerifyResponse(serverMessagingThread, "modem_send")
+        VerifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
         Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
@@ -234,11 +248,12 @@ TestBeeServerStandalone = {}
 
         local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
         local serverThread, server = StartServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverMessagingThread = server.messagingThreadHandle.__thread
 
-        RunThreadAndVerifyResponse(serverThread, "event_pull")
-        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})
-        RunThreadAndVerifyResponse(serverThread, "modem_send")
-        VerifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
+        RunThreadAndVerifyResponse(serverMessagingThread, "event_pull")
+        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})
+        RunThreadAndVerifyResponse(serverMessagingThread, "modem_send")
+        VerifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
 
         Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
         Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})

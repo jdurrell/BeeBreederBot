@@ -3,6 +3,7 @@
 
 local Coroutine = require("coroutine")
 
+require("Shared.Shared")
 local Queue = require("Test.SimulatorModules.Queue")
 
 ---@class Term
@@ -39,26 +40,36 @@ function M.__write(thread, message)
     M.__events[thread]:Push(message)
 end
 
+-- Dummy function to allow the server to write to the console without conflict print() vs. term.write() calls.
+---@param message string
+function M.write(message)
+    Print(message)
+end
+
+-- Reads a string from the simulated stdin of the calling thread.
+---@return string | false | nil
+function M.read()
+    while true do
+        Coroutine.yield("term_pull")
+
+        -- We actually ignore the timeout since it's largely pointless in the testing environment.
+        local thread = Coroutine.running()
+        if M.__events[thread] == nil then
+            return nil
+        end
+
+        local command = M.__events[thread]:Pull()
+        if command ~= nil then
+            return command
+        end
+    end
+end
+
 -- Attempts to read a string from the simulated stdin of the calling thread.
 ---@param timeout number
 ---@return string | nil, string | nil
 function M.pull(timeout)
-    Coroutine.yield("term_pull")
 
-    -- We actually ignore the timeout since it's largely pointless in the testing environment.
-    local thread = Coroutine.running()
-    if M.__events[thread] == nil then
-        return nil
-    end
-
-    local command = M.__events[thread]:Pull()
-    if command == nil then
-        return nil
-    end
-
-    -- TODO: Technically, I don't actually know the right name of this event.
-    --       It shouldn't really matter for testing though since we only care whether it's nil or not.
-    return "term", command
 end
 
 return M

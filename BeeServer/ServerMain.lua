@@ -3,6 +3,7 @@ local component = require("component")
 local event = require("event")
 local serial = require("serialization")
 local term = require("term")
+local thread = require("thread")
 
 require("Shared.Shared")
 local ConfigService = require("Shared.Config")
@@ -19,6 +20,9 @@ elseif serial == nil then
     return
 elseif term == nil then
     Print("Couldn't find 'term' module.")
+    return
+elseif thread == nil then
+    Print("Couldn't find 'thread' module.")
     return
 end
 
@@ -41,5 +45,5 @@ Sleep(1)
 ---@cast event Event
 ---@cast serial Serialization
 ---@cast term Term
-local server = BeeServer:Create(component, event, serial, term, config)
+local server = BeeServer:Create(component, event, serial, term, thread, config)
 server:RunServer()

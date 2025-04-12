@@ -17,7 +17,8 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field beeGraph SpeciesGraph
 ---@field botAddr string
 ---@field comm CommLayer
----@field conditionsPending boolean
+---@field messagingPromptsPending table<string, boolean>
+---@field messagingThreadHandle ThreadHandle
 ---@field messageHandlerTable table<integer, function>
 ---@field leafSpeciesList string[]
 ---@field logFilepath string
@@ -36,7 +37,7 @@ function BeeServer:BreedInfoHandler(addr, data)
     end
 
     local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
-    local payload = {targetMutChance=targetMutChance, nonTargetMutChance=nonTargetMutChance}
+    local payload = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
 end
 
@@ -66,7 +67,7 @@ end
 ---@param addr string
 ---@param data PromptConditionsPayload
 function BeeServer:PromptConditionsHandler(addr, data)
-    if self.conditionsPending or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
+    if not self.messagingPromptsPending["conditions"] or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
         return
     end
 
@@ -91,7 +92,7 @@ function BeeServer:PromptConditionsHandler(addr, data)
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.", data.target, data.parent1, data.parent2))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
     else
-        self.conditionsPending = true
+        self.messagingPromptsPending["conditions"] = true
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:", data.target, data.parent1, data.parent2))
         for _, condition in ipairs(conditions) do
             Print(condition)
@@ -125,28 +126,11 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         return
     end
 
+    -- TODO: Figure this out from a list of default chromosomes, and don't force the player to figure this out manually.
+    --       There may be some portability and memory to that, though.
+    self.messagingPromptsPending["traitbreedpath"] = true
     Print(string.format("Trait '%s: %s' is not found in the bee storage.", data.trait, tostring(data.value)))
-    local path = nil
-    while path == nil do
-        -- TODO: Figure this out from a list of default chromosomes, and don't force the player to figure this out manually.
-        --       There may be some portability and memory to that, though.
-        Print("Enter a species to breed with the desired trait mutation: ")
-        local species = self.term.pull(40000)
-        if (species == nil) or self.beeGraph[species] == nil then
-            goto continue
-        elseif species == "cancel" then
-            -- Give the user a way to break out of this, if they need to.
-            return
-        end
-
-        path = self:GetBreedPath(species, true)
-        if path == nil then
-            Print(string.format("No path found for species '%s'.", species))
-        end
-        ::continue::
-    end
-
-    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathRequest, path)
+    Print("Enter a species to breed with the desired trait mutation:")
 end
 
 ---@param addr string
@@ -156,7 +140,7 @@ function BeeServer:TraitInfoHandler(addr, data)
     self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, payload)
 end
 
----@param timeout number
+---@param timeout number | nil
 function BeeServer:PollForMessageAndHandle(timeout)
     local response, addr = self.comm:GetIncoming(timeout, nil, self.botAddr)
     if response ~= nil then
@@ -197,7 +181,6 @@ function BeeServer:BreedCommandHandler(argv)
 
     local path = self:GetBreedPath(species, false)
     if path == nil then
-        Print("Error: Could not find breeding path for species '" .. species .. "'.")
         return
     end
 
@@ -205,9 +188,36 @@ function BeeServer:BreedCommandHandler(argv)
 end
 
 ---@param argv string[]
+function BeeServer:TraitBreedPathCommandHandler(argv)
+    if self.messagingPromptsPending["traitbreedpath"] then
+        local species = argv[1]
+        if (species == nil) or self.beeGraph[species] == nil then
+            return
+        elseif species == "cancel" then
+            -- Give the user a way to break out of this, if they need to.
+            self.messagingPromptsPending["traitbreedpath"] = false
+            return
+        end
+
+        local path = self:GetBreedPath(species, true)
+        if path == nil then
+            Print(string.format("No path found for species '%s'.", species))
+            return
+        end
+
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.TraitBreedPathRequest, path)
+    end
+end
+
+---@param argv string[]
 function BeeServer:ContinueCommandHandler(argv)
-    self.conditionsPending = false
+    if not self.messagingPromptsPending["conditions"] then
+        Print("Nothing to continue. Unrecognized context for this command.")
+        return
+    end
+
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
+    self.messagingPromptsPending["conditions"] = false
 end
 
 ---@param argv string[]
@@ -220,17 +230,18 @@ function BeeServer:ShutdownCommandHandler(argv)
     self:Shutdown(0)
 end
 
----@param timeout number
-function BeeServer:PollForTerminalInputAndHandle(timeout)
-    local event, command = self.term.pull(timeout)
-    if event == nil then
+function BeeServer:PollForTerminalInputAndHandle()
+    local text = self.term.read()
+    if (text == nil) or (text == false) then
+        Print("Received cancellation token.")
+        self:Shutdown(1)
         return
     end
 
     -- Separate command line options.
     -- TODO provide a way for a single argument to have a space in it.
     local argv = {}
-    for arg in string.gmatch(UnwrapNull(command), "[^%s]+") do
+    for arg in string.gmatch(UnwrapNull(text), "[^%s]+") do
         table.insert(argv, arg)
     end
 
@@ -239,7 +250,9 @@ function BeeServer:PollForTerminalInputAndHandle(timeout)
         return
     end
 
-    if self.terminalHandlerTable[argv[1]] == nil then
+    if self.messagingPromptsPending["traitbreedpath"] then
+        self:TraitBreedPathCommandHandler(argv)
+    elseif self.terminalHandlerTable[argv[1]] == nil then
         Print("Unrecognized command.")
     else
         self.terminalHandlerTable[argv[1]](self, argv)
@@ -319,9 +332,10 @@ end
 ---@param eventLib Event
 ---@param serialLib Serialization
 ---@param termLib Term
+---@param threadLib any
 ---@param config BeeServerConfig
 ---@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
+function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib, config)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
@@ -333,6 +347,9 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     obj.term = termLib
     obj.botAddr = config.botAddr
     obj.logFilepath = config.logFilepath
+    obj.breedPath = nil
+    obj.conditionsPending = false
+    obj.messagingPromptsPending = {}
 
     obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
     if obj.comm == nil then
@@ -379,8 +396,13 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
         Print("No initial species were found.")
     end
 
-    obj.breedPath = nil
-    obj.conditionsPending = false
+    -- Set up the terminal handler thread.
+    obj.messagingThreadHandle = threadLib.create(function ()
+        while true do
+            BeeServer.PollForMessageAndHandle(obj, nil)
+        end
+    end)
+    Print("Comms online.")
 
     return obj
 end
@@ -388,9 +410,9 @@ end
 -- Runs the main BeeServer operation loop.
 function BeeServer:RunServer()
     Print("Startup Success!")
+
     while true do
-        self:PollForTerminalInputAndHandle(0.2)
-        self:PollForMessageAndHandle(0.2)
+        self:PollForTerminalInputAndHandle()
     end
 end
 
