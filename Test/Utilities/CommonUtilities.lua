@@ -66,7 +66,7 @@ function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
     if path[1].parent1 == nil then
         Luaunit.assertIsTrue(#path == 1)
         Luaunit.assertIsNil(path[1].parent2)
-        Luaunit.assertIsTrue(ArrayContains(leafNodes, path[1].target))
+        Luaunit.assertIsTrue(TableContains(leafNodes, path[1].target))
     end
 
     for _, pathNode in ipairs(path) do
@@ -92,7 +92,7 @@ function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
             -- Assert that the parents listed in the node are also in the graph.
             local parentMutation = nil
             for _, mut in ipairs(graphNode.parentMutations) do
-                if ArrayContains(mut.parents, pathNode.parent1) and ArrayContains(mut.parents, pathNode.parent2) then
+                if TableContains(mut.parents, pathNode.parent1) and TableContains(mut.parents, pathNode.parent2) then
                     parentMutation = mut
                     break;
                 end
@@ -100,8 +100,8 @@ function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
             Luaunit.assertNotIsNil(parentMutation)
 
             -- Assert that both of the parents appeared before this in the path or are leaf nodes.
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent1) or ArrayContains(leafNodes, pathNode.parent1))
-            Luaunit.assertIsTrue(ArrayContains(speciesInPath, pathNode.parent2) or ArrayContains(leafNodes, pathNode.parent2))
+            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent1) or TableContains(leafNodes, pathNode.parent1))
+            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent2) or TableContains(leafNodes, pathNode.parent2))
         end
 
         table.insert(speciesInPath, pathNode.target)

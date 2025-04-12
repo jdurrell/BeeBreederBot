@@ -193,18 +193,18 @@ function RobotComms:Shutdown()
 end
 
 -- Creates a RobotComms object.
----@param eventLib Event | nil
----@param modemLib Modem | nil
----@param serializationLib Serialization | nil
+---@param componentLib Component
+---@param eventLib Event
+---@param serializationLib Serialization
 ---@param serverAddr string
 ---@param port integer
 ---@return RobotComms | nil
-function RobotComms:Create(eventLib, modemLib, serializationLib, serverAddr, port)
+function RobotComms:Create(componentLib, eventLib, serializationLib, serverAddr, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
-    local comm = CommLayer:Open(eventLib, modemLib, serializationLib, port)
+    local comm = CommLayer:Open(componentLib, eventLib, serializationLib, port)
     if comm == nil then
         Print("Failed to open CommLayer during RobotComms initialization.")
         return nil

@@ -49,12 +49,11 @@ function ExitProgram(code)
     end
 end
 
----@generic T
----@param arr T[]
----@param value T
+---@param arr table
+---@param value any
 ---@return boolean
-function ArrayContains(arr, value)
-    for _, v in ipairs(arr) do
+function TableContains(arr, value)
+    for _, v in pairs(arr) do
         if v == value then
             return true
         end

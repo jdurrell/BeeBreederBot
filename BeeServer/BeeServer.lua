@@ -108,7 +108,7 @@ function BeeServer:SpeciesFoundHandler(addr, data)
     end
 
     -- Update the species that was found by the robot in our internal state and on disk.
-    if not ArrayContains(self.leafSpeciesList, data.species) then
+    if not TableContains(self.leafSpeciesList, data.species) then
         table.insert(self.leafSpeciesList, data.species)
         Logger.LogSpeciesToDisk(self.logFilepath, data.species)
     end
@@ -334,7 +334,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     obj.botAddr = config.botAddr
     obj.logFilepath = config.logFilepath
 
-    obj.comm = CommLayer:Open(eventLib, componentLib.modem, serialLib, config.port)
+    obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
     if obj.comm == nil then
         Print("Failed to open communication layer.")
 
@@ -365,7 +365,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
     --       We need more generous matching here to determine the correct component.
     Print("Importing bee graph.")
-    if componentLib.tile_for_apiculture_0_name == nil then
+    if not TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
         Print("Couldn't find attached apiculture tile in the component library.")
         obj:Shutdown(1)
     end

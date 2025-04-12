@@ -24,9 +24,9 @@ local BeekeeperBot = {}
 -- Creates a BeekeeperBot and does initial setup.
 -- Requires system libraries as an input.
 ---@param componentLib Component
----@param eventLib Event | nil
+---@param eventLib Event
 ---@param robotLib any
----@param serialLib Serialization | nil
+---@param serialLib Serialization
 ---@param sidesLib any
 ---@param config BeekeeperBotConfig
 ---@return BeekeeperBot
@@ -41,26 +41,16 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     -- Store away system libraries.
     -- Do this in the constructor instead of statically so that we can inject our
     -- own system libraries for testing.
-    if eventLib == nil then
-        Print("Couldn't find 'event' module.")
-        obj:Shutdown(1)
-    end
     obj.event = eventLib
 
-    if componentLib == nil then
-        Print("Couldn't find 'component' module")
-        obj:Shutdown(1)
-    end
-    componentLib = UnwrapNull(componentLib)
-
-    local robotComms = RobotComms:Create(eventLib, componentLib.modem, serialLib, config.serverAddr, config.port)
+    local robotComms = RobotComms:Create(componentLib, eventLib, serialLib, config.serverAddr, config.port)
     if robotComms == nil then
         Print("Failed to initialize RobotComms during BeekeeperBot initialization.")
         obj:Shutdown(1)
     end
     obj.robotComms = UnwrapNull(robotComms)
 
-    local breeder = BreederOperation:Create(componentLib.beekeeper, componentLib.inventory_controller, robotLib, sidesLib, config.apiaries)
+    local breeder = BreederOperation:Create(componentLib, robotLib, sidesLib, config.apiaries)
     if breeder == nil then
         Print("Failed to initialize breeding operator during BeekeeperBot initialization.")
         obj:Shutdown(1)

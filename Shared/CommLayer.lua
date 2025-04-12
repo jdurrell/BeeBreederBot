@@ -35,41 +35,29 @@ CommLayer.MessageCode = {
 CommLayer.DefaultComPort = 34000
 CommLayer.ModemEventName = "modem_message"
 
----@param eventLib Event | nil
----@param modemLib Modem | nil
----@param serializationLib Serialization | nil
+---@param componentLib Component
+---@param eventLib Event
+---@param serializationLib Serialization
 ---@param port integer
 ---@return CommLayer | nil
-function CommLayer:Open(eventLib, modemLib, serializationLib, port)
+function CommLayer:Open(componentLib, eventLib, serializationLib, port)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
     -- Store away system libraries.
     -- These will need to be injected for testing.
-    if eventLib == nil then
-        Print("Error: Failed to find event library when opening CommLayer.")
-        obj:Close()
-        return nil
-    end
     obj.event = eventLib
-
-    if modemLib == nil then
-        Print("Error: Failed to find modem library when opening CommLayer.")
-        obj:Close()
-        return nil
-    end
-    obj.modem = modemLib
-
-    if serializationLib == nil then
-        Print("Error: Failed to find serialization library when opening CommLayer.")
-        obj:Close()
-        return nil
-    end
     obj.serial = serializationLib
 
+    if not TableContains(componentLib.list(), "modem") then
+        Print("Failed to find 'modem' component.")
+        return nil
+    end
+    obj.modem = componentLib.modem
+
     -- Open port.
-    local opened = modemLib.open(port)
+    local opened = componentLib.modem.open(port)
     if not opened then
         Print("Error: Failed to open communication port.")
         return nil

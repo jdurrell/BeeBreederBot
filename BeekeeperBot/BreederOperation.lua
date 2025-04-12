@@ -16,50 +16,33 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT      = 1
 local DRONE_SLOT         = 2
-local CHEST_SLOT         = 3
 local NUM_INTERNAL_SLOTS = 16
 
 -- Info for chests for analyzed bees at the start of the apiary row.
 local BASIC_CHEST_INVENTORY_SLOTS = 27
 
----@param beekeeperLib any
----@param inventoryControllerLib any
+---@param componentLib Component
 ---@param robotLib any
 ---@param sidesLib any
 ---@param numApiaries integer
 ---@return BreedOperator | nil
-function BreedOperator:Create(beekeeperLib, inventoryControllerLib, robotLib, sidesLib, numApiaries)
+function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self
 
-    if beekeeperLib == nil then
-        Print("Couldn't find 'beekeeper' module.")
+    if not TableContains(componentLib.list(), "beekeeper") then
+        Print("Couldn't find 'beekeeper' component.")
+        return nil
+    elseif not TableContains(componentLib.list(), "inventory_controller") then
+        Print("Couldn't find 'inventory_controller' component.")
         return nil
     end
-    obj.bk = beekeeperLib
 
-    if inventoryControllerLib == nil then
-        Print("Couldn't find 'inventory_controller' module.")
-        return nil
-    end
-    obj.ic = inventoryControllerLib
-
-    if robotLib == nil then
-        Print("Couldn't find 'robot' module.")
-        return nil
-    end
+    obj.bk = componentLib.beekeeper
+    obj.ic = componentLib.inventory_controller
     obj.robot = robotLib
-
-    if sidesLib == nil then
-        Print("Couldn't find 'sides' module.")
-        return nil
-    end
     obj.sides = sidesLib
-
-    ANALYZED_PRINCESS_CHEST = sidesLib.left
-    ANALYZED_DRONE_CHEST = sidesLib.right
-    TRASH_CAN = sidesLib.back
     obj.numApiaries = numApiaries
 end
 
