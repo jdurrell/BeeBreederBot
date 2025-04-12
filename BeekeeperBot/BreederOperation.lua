@@ -44,6 +44,8 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     obj.robot = robotLib
     obj.sides = sidesLib
     obj.numApiaries = numApiaries
+
+    return obj
 end
 
 -- Returns the next princess in ANALYZED_PRINCESS_CHEST.
