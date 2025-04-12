@@ -158,7 +158,7 @@ end
 
 ---@param timeout number
 function BeeServer:PollForMessageAndHandle(timeout)
-    local response, addr = self.comm:GetIncoming(timeout, nil)
+    local response, addr = self.comm:GetIncoming(timeout, nil, self.botAddr)
     if response ~= nil then
         if self.messageHandlerTable[response.code] == nil then
             Print("Received unidentified code " .. tostring(response.code))

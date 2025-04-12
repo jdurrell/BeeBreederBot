@@ -89,10 +89,16 @@ end
 -- Checks for an incoming message. Returns nil if no message was received before the timeout.
 ---@param timeout number | nil
 ---@param messageCode number | nil
+---@param expectedAddr string | nil
 ---@return Message | nil, string | nil
-function CommLayer:GetIncoming(timeout, messageCode)
+function CommLayer:GetIncoming(timeout, messageCode, expectedAddr)
     local event, _, addr, _, _, code, payload = self.event.pull(timeout, CommLayer.ModemEventName, nil, nil, nil, nil, messageCode)
     if event == nil then
+        return nil, nil
+    end
+
+    if (expectedAddr ~= nil) and (addr ~= expectedAddr) then
+        Print("Got message from unrecognized source " .. addr .. ".")
         return nil, nil
     end
 

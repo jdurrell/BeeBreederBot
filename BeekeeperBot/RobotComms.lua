@@ -47,7 +47,7 @@ function RobotComms:EstablishComms()
         self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
 
         while true do
-            local response, addr = self.comm:GetIncoming(10, nil)  -- Explicitly don't filter for PingRequest to clean out old messages.
+            local response, addr = self.comm:GetIncoming(10, nil, self.serverAddr)  -- Explicitly don't filter for PingRequest to clean out old messages.
             if response == nil then
                 -- If we didn't get a response, then we will need to re-send the request.
                 break
@@ -73,7 +73,7 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
     local payload = {parent1 = parent1, parent2 = parent2, target = target}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse, self.serverAddr)
     if response == nil then
         goto restart
     end
@@ -92,7 +92,7 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value)
     local payload = {trait = trait, value = value}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse)
+    local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
     if response == nil then
         goto restart
     end
@@ -106,7 +106,7 @@ end
 ---@return any
 function RobotComms:GetCommandFromServer()
     ::restart::
-    local request, _ = self.comm:GetIncoming(60)
+    local request, _ = self.comm:GetIncoming(60, nil, self.serverAddr)
     if request == nil then
         goto restart
     end
@@ -121,7 +121,7 @@ function RobotComms:GetTraitInfoFromServer(species)
     local payload = {species = species}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse)
+    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse, self.serverAddr)
     if response == nil then
         goto restart
     end
@@ -166,7 +166,7 @@ function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2, need
     local payload = {target = target, parent1 = parent1, parent2 = parent2, promptFoundation = needsFoundation}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse)
+    local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
     if response == nil then
         self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PingRequest)
         goto restart
@@ -175,7 +175,7 @@ end
 
 ---@return boolean
 function RobotComms:PollForCancel()
-    local response, _ self.comm:GetIncoming(0, CommLayer.MessageCode.CancelCommand)
+    local response, _ self.comm:GetIncoming(0, CommLayer.MessageCode.CancelCommand, self.serverAddr)
     if response == nil then
         return false
     end
