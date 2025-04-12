@@ -11,7 +11,7 @@ function M.ReadSpeciesLogFromDisk(filepath)
     local logfile = io.open(filepath, "r")
     if logfile == nil then
         -- This is not an error. It just means that we haven't logged anything yet.
-        Print(string.format("No existing logfile at %s\n", filepath))
+        Print(string.format("No existing logfile at %s", filepath))
         return {}
     end
     for line in logfile:lines("l") do
@@ -34,19 +34,19 @@ function M.LogSpeciesToDisk(filepath, species)
         logfile, errMsg = io.open(filepath, "w")
         if logfile == nil then
             -- We can't really handle this error. Just print it out and move on.
-            Print(string.format("Failed to open new logfile for writing: %s\n", errMsg))
+            Print(string.format("Failed to open new logfile for writing: %s", errMsg))
             return false
         end
         fs, errMsg = logfile:write(species)
         if fs == nil then
-            Print(string.format("Failed to write to new logfile after creation: %s\n", errMsg))
+            Print(string.format("Failed to write to new logfile after creation: %s", errMsg))
             logfile:close()
             return false
         end
 
         local success, exitcode, code = logfile:close()
         if not success then
-            Print(string.format("Failed to close new logfile, exitcode: %s, code: %u\n", exitcode, code))
+            Print(string.format("Failed to close new logfile, exitcode: %s, code: %u", exitcode, code))
             return false
         end
 
@@ -74,11 +74,10 @@ function M.LogSpeciesToDisk(filepath, species)
         end
     end
 
-
     -- OpenComputers does not support read/write streams, so we have to close the log, then reopen in "write" mode to overwrite the whole file.
     local success, exitcode, code = logfile:close()
     if not success then
-        Print(string.format("Failed to close logfile after reading in existing data, exitcode: %s, code: %u\n", exitcode, code))
+        Print(string.format("Failed to close logfile after reading in existing data, exitcode: %s, code: %u", exitcode, code))
         return false
     end
     logfile = nil
@@ -87,14 +86,14 @@ function M.LogSpeciesToDisk(filepath, species)
     -- Technically, we could serialize a table and just store that, but a csv is easier to edit for a human, if necessary.
     logfile, errMsg = io.open(filepath, "w")
     if logfile == nil then
-        Print(string.format("Failed to open logfile for writing: %s\n", errMsg))
+        Print(string.format("Failed to open logfile for writing: %s", errMsg))
         return false
     end
 
     for _, line in ipairs(speciesInLog) do
-        fs, errMsg = logfile:write(line .. "\n")
+        fs, errMsg = logfile:write(line)
         if _ == nil then
-            Print(string.format("Failed to overwrite logfile: %s\n", errMsg))
+            Print(string.format("Failed to overwrite logfile: %s", errMsg))
             logfile:close()
             return false
         end
@@ -102,7 +101,7 @@ function M.LogSpeciesToDisk(filepath, species)
     logfile:flush()
     success, exitcode, code = logfile:close()
     if not success then
-        Print(string.format("Failed to close logfile after overwriting, exitcode: %s, code: %u\n", exitcode, code))
+        Print(string.format("Failed to close logfile after overwriting, exitcode: %s, code: %u", exitcode, code))
         return false
     end
 

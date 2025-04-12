@@ -364,15 +364,20 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     -- Obtain the full bee graph from the attached adapter and apiary.
     -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
     --       We need more generous matching here to determine the correct component.
-    Print("Importing bee graph.")
+    Print("Importing bee graph...")
     if not TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
         Print("Couldn't find attached apiculture tile in the component library.")
         obj:Shutdown(1)
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
+    Print("Imported bee graph.")
 
     -- Read our local logfile to figure out which species we already have.
+    Print("Reading species logfile from " .. config.logFilepath .. "...")
     obj.leafSpeciesList = Logger.ReadSpeciesLogFromDisk(config.logFilepath)
+    if #(obj.leafSpeciesList) == 0 then
+        Print("No initial species were found.")
+    end
 
     obj.breedPath = nil
     obj.conditionsPending = false

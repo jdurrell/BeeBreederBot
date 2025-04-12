@@ -7,6 +7,8 @@
 ---@field port integer
 local CommLayer = {}
 
+require("Shared.Shared")
+
 ---@enum MessageCode
 CommLayer.MessageCode = {
     PingRequest = 0,
