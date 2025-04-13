@@ -31,7 +31,9 @@ CommLayer.MessageCode = {
     PromptConditionsResponse = 19,
     PrintErrorRequest = 20,
     TraitBreedPathRequest = 21,
-    TraitBreedPathResponse = 22
+    TraitBreedPathResponse = 22,
+    ImportDroneStacksCommand = 23,
+    ImportPrincessesCommand = 24
 }
 
 CommLayer.DefaultComPort = 34000

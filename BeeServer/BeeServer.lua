@@ -188,6 +188,34 @@ function BeeServer:BreedCommandHandler(argv)
 end
 
 ---@param argv string[]
+function BeeServer:ContinueCommandHandler(argv)
+    if not self.messagingPromptsPending["conditions"] then
+        Print("Nothing to continue. Unrecognized context for this command.")
+        return
+    end
+
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
+    self.messagingPromptsPending["conditions"] = false
+end
+
+function BeeServer:ImportCommandHandler(argv)
+    if (argv[2] == nil) then
+        Print("Unrecognized command. Usage: import <princesses | drones>")
+        return
+    end
+
+    if argv[2] == "princesses" then
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportPrincessesCommand)
+        Print("Importing princesses...")
+    elseif argv[2] == "drones" then
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportDroneStacksCommand)
+        Print("Importing drones...")
+    else
+        Print("Unrecognized command. Usage: import <princesses | drones>")
+    end
+end
+
+---@param argv string[]
 function BeeServer:TraitBreedPathCommandHandler(argv)
     if self.messagingPromptsPending["traitbreedpath"] then
         local species = argv[1]
@@ -207,17 +235,6 @@ function BeeServer:TraitBreedPathCommandHandler(argv)
 
         self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.TraitBreedPathRequest, path)
     end
-end
-
----@param argv string[]
-function BeeServer:ContinueCommandHandler(argv)
-    if not self.messagingPromptsPending["conditions"] then
-        Print("Nothing to continue. Unrecognized context for this command.")
-        return
-    end
-
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
-    self.messagingPromptsPending["conditions"] = false
 end
 
 ---@param argv string[]
@@ -375,6 +392,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.terminalHandlerTable = {
         ["breed"] = BeeServer.BreedCommandHandler,
         ["continue"] = BeeServer.ContinueCommandHandler,
+        ["import"] = BeeServer.ImportCommandHandler,
         ["shutdown"] = BeeServer.ShutdownCommandHandler
     }
 

@@ -60,7 +60,9 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     obj.messageHandlerTable = {
         [CommLayer.MessageCode.BreedCommand] = BeekeeperBot.BreedCommandHandler,
         [CommLayer.MessageCode.CancelCommand] = BeekeeperBot.CancelCommandHandler,
-        [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler,
+        [CommLayer.MessageCode.ImportDroneStacksCommand] = BeekeeperBot.ImportDroneStacksHandler,
+        [CommLayer.MessageCode.ImportPrincessesCommand] = BeekeeperBot.ImportPrincessesCommandHandler,
+        [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler
     }
 
     Print("Pinging server for startup...")
@@ -95,6 +97,18 @@ function BeekeeperBot:ReplicateCommandHandler(data)
     end
 
     self:ReplicateSpecies(data.species, true, true, 1)
+end
+
+function BeekeeperBot:ImportPrincessesCommandHandler(data)
+    if not self.breeder:ImportPrincessesFromInputsToStock() then
+        self.robotComms:ReportErrorToServer("Failed to import princesses")
+    end
+end
+
+function BeekeeperBot:ImportDroneStacksHandler(data)
+    if not self.breeder:ImportDroneStacksFromInputsToStore() then
+        self.robotComms:ReportErrorToServer("Failed to import drones.")
+    end
 end
 
 ---@param data BreedCommandPayload
@@ -227,7 +241,7 @@ function BeekeeperBot:MakeTemplateHandler(data)
             local species = UnwrapNull(self.breeder:GetStackInDroneSlot(finishedDroneSlot)).individual.active.species.uid
             self.robotComms:ReportNewSpeciesToServer(species)
 
-            self.breeder:StoreDrones({finishedDroneSlot})
+            self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock()
             self.breeder:BreakAndReturnFoundationsToInputChest()
@@ -355,10 +369,10 @@ function BeekeeperBot:MakeTemplateHandler(data)
         self.breeder:ExportPrincessStacksToHoldovers({1, 2}, {1, 1}, {11, 10})  -- Flip the princess order because the resultant one is now the same as the 
 
         -- Now, return the drones from the previous generation to storage because we no longer need them.
-        self.breeder:StoreDrones({2})
+        self.breeder:StoreDronesFromActiveChest({2})
         if mustReturnToStorage then
             -- If this was a pre-existing set of drones, return them to storage.
-            self.breeder:StoreDrones({1})
+            self.breeder:StoreDronesFromActiveChest({1})
             mustReturnToStorage = false
         else
             -- Otherwise, they were an intermediate result. Simply remove them.
@@ -371,7 +385,7 @@ function BeekeeperBot:MakeTemplateHandler(data)
     -- Final bee stacks are in the holdover chest. Pull them out and store them.
     self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
     self.breeder:ImportHoldoverStacksToPrincessChest({10, 11}, {1, 1}, {1, 2})
-    self.breeder:StoreDrones({1})
+    self.breeder:StoreDronesFromActiveChest({1})
     self.breeder:ReturnActivePrincessesToStock()
 end
 
@@ -443,7 +457,7 @@ function BeekeeperBot:PropagateTemplateHandler(data)
     self.breeder:TrashSlotsFromDroneChest(nil)
     self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
     self.breeder:ImportHoldoverStacksToPrincessChest({10}, {1}, {1})
-    self.breeder:StoreDrones({2})
+    self.breeder:StoreDronesFromActiveChest({2})
 end
 
 -- Replicates the given template from pure-bred drones and a pure-bred princess of that template.
@@ -519,7 +533,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     self.breeder:ExportDroneStacksToHoldovers({finishedDroneSlot}, {32}, {holdoverSlot})
-    self.breeder:StoreDrones({finishedDroneSlot})
+    self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()
@@ -581,7 +595,7 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
         return nil
     end
 
-    self.breeder:StoreDrones({finishedDroneSlot})
+    self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()

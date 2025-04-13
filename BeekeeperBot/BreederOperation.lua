@@ -165,7 +165,7 @@ end
 -- Starts and ends at the default position in the breeder station.
 ---@param slots integer[]  Max size 16.
 ---@return boolean success
-function BreedOperator:StoreDrones(slots)
+function BreedOperator:StoreDronesFromActiveChest(slots)
 
     -- Grab the drones from the chest.
     self.robot.turnRight()
@@ -174,43 +174,7 @@ function BreedOperator:StoreDrones(slots)
         self.ic.suckFromSlot(self.sides.front, slot, 64)
     end
 
-    -- Store the drones in the storage column.
-    self:moveToStorageColumn()
-
-    -- Place the drones into storage.
-    local chest = 0
-    local failed = false
-    for i, _ in ipairs(slots) do
-        -- Find an empty slot in the storages.
-        local emptySlot = self:getEmptySlotInChest()
-        while emptySlot == -1 do
-            self.robot.turnLeft()
-            self.robot.forward()
-            self.robot.turnRight()
-            chest = chest + 1
-
-            emptySlot = self:getEmptySlotInChest()
-        end
-
-        if emptySlot == nil then
-            failed = true
-            break
-        end
-
-        self.robot.select(i)
-        self.ic.dropIntoSlot(self.sides.front, 64, emptySlot)
-    end
-
-    -- Return to the breeder station.
-    self:returnToStorageColumnOriginFromChest(chest)
-    self:returnToBreederStationFromStorageColumn()
-
-    if failed then
-        Print("Failed to store drones in the storage column. More chests are required.")
-        return false
-    end
-
-    return true
+    return self:storeDrones()
 end
 
 -- Returns a list of bees in the storage system and where to find them.
@@ -253,6 +217,9 @@ end
 function BreedOperator:unloadInventory()
     for i = 1, NUM_INTERNAL_SLOTS do
         self.robot.select(i)
+        if self.robot.count() == 0 then
+            goto continue
+        end
 
         local dropped = self.robot.drop(64)
         if not dropped then
@@ -260,6 +227,7 @@ function BreedOperator:unloadInventory()
             Print("Failed to drop items.")
             return false
         end
+        ::continue::
     end
 
     return true
@@ -553,6 +521,7 @@ function BreedOperator:ExportPrincessStackToOutput(slot, number)
 end
 
 -- Moves the princesses in the import chest to the breeding stock chest.
+---@return boolean
 function BreedOperator:ImportPrincessesFromInputsToStock()
     self:moveToInputChest()
 
@@ -583,6 +552,34 @@ function BreedOperator:ImportPrincessesFromInputsToStock()
     -- Clean up by returning to the starting position.
     self:returnToStorageColumnOriginFromStockPrincessChest()
     self:returnToBreederStationFromStorageColumn()
+
+    return success
+end
+
+-- Moves the drone stacks in the import chest to the drone store.
+---@return boolean
+function BreedOperator:ImportDroneStacksFromInputsToStore()
+    self:moveToInputChest()
+
+    -- TODO: Deal with the case where there are more than 16 princesses.
+    -- There are seveeral items in this input chest. Only pick up the princesses.
+    local numInternalSlotsTaken = 0
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack ~= nil) and (stack.size == 64) and (string.find(stack.label, "[D|d]rone") ~= nil) then
+            self.robot.select(numInternalSlotsTaken + 1)
+            self.ic.suckFromSlot(self.sides.front, i, 64)
+
+            numInternalSlotsTaken = numInternalSlotsTaken + 1
+            if numInternalSlotsTaken >= NUM_INTERNAL_SLOTS then
+                break
+            end
+        end
+    end
+
+    self:returnToBreederStationFromInputChest()
+
+    return self:storeDrones()
 end
 
 ---@param block string
@@ -651,6 +648,52 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     self:returnToBreederStationFromInputChest()
 end
 
+-- Stores the drones in the robot's inventory in the storage column.
+---@return boolean
+function BreedOperator:storeDrones()
+    -- Store the drones in the storage column.
+    self:moveToStorageColumn()
+
+    -- Place the drones into storage.
+    local chest = 0
+    local failed = false
+    for i = 1, NUM_INTERNAL_SLOTS do
+        self.robot.select(i)
+        if self.robot.count() == 0 then
+            goto continue
+        end
+
+        -- Find an empty slot in the storages.
+        local emptySlot = self:getEmptySlotInChest()
+        while emptySlot == -1 do
+            self.robot.turnLeft()
+            self.robot.forward()
+            self.robot.turnRight()
+            chest = chest + 1
+
+            emptySlot = self:getEmptySlotInChest()
+        end
+
+        if emptySlot == nil then
+            failed = true
+            break
+        end
+
+        self.ic.dropIntoSlot(self.sides.front, emptySlot, 64)
+        ::continue::
+    end
+
+    -- Return to the breeder station.
+    self:returnToStorageColumnOriginFromChest(chest)
+    self:returnToBreederStationFromStorageColumn()
+
+    if failed then
+        Print("Failed to store drones in the storage column. More chests are required.")
+    end
+
+    return not failed
+end
+
 -- Returns the index of an empty slot in the chest or `-1` if none exist.
 -- Returns nil if there is no chest.
 ---@return integer | nil
@@ -693,7 +736,7 @@ end
 function BreedOperator:returnToStorageColumnOriginFromStockPrincessChest()
     self.robot.turnLeft()
     self.robot.forward()
-    self.robot.turnLeft()
+    self.robot.turnRight()
 end
 
 function BreedOperator:returnToStorageColumnOriginFromChest(dist)
