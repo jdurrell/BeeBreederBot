@@ -107,8 +107,14 @@ function BeekeeperBot:ImportPrincessesCommandHandler(data)
 end
 
 function BeekeeperBot:ImportDroneStacksHandler(data)
-    if not self.breeder:ImportDroneStacksFromInputsToStore() then
+    local speciesSet = self.breeder:ImportDroneStacksFromInputsToStore()
+
+    if speciesSet == nil then
         self.robotComms:ReportErrorToServer("Failed to import drones.")
+    else
+        for spec, _ in pairs(speciesSet) do
+            self.robotComms:ReportNewSpeciesToServer(spec)
+        end
     end
 end
 

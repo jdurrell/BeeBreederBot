@@ -557,18 +557,22 @@ function BreedOperator:ImportPrincessesFromInputsToStock()
 end
 
 -- Moves the drone stacks in the import chest to the drone store.
----@return boolean
+-- Returns a set of the species imported.
+---@return table<string, boolean> | nil
 function BreedOperator:ImportDroneStacksFromInputsToStore()
     self:moveToInputChest()
 
     -- TODO: Deal with the case where there are more than 16 princesses.
-    -- There are seveeral items in this input chest. Only pick up the princesses.
+    -- There are several items in this input chest. Only pick up the princesses.
     local numInternalSlotsTaken = 0
+    local species = {}
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
         if (stack ~= nil) and (stack.size == 64) and (string.find(stack.label, "[D|d]rone") ~= nil) then
             self.robot.select(numInternalSlotsTaken + 1)
             self.ic.suckFromSlot(self.sides.front, i, 64)
+
+            species[stack.individual.species.uid] = true
 
             numInternalSlotsTaken = numInternalSlotsTaken + 1
             if numInternalSlotsTaken >= NUM_INTERNAL_SLOTS then
@@ -579,7 +583,11 @@ function BreedOperator:ImportDroneStacksFromInputsToStore()
 
     self:returnToBreederStationFromInputChest()
 
-    return self:storeDrones()
+    if not self:storeDrones() then
+        return nil
+    end
+
+    return species
 end
 
 ---@param block string
