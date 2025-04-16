@@ -33,7 +33,8 @@ CommLayer.MessageCode = {
     TraitBreedPathRequest = 21,
     TraitBreedPathResponse = 22,
     ImportDroneStacksCommand = 23,
-    ImportPrincessesCommand = 24
+    ImportPrincessesCommand = 24,
+    MakeTemplateCommand = 25
 }
 
 CommLayer.DefaultComPort = 34000

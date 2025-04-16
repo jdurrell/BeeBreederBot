@@ -216,6 +216,76 @@ function BeeServer:ImportCommandHandler(argv)
 end
 
 ---@param argv string[]
+function BeeServer:TemplateCommandHandler(argv)
+    local validTraitsTypes = {
+        ["caveDwelling"] = "boolean",
+        ["effect"] = "string",
+        ["fertility"] = "integer",
+        ["flowering"] = "integer",
+        ["flowerProvider"] = "integer",
+        ["humidityTolerance"] = "string",
+        ["lifespan"] = "integer",
+        ["nocturnal"] = "boolean",
+        ["species"] = "string",
+        ["speed"] = "number",
+        ["temperatureTolerance"] = "string",
+        ["territory"] = "integer",
+        ["tolerantFlyer"] = "boolean"
+    }
+    local payload = {traits = {}}  ---@type MakeTemplatePayload
+    for i, v in ipairs(argv) do
+        local fields = {}
+        for match in v:gmatch("[^=]+") do
+            table.insert(fields, match)
+        end
+
+        if #fields ~= 2 then
+            Print(string.format("Unrecognized parameter string '%s'.", v))
+            return
+        end
+
+        -- TODO: Actually validate all of the values given to us here.
+        fields[2] = fields[2]:lower()
+        if validTraitsTypes[fields[2]] == "boolean" then
+            if fields[2] == "true" then
+                payload.traits[fields[1]] = true
+            elseif fields[2] == "false" then
+                payload.traits[fields[1]] = false
+            else
+                Print(string.format("Unrecognized boolean value: '%s'.", fields[2]))
+                return
+            end
+        elseif validTraitsTypes[fields[1]] == "integer" then
+            local val = tonumber(fields[2], 10)
+            if val == nil then
+                Print(string.format("Unrecognized integer: '%s'.", fields[2]))
+                return
+            end
+            payload.traits[fields[1]] = val
+        elseif validTraitsTypes[fields[1]] == "number" then
+            local val = tonumber(fields[2])
+            if val == nil then
+                Print(string.format("Unrecognized number: '%s'.", fields[2]))
+                return
+            end
+            payload.traits[fields[1]] = val
+        elseif validTraitsTypes[fields[1]] == "string" then
+            if fields[1] == "species" then
+                ---@diagnostic disable-next-line: missing-fields
+                payload.traits["species"] = {uid = fields[2]}
+            else
+                payload.traits[fields[1]] = fields[2]
+            end
+        else
+            Print(string.format("Unrecognized argument: '%s'.", fields[1]))
+            return
+        end
+    end
+
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, payload)
+end
+
+---@param argv string[]
 function BeeServer:TraitBreedPathCommandHandler(argv)
     if self.messagingPromptsPending["traitbreedpath"] then
         local species = argv[1]
@@ -392,6 +462,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.terminalHandlerTable = {
         ["breed"] = BeeServer.BreedCommandHandler,
         ["continue"] = BeeServer.ContinueCommandHandler,
+        ["template"] = BeeServer.TemplateCommandHandler,
         ["import"] = BeeServer.ImportCommandHandler,
         ["shutdown"] = BeeServer.ShutdownCommandHandler
     }

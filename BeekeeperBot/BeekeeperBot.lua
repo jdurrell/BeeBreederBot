@@ -62,6 +62,7 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
         [CommLayer.MessageCode.CancelCommand] = BeekeeperBot.CancelCommandHandler,
         [CommLayer.MessageCode.ImportDroneStacksCommand] = BeekeeperBot.ImportDroneStacksHandler,
         [CommLayer.MessageCode.ImportPrincessesCommand] = BeekeeperBot.ImportPrincessesCommandHandler,
+        [CommLayer.MessageCode.MakeTemplateCommand] = BeekeeperBot.MakeTemplateHandler,
         [CommLayer.MessageCode.ReplicateCommand] = BeekeeperBot.ReplicateCommandHandler
     }
 
@@ -248,7 +249,7 @@ function BeekeeperBot:MakeTemplateHandler(data)
         end
     end
 
-    -- Now that all the required traits bees are present, refresh our view and look for existing bees that are the closest to the template.
+    -- Now that all the required traits are present, refresh our view and look for existing bees that are the closest to the template.
     beeTraitSets = self.breeder:ScanAllDroneStacks()
     if (beeTraitSets == nil) or (#beeTraitSets == 0) then
         self:OutputError("Failed to find any bees when searching for best initial trait match.")
