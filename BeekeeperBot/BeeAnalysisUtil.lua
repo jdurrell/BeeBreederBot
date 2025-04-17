@@ -52,6 +52,27 @@ function M.TraitIsEqual(beeTraits, trait, value)
     return (beeTraits[trait] == value)
 end
 
+---@param beeTraits AnalyzedBeeTraits
+---@param toleranceString string
+---@return integer, integer
+function M.GetTotalTolerance(beeTraits, toleranceString)
+    local val = beeTraits[toleranceString]
+    local toleranceNumber = tonumber(val:sub(val:len(), val:len()), 10)
+    if toleranceNumber == nil then
+        return 0, 0
+    end
+
+    if val:find("BOTH") ~= nil then
+        return -1 * toleranceNumber, toleranceNumber
+    elseif val:find("UP") ~= nil then
+        return 0, toleranceNumber
+    elseif val:find("DOWN") ~= nil then
+        return -1 * toleranceNumber, 0
+    end
+
+    return 0, 0
+end
+
 -- Returns whether the bee represented by the given stack is a pure bred version of the given species.
 ---@param individual AnalyzedBeeIndividual
 ---@param species string

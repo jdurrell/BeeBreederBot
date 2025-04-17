@@ -27,11 +27,25 @@ function M.HighFertilityAndAllelesMatcher(targetTrait, targetValue, cacheElement
                 )
                 if score > 0 then
                     -- TODO: This should still filter for zero fertility.
-                    score = score + (10000 * (droneStack.individual.active.fertility + droneStack.individual.inactive.fertility))
+                    -- Favor higher fertility.
+                    score = score + ((droneStack.individual.active.fertility + droneStack.individual.inactive.fertility) << 12)
+
+                    -- Favor higher temperature and humidity tolerances since those will be necessary
+                    local tempDownActive, tempUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "temperatureTolerance")
+                    local tempDownInactive, tempUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "temperatureTolerance")
+                    local tempTotal = tempDownActive + tempUpActive + tempDownInactive + tempUpInactive
+
+                    local humDownActive, humUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "humidityTolerance")
+                    local humDownInactive, humUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "humidityTolerance")
+                    local humTotal = humDownActive + humUpActive + humDownInactive + humUpInactive
+
+                    score = score + (tempTotal << 7)
+                    score = score + (humTotal << 2)
                 end
 
                 return score
-            end
+            end,
+            (16 << 12) + (20 << 7) + (20 << 2) + 2  -- Technically, 8 is the highest *naturally occurring* total fertility here, but 16 can happen with genetics.
         )
     end
 end
