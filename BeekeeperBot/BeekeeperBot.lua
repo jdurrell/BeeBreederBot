@@ -97,7 +97,12 @@ function BeekeeperBot:ReplicateCommandHandler(data)
         return
     end
 
-    self:ReplicateSpecies(data.species, true, true, 1)
+    if not self:ReplicateSpecies(data.species, true, true, 64, 1) then
+        self:OutputError(string.format("Failed to replicate species '%s'.", data.species))
+    end
+
+    self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
+    self.breeder:ExportDroneStackToOutput(1, 64)
 end
 
 function BeekeeperBot:ImportPrincessesCommandHandler(data)
@@ -130,23 +135,22 @@ function BeekeeperBot:BreedCommandHandler(data)
     for _, v in ipairs(breedPath) do
         ::restart::
         if v.parent1 ~= nil then
-            local retval = self:ReplicateSpecies(v.parent1, true, true, 1)
-            if retval == nil then
+            Print(string.format("Replicating %s.", v.parent1))
+            if not self:ReplicateSpecies(v.parent1, true, true, 16, 1) then
                 self:OutputError("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
                 self:Shutdown(1)
             end
-            -- Convergence failure is handled inside ReplicateSpecies.
         end
 
         if v.parent2 ~= nil then
-            local retval = self:ReplicateSpecies(v.parent2, true, false, 2)
-            if retval == nil then
+            Print(string.format("Replicating %s.", v.parent2))
+            if not self:ReplicateSpecies(v.parent2, true, false, 16, 2) then
                 self:OutputError("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
                 self:Shutdown(1)
             end
-            -- Convergence failure is handled inside ReplicateSpecies.
         end
 
+        Print(string.format("Breeding %s from %s and %s.", v.target, v.parent1, v.parent2))
         local retval = self:BreedSpecies(v, false, true)
         if retval == nil then
             self:OutputError(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
@@ -203,21 +207,17 @@ function BeekeeperBot:MakeTemplateHandler(data)
         for _, pathNode in ipairs(v.path) do
             ::restart::
             if pathNode.parent1 ~= nil then
-                local retval = self:ReplicateSpecies(pathNode.parent1, true, true, 1)
-                if retval == nil then
+                if not self:ReplicateSpecies(pathNode.parent1, true, true, 16, 1) then
                     self:OutputError("Fatal error: Replicate species '" .. pathNode.parent1 .. "' failed.")
                     self:Shutdown(1)
                 end
-                -- Convergence failure is handled inside ReplicateSpecies.
             end
 
             if pathNode.parent2 ~= nil then
-                local retval = self:ReplicateSpecies(pathNode.parent2, true, false, 2)
-                if retval == nil then
+                if not self:ReplicateSpecies(pathNode.parent2, true, false, 16, 2) then
                     self:OutputError("Fatal error: Replicate species '" .. pathNode.parent2 .. "' failed.")
                     self:Shutdown(1)
                 end
-                -- Convergence failure is handled inside ReplicateSpecies.
             end
 
             -- Set up the breeding station.
@@ -495,9 +495,17 @@ end
 ---@param species string
 ---@param retrievePrincessesFromStock boolean
 ---@param returnPrincessesToStock boolean
+---@param amount integer
 ---@param holdoverSlot integer
 ---@return boolean | nil success  `true` indicates a success. `false` indicates a convergence failure. `nil` indicates a fatal error.
-function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, returnPrincessesToStock, holdoverSlot)
+function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, returnPrincessesToStock, amount, holdoverSlot)
+
+    -- We can't replicate more than a full stack at a time because we support holdoverSlot semantics.
+    if amount > 64 then
+        self:OutputError("Invalid argument. Cannot replicate more than a full stack at a time.")
+        return nil
+    end
+
     if retrievePrincessesFromStock then
         local success = self.breeder:RetrieveStockPrincessesFromChest(1, {species})
         if not success then
@@ -507,7 +515,6 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     -- Move starter bees to their respective chests.
-    -- TODO: This should fail when we are unable to get drones from the chest.
     local traits = {species = {uid = species}}
     local success = self.breeder:RetrieveDrones(traits)
     if not success then
@@ -516,31 +523,48 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         return nil
     end
 
-    -- Do the breeding.
-    local breedInfoCacheElement = {}
-    local traitInfoCache = {species = {}}
-    local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", traits, breedInfoCacheElement, traitInfoCache),
-        MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(species),
-        GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
-        function (princessStack, droneStackList)
-            self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCacheElement)
-            self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-        end
-    ).drones
+    local finishedDroneSlot
+    local remaining = amount
+    while remaining > 0 do
+        -- Technically, we take the drones away for the output first, then replicate the original stack back up to 64.
+        local numberToReplicate = math.min(remaining, 32)
+        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToReplicate}, {holdoverSlot})
 
-    if finishedDroneSlot == nil then
-        -- This should never really happen since we're starting with an absurdly high number of drones.
-        -- The only way this should ever happen is if it picked an unfortunate princess that actually has
-        -- a mutation with `species` and the user was also using frenzy frames (which they shouldn't do anyways).
-        self:OutputError(string.format("Error replicating %s. Retrying with another drone batch.", species))
-        self.breeder:ReturnActivePrincessesToStock()
-        -- Don't trash the drone slots in case the user is able to recover something from this.
-        return false
+        -- Do the breeding.
+        local breedInfoCacheElement = {}
+        local traitInfoCache = {species = {}}
+        finishedDroneSlot = self:Breed(
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", traits, breedInfoCacheElement, traitInfoCache),
+            MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(species),
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
+            function (princessStack, droneStackList)
+                self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCacheElement)
+                self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+            end
+        ).drones
+
+        if finishedDroneSlot == nil then
+            -- This should never really happen since we're starting with an absurdly high number of drones.
+            -- The only way this should ever happen is if it picked an unfortunate princess that actually has
+            -- a mutation with `species` and the user was also using frenzy frames (which they shouldn't do anyways).
+            self:OutputError(string.format("Convergence failure while replicating %s.", species))
+
+            -- If we introduced the princesses, then we should clean then up as well.
+            if retrievePrincessesFromStock then
+                self.breeder:ReturnActivePrincessesToStock()
+            end
+
+            -- Don't trash the drone slots in case the user is able to recover something from this.
+            return false
+        end
+
+        remaining = remaining - numberToReplicate
     end
 
-    self.breeder:ExportDroneStacksToHoldovers({finishedDroneSlot}, {32}, {holdoverSlot})
+    -- Store away the original drones from the final run.
     self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
+
+    -- Do cleanup operations.
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         self.breeder:ReturnActivePrincessesToStock()

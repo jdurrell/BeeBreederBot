@@ -48,7 +48,7 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     return obj
 end
 
--- Returns the next princess in ANALYZED_PRINCESS_CHEST.
+-- Returns the next princess in the active princess chest.
 ---@return AnalyzedBeeStack
 function BreedOperator:GetPrincessInChest()
     self.robot.turnLeft()
@@ -68,7 +68,7 @@ function BreedOperator:GetPrincessInChest()
 
         -- Sleep a little. If we don't have a princess, then no point in consuming resources by checking constantly.
         -- If we do, then sleep a little longer to ensure we have all (or at least several of) the drones.
-        Sleep(2.0)
+        Sleep(10)
     end
 
     self.robot.turnRight()
@@ -490,6 +490,7 @@ end
 
 -- Moves the specified number of drones from the given slot in the active chest to the output chest.
 ---@param slot integer
+---@param number integer
 function BreedOperator:ExportDroneStackToOutput(slot, number)
     self.robot.select(1)
 
