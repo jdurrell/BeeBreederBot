@@ -347,7 +347,7 @@ function BreedOperator:RetrieveDrones(traits)
             ---@type AnalyzedBeeStack
             local stack = self.ic.getStackInSlot(self.sides.front, i)
             if ((stack ~= nil) and
-                (string.find(stack.label, "[D|d]rone]") ~= nil) and
+                (string.find(stack.label, "[D|d]rone") ~= nil) and
                 (stack.size == 64) and
                 AnalysisUtil.AllTraitsEqual(stack.individual, traits)
             ) then
