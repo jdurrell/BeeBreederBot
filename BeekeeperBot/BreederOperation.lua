@@ -57,7 +57,7 @@ function BreedOperator:GetPrincessInChest()
     ---@type AnalyzedBeeStack
     local princess = nil
     while princess == nil do
-        for i = 1, self.ic.getInventorySize() do
+        for i = 1, self.ic.getInventorySize(self.sides.front) do
             local stack = self.ic.getStackInSlot(self.sides.front, i)
             if stack ~= nil then
                 princess = stack
