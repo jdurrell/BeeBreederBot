@@ -249,6 +249,11 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
     self.robot.turnRight()
 
     for _, slot in ipairs(slots) do
+        local stack = self.ic.getStackInSlot(self.sides.front, slot)
+        if stack == nil then
+            goto continue
+        end
+
         -- Pick up the stack.
         self.ic.suckFromSlot(self.sides.front, slot, 64)
 
@@ -258,6 +263,7 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 
         -- Turn back to the drone chest.
         self.robot.turnLeft()
+        ::continue::
     end
 
     -- Clean up by returning to starting position.
