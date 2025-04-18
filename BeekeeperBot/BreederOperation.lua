@@ -569,10 +569,12 @@ function BreedOperator:ImportDroneStacksFromInputsToStore()
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
         if (stack ~= nil) and (stack.size == 64) and (string.find(stack.label, "[D|d]rone") ~= nil) then
+            if (stack.individual.active.species.uid == stack.individual.inactive.species.uid) then
+                species[stack.individual.active.species.uid] = true
+            end
+
             self.robot.select(numInternalSlotsTaken + 1)
             self.ic.suckFromSlot(self.sides.front, i, 64)
-
-            species[stack.individual.species.uid] = true
 
             numInternalSlotsTaken = numInternalSlotsTaken + 1
             if numInternalSlotsTaken >= NUM_INTERNAL_SLOTS then
