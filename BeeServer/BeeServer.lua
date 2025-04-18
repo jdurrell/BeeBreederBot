@@ -364,11 +364,16 @@ function BeeServer:GetBreedPath(species, forceRebreed)
     Print("Will breed " .. species .. " bees. Full breeding order:")
     local printstr = ""
     for _, node in ipairs(path) do
-        printstr = string.format("%s, %s", printstr, node.target)
+        if printstr == "" then
+            printstr = node.target
+        else
+            printstr = string.format("%s, %s", printstr, node.target)
+        end
     end
     Print(printstr)
 
     Sleep(0.5)
+    Print("")
     Print("Required foundation blocks:")
     printstr = ""
     for _, node in ipairs(path) do
@@ -388,7 +393,11 @@ function BeeServer:GetBreedPath(species, forceRebreed)
                 local foundation = condition:find(" as a foundation")
                 if foundation ~= nil then
                     local foundationStr = condition:gsub("Requires ", ""):gsub(" as a foundation.", "")
-                    printstr = string.format("%s, %s", printstr, foundationStr)
+                    if printstr == "" then
+                        printstr = foundationStr
+                    else
+                        printstr = string.format("%s, %s", printstr, foundationStr)
+                    end
                     node.foundation = foundationStr
                 end
             end
