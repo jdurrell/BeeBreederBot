@@ -173,6 +173,7 @@ function BreedOperator:StoreDronesFromActiveChest(slots)
         self.robot.select(i)
         self.ic.suckFromSlot(self.sides.front, slot, 64)
     end
+    self.robot.turnLeft()
 
     return self:storeDrones()
 end

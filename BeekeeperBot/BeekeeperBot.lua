@@ -507,8 +507,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     if retrievePrincessesFromStock then
-        local success = self.breeder:RetrieveStockPrincessesFromChest(1, {species})
-        if not success then
+        if not self.breeder:RetrieveStockPrincessesFromChest(1, {species}) then
             self:OutputError("Failed to retrieve princesses from stock chest.")
             return nil
         end
@@ -516,9 +515,8 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
 
     -- Move starter bees to their respective chests.
     local traits = {species = {uid = species}}
-    local success = self.breeder:RetrieveDrones(traits)
-    if not success then
-        self:OutputError(string.format("Failed to retrieve drones with species %s", species))
+    if not self.breeder:RetrieveDrones(traits) then
+        self:OutputError(string.format("Failed to retrieve drones with species %s.", species))
         self.breeder:ReturnActivePrincessesToStock()
         return nil
     end
@@ -643,16 +641,15 @@ end
 ---@param populateCaches fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]) | nil
 ---@return {princess: integer | nil, drones: integer | nil}
 function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCollectionAlgorithm, populateCaches)
-    local finishedPrincessSlot = nil
-    local finishedDroneSlot = nil
-
     -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
+    local slots = {princess = nil, drones = nil}
     local iteration = 0
     while iteration < 300 do
         local princessStack = self.breeder:GetPrincessInChest()
         local droneStackList = self.breeder:GetDronesInChest()
-        local slots = finishedSlotAlgorithm(princessStack, droneStackList)
+        slots = finishedSlotAlgorithm(princessStack, droneStackList)
         if (slots.princess ~= nil) or (slots.drones ~= nil) then
+            -- Convergence succeeded. Break out.
             break
         end
 
@@ -671,7 +668,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
         iteration = iteration + 1
     end
 
-    return {princess = finishedPrincessSlot, drones = finishedDroneSlot}
+    return slots
 end
 
 --- Populates `cacheElement` with any required information to allow for breeding calculations between the
