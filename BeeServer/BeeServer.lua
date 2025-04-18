@@ -67,7 +67,7 @@ end
 ---@param addr string
 ---@param data PromptConditionsPayload
 function BeeServer:PromptConditionsHandler(addr, data)
-    if not self.messagingPromptsPending["conditions"] or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
+    if self.messagingPromptsPending["conditions"] or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
         return
     end
 
@@ -79,6 +79,7 @@ function BeeServer:PromptConditionsHandler(addr, data)
         ) then
             conditions = {}
             for _, condition  in ipairs(mut.specialConditions) do
+                -- TODO: Distinguish between foundation blocks that can be placed by the bot and other foundations that can't be.
                 local isAFoundation = condition:find("foundation") == nil
                 if (not isAFoundation) or (data.promptFoundation) then
                     table.insert(conditions, condition)
@@ -87,7 +88,7 @@ function BeeServer:PromptConditionsHandler(addr, data)
         end
     end
 
-    if (conditions == nil) or (#conditions > 0) then
+    if (conditions == nil) or (#conditions == 0) then
         -- If there are no conditions, then immediately tell the robot it can continue.
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.", data.target, data.parent1, data.parent2))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
