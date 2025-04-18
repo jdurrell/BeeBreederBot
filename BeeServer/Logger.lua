@@ -44,12 +44,7 @@ function M.LogSpeciesToDisk(filepath, species)
             return false
         end
 
-        local success, exitcode, code = logfile:close()
-        if not success then
-            Print(string.format("Failed to close new logfile, exitcode: %s, code: %u", exitcode, code))
-            return false
-        end
-
+        logfile:close()
         return true
     end
 
@@ -73,14 +68,12 @@ function M.LogSpeciesToDisk(filepath, species)
             table.insert(speciesInLog, line)
         end
     end
+    if not alreadyFound then
+        table.insert(speciesInLog, species)
+    end
 
     -- OpenComputers does not support read/write streams, so we have to close the log, then reopen in "write" mode to overwrite the whole file.
-    local success, exitcode, code = logfile:close()
-    if not success then
-        Print(string.format("Failed to close logfile after reading in existing data, exitcode: %s, code: %u", exitcode, code))
-        return false
-    end
-    logfile = nil
+    logfile:close()
 
     -- Write out new file with the ordering modifications made above.
     -- Technically, we could serialize a table and just store that, but a csv is easier to edit for a human, if necessary.
@@ -91,19 +84,17 @@ function M.LogSpeciesToDisk(filepath, species)
     end
 
     for _, line in ipairs(speciesInLog) do
+        Print(line)
         fs, errMsg = logfile:write(line .. "\n")
-        if _ == nil then
+        if fs == nil then
             Print(string.format("Failed to overwrite logfile: %s", errMsg))
             logfile:close()
             return false
         end
     end
+
     logfile:flush()
-    success, exitcode, code = logfile:close()
-    if not success then
-        Print(string.format("Failed to close logfile after overwriting, exitcode: %s, code: %u", exitcode, code))
-        return false
-    end
+    logfile:close()
 
     return true
 end

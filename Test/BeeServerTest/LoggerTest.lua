@@ -25,7 +25,17 @@ TestLogger = {}
         Luaunit.assertItemsEquals(result, {"Forest", "Meadows", "Tropical"})
     end
 
-    function TestLogger:TestNewEntry()
+    function TestLogger:TestNewEntryAtBeginng()
+        Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
+
+        local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Amber")
+        Luaunit.assertIsTrue(success)
+
+        local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
+        Luaunit.assertItemsEquals(result, {"Forest", "Meadows", "Tropical", "Amber"})
+    end
+
+    function TestLogger:TestNewEntryInMiddle()
         Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
 
         local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Marshy")
@@ -33,6 +43,16 @@ TestLogger = {}
 
         local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
         Luaunit.assertItemsEquals(result, {"Forest", "Meadows", "Tropical", "Marshy"})
+    end
+
+    function TestLogger:TestNewEntryAtEnd()
+        Util.CreateLogfileSeed("BasicLog.log", Util.DEFAULT_LOG_PATH)
+
+        local success = Logger.LogSpeciesToDisk(Util.DEFAULT_LOG_PATH, "Wintry")
+        Luaunit.assertIsTrue(success)
+
+        local result = Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH)
+        Luaunit.assertItemsEquals(result, {"Forest", "Meadows", "Tropical", "Wintry"})
     end
 
     function TestLogger:TestAlreadyExisting()
