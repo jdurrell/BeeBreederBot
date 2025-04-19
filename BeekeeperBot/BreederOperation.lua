@@ -48,27 +48,21 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     return obj
 end
 
--- Returns the next princess in the active princess chest.
----@return AnalyzedBeeStack
+-- Returns the next princess in the active princess chest, or `nil` if there is none.
+---@return AnalyzedBeeStack | nil
 function BreedOperator:GetPrincessInChest()
     self.robot.turnLeft()
 
     -- Spin until we have a princess to use.
     ---@type AnalyzedBeeStack
     local princess = nil
-    while princess == nil do
-        for i = 1, self.ic.getInventorySize(self.sides.front) do
-            local stack = self.ic.getStackInSlot(self.sides.front, i)
-            if stack ~= nil then
-                princess = stack
-                princess.slotInChest = i
-                break
-            end
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
+        local stack = self.ic.getStackInSlot(self.sides.front, i)
+        if (stack ~= nil) and (stack.label:find("[P|p]rincess") ~= nil) then
+            princess = stack
+            princess.slotInChest = i
+            break
         end
-
-        -- Sleep a little. If we don't have a princess, then no point in consuming resources by checking constantly.
-        -- If we do, then sleep a little longer to ensure we have all (or at least several of) the drones.
-        Sleep(10)
     end
 
     self.robot.turnRight()
@@ -341,8 +335,11 @@ end
 
 -- Retrieves a stack of drones that matches all of the given traits.
 ---@param traits PartialAnalyzedBeeTraits
+---@param activeChestSlot integer | nil
 ---@return boolean success
-function BreedOperator:RetrieveDrones(traits)
+function BreedOperator:RetrieveDrones(traits, activeChestSlot)
+    activeChestSlot = ((activeChestSlot == nil) and 1) or activeChestSlot
+
     self.robot.select(1)
     self:moveToStorageColumn()
 
@@ -381,7 +378,18 @@ function BreedOperator:RetrieveDrones(traits)
     -- Unload the drones if we got them or error out if not.
     if found then
         self.robot.turnRight()
-        self.robot.drop(64)
+
+        while not self.ic.dropIntoSlot(self.sides.front, activeChestSlot) do
+            -- If we fail to unload this stack into the active chest, then other drones must have
+            -- been placed here by the piping system and taken this slot. Simply trash them.
+            self.robot.select(2)
+            self.ic.suckFromSlot(self.sides.front, 1, 64)
+            self.robot.turnRight()
+            self.robot.drop(64)
+            self.robot.turnLeft()
+            self.robot.select(1)
+        end
+
         self.robot.turnLeft()
     else
         Print("Failed to find a full stack of drones with the requested traits.")
@@ -664,6 +672,15 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     self:unloadInventory()
 
     self:returnToBreederStationFromInputChest()
+end
+
+---@return integer
+function BreedOperator:GetDroneChestSize()
+    self.robot.turnRight()
+    local size = self.ic.getInventorySize(self.sides.front)
+    self.robot.turnLeft()
+
+    return size
 end
 
 -- Stores the drones in the robot's inventory in the storage column.

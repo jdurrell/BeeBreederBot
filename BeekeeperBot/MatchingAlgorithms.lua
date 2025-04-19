@@ -4,7 +4,7 @@ local MatchingMath = require("BeekeeperBot.MatchingMath")
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 
 ---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): integer
----@alias StackFinisher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): {princess: integer | nil, drones: integer | nil}
+---@alias StackFinisher fun(princessStack: AnalyzedBeeStack | nil, droneStackList: AnalyzedBeeStack[] | nil): {princess: integer | nil, drones: integer | nil}
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number
 
 -- Returns a matcher that prioritizes drones that are expected to produce the highest number of target alleles
@@ -24,28 +24,29 @@ function M.HighFertilityAndAllelesMatcher(targetTrait, targetValue, cacheElement
                 -- If one exists, then prioritize fertility above all else.
                 local score = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
                     princessStack.individual, droneStack.individual, targetTrait, targetValue, cacheElement, traitInfo
-                )
+                ) * 10e7
                 if score > 0 then
-                    -- TODO: This should still filter for zero fertility.
+                    -- TODO: This should still filter for zero/one fertility.
                     -- Favor higher fertility.
-                    score = score + ((droneStack.individual.active.fertility + droneStack.individual.inactive.fertility) << 12)
-
-                    -- Favor higher temperature and humidity tolerances since those will be necessary
-                    local tempDownActive, tempUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "temperatureTolerance")
-                    local tempDownInactive, tempUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "temperatureTolerance")
-                    local tempTotal = tempDownActive + tempUpActive + tempDownInactive + tempUpInactive
-
-                    local humDownActive, humUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "humidityTolerance")
-                    local humDownInactive, humUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "humidityTolerance")
-                    local humTotal = humDownActive + humUpActive + humDownInactive + humUpInactive
-
-                    score = score + (tempTotal << 7)
-                    score = score + (humTotal << 2)
+                    score = score + ((droneStack.individual.active.fertility + droneStack.individual.inactive.fertility) * 10e8)
                 end
+
+                -- Favor higher temperature and humidity tolerances since those will be necessary to ensure the bees can actually work.
+                -- This is lower priority than fertility or expected target allele count.
+                local tempDownActive, tempUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "temperatureTolerance")
+                local tempDownInactive, tempUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "temperatureTolerance")
+                local tempTotal = tempDownActive + tempUpActive + tempDownInactive + tempUpInactive
+
+                local humDownActive, humUpActive = AnalysisUtil.GetTotalTolerance(droneStack.individual.active, "humidityTolerance")
+                local humDownInactive, humUpInactive = AnalysisUtil.GetTotalTolerance(droneStack.individual.inactive, "humidityTolerance")
+                local humTotal = humDownActive + humUpActive + humDownInactive + humUpInactive
+
+                score = score + (tempTotal * 10e2)
+                score = score + humTotal
 
                 return score
             end,
-            (16 << 12) + (20 << 7) + (20 << 2) + 2  -- Technically, 8 is the highest *naturally occurring* total fertility here, but 16 can happen with genetics.
+            (16 << 12) + (2 << 10) + (20 << 5) + (20)  -- Technically, 8 is the highest *naturally occurring* total fertility here, but 16 can happen with genetics.
         )
     end
 end
@@ -138,6 +139,10 @@ end
 ---@return StackFinisher
 function M.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)
     return function (princessStack, droneStackList)
+        if droneStackList == nil then
+            return {}
+        end
+
         for _, droneStack in ipairs(droneStackList) do
             -- TODO: It is possible that drones will have a bunch of different traits and not stack up. We will need to decide whether we want to
             --       deal with this possibility or just force them to stack up. For now, it is simplest to force them to stack.
@@ -159,6 +164,10 @@ end
 ---@return StackFinisher
 function M.FullDroneStackAndPrincessOfTraitsFinisher(targetTraits)
     return function (princessStack, droneStackList)
+        if (princessStack == nil) or (droneStackList == nil) then
+            return {}
+        end
+
         local princessSlot = nil
         if AnalysisUtil.AllTraitsEqual(princessStack.individual, targetTraits) then
             princessSlot = princessStack.slotInChest

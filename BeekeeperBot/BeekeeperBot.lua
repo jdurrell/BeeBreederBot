@@ -279,7 +279,7 @@ function BeekeeperBot:MakeTemplateHandler(data)
 
     -- Retrieve the existing bees with the highest number of matching traits to have the best starting point.
     ---@diagnostic disable-next-line: param-type-mismatch
-    self.breeder:RetrieveDrones(maxTraitSet)
+    self.breeder:RetrieveDrones(maxTraitSet, 1)
     self.breeder:RetrieveStockPrincessesFromChest(1, {maxTraitSet.species.uid})
     local mustReturnToStorage = true
 
@@ -515,7 +515,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
 
     -- Move starter bees to their respective chests.
     local traits = {species = {uid = species}}
-    if not self.breeder:RetrieveDrones(traits) then
+    if not self.breeder:RetrieveDrones(traits, 1) then
         self:OutputError(string.format("Failed to retrieve drones with species %s.", species))
         self.breeder:ReturnActivePrincessesToStock()
         return nil
@@ -565,6 +565,10 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     -- Do cleanup operations.
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
+        while self.breeder:GetPrincessInChest() == nil do
+            Sleep(5)
+        end
+
         self.breeder:ReturnActivePrincessesToStock()
     end
 
@@ -627,6 +631,10 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
     self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
+        while self.breeder:GetPrincessInChest() == nil do
+            Sleep(5)
+        end
+
         self.breeder:ReturnActivePrincessesToStock()
     end
 
@@ -644,12 +652,36 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
     -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
     local slots = {princess = nil, drones = nil}
     local iteration = 0
+    local inventorySize = self.breeder:GetDroneChestSize()
+
     while iteration < 300 do
-        local princessStack = self.breeder:GetPrincessInChest()
-        local droneStackList = self.breeder:GetDronesInChest()
-        slots = finishedSlotAlgorithm(princessStack, droneStackList)
+        local droneStackList
+        local princessStack = nil
+        while princessStack == nil do
+            princessStack = self.breeder:GetPrincessInChest()
+            droneStackList = self.breeder:GetDronesInChest()
+
+            slots = finishedSlotAlgorithm(princessStack, droneStackList)
+            if (slots.princess ~= nil) or (slots.drones ~= nil) then
+                -- Convergence succeeded. Break out.
+                break
+            end
+
+            local numEmptySlots = (inventorySize - #droneStackList)
+            if numEmptySlots < 4 then  -- 4 is the highest naturally occurring fertility. TODO: Consider whether this should truly leave 8 slots.
+                -- If there are not many open slots in the drone chest, then eliminate some of them to make room for newer generations.
+                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, numEmptySlots - 4)
+                self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
+            end
+
+            if princessStack == nil then
+                -- Poll once every 5 seconds so that we aren't spamming. TODO: Make this configurable.
+                Sleep(5)
+            end
+        end
+
+        -- Check whether we converged above, and break out if so.
         if (slots.princess ~= nil) or (slots.drones ~= nil) then
-            -- Convergence succeeded. Break out.
             break
         end
 
@@ -660,10 +692,6 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
         local droneSlot = matchingAlgorithm(princessStack, droneStackList)
         self:ShutdownOnCancel()
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
-        if princessStack.individual.active.fertility > (27 - #droneStackList) then
-            local slotsToRemove = garbageCollectionAlgorithm(droneStackList, (27 - #droneStackList) - princessStack.individual.active.fertility)
-            self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
-        end
 
         iteration = iteration + 1
     end
