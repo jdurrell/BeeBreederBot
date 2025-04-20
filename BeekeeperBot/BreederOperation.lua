@@ -400,7 +400,7 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
 end
 
 -- Retrieves the first two stacks from the holdover chest and places them in the analyzed drone chest.
--- Starts and ends at the breeder station.
+-- Starts and ends at the breeder station. Can handle at most 15 stacks at once.
 ---@param holdoverChestSlots integer[]
 ---@param amounts integer[]
 ---@param droneChestSlots integer[]
@@ -419,7 +419,15 @@ function BreedOperator:ImportHoldoverStacksToDroneChest(holdoverChestSlots, amou
     self.robot.down()
     for i, slot in ipairs(droneChestSlots) do
         self.robot.select(i)
-        self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
+        while not self.ic.dropIntoSlot(self.sides.front, slot, amounts[i]) do
+            -- If we failed to drop into the slot, then a stray drone must have gotten in our way. Clear it out.
+            self.robot.select(16)
+            self.ic.suckFromSlot(self.sides.front, slot, 64)
+            self.robot.turnRight()
+            self.robot.drop(64)
+            self.robot.turnLeft()
+            self.robot.select(i)
+        end
     end
 
     -- Clean up by returning to starting position.
