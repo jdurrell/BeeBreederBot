@@ -707,11 +707,11 @@ end
 ---@param cacheElement BreedInfoCacheElement  The cache to be populated.
 function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, target, cacheElement)
     for _, droneStack in ipairs(droneStackList) do
-        -- Forestry only checks for mutations between the princess's primary and drone's secondary species and the princess's secondary and
-        -- drone's primary species.
         local mutCombos = {
+            {princessStack.individual.active.species.uid, droneStack.individual.active.species.uid},
             {princessStack.individual.active.species.uid, droneStack.individual.inactive.species.uid},
-            {princessStack.individual.inactive.species.uid, droneStack.individual.active.species.uid}
+            {princessStack.individual.inactive.species.uid, droneStack.individual.active.species.uid},
+            {princessStack.individual.inactive.species.uid, droneStack.individual.inactive.species.uid}
         }
         for _, combo in ipairs(mutCombos) do
             cacheElement[combo[1]] = ((cacheElement[combo[1]] == nil) and {}) or cacheElement[combo[1]]
