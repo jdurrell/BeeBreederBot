@@ -38,9 +38,10 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, m
     local probabilitySum = 0.0
     for _, v in ipairs(princessPossibilities) do
         for _, v2 in ipairs(dronePossibilities) do
-            probabilitySum = probabilitySum + ((1 / (#princessPossibilities * #dronePossibilities)) * mathFunc(v.primary, v.secondary, v2.primary, v2.secondary))
+            probabilitySum = probabilitySum + mathFunc(v.primary, v.secondary, v2.primary, v2.secondary)
         end
     end
+    probabilitySum = probabilitySum / (#princessPossibilities * #dronePossibilities)
 
     return probabilitySum
 end

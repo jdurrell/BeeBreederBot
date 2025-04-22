@@ -532,7 +532,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         local breedInfoCacheElement = {}
         local traitInfoCache = {species = {}}
         finishedDroneSlot = self:Breed(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", traits, breedInfoCacheElement, traitInfoCache),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", traits.species, breedInfoCacheElement, traitInfoCache),
             MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(species),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
             function (princessStack, droneStackList)
@@ -732,8 +732,8 @@ function BeekeeperBot:PopulateBreedInfoCache(princessStack, droneStackList, targ
     end
 end
 
--- Populates `traitInfoCache` with any required infromation to allow for breeding calculations between the given princess and any drone in
--- the drone chest.
+-- Populates `traitInfoCache` with any required information to allow for breeding calculations between
+-- the given princess and any drone in the drone chest.
 ---@param princessStack AnalyzedBeeStack
 ---@param droneStackList AnalyzedBeeStack[]
 ---@param traitInfoCache TraitInfoSpecies  The cache to be populated.

@@ -238,6 +238,9 @@ TestCalculateBreedInfo = {}
         targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Modest", "Rocky", "Meadows", graph)
         Luaunit.assertEquals(targetChance, 0)
         Luaunit.assertEquals(nonTargetChance, 0)
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Common", "Common", "Common", graph)
+        Luaunit.assertEquals(targetChance, 0)
+        Luaunit.assertEquals(nonTargetChance, 0)
     end
 
     function TestCalculateBreedInfo:TestOneCombinationUniqueOutcome()
