@@ -1,4 +1,5 @@
 -- This module contains various utilities that are re-used by multiple test suites.
+local Luaunit = require("Test.luaunit")
 
 local MutationMath = require("BeeServer.MutationMath")
 
@@ -176,6 +177,7 @@ function M.BreedCacheTargetLoad(target, graph)
 end
 
 ---@param graph SpeciesGraph
+---@return table<string, BreedInfoCacheElement>
 function M.BreedCachePreloadAll(graph)
     local cache = {}
 
