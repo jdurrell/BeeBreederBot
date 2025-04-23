@@ -70,7 +70,7 @@ function BreedOperator:GetPrincessInChest()
     return princess
 end
 
--- Returns a list of drones in ANALYZED_DRONE_CHEST.
+-- Returns a list of drones in the active drone chest.
 -- TODO: Reorganize this into a stream to optimize for low memory.
 ---@return AnalyzedBeeStack[]
 function BreedOperator:GetDronesInChest()

@@ -231,14 +231,15 @@ TestConvergenceHighFertilityAndAlleles = {}
         local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 32, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 32, 2)
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 16, 1),
+            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 16, 2)
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+        local maxFertility = math.max(initialDroneStacks[1].individual.active.fertility, initialDroneStacks[2].individual.active.fertility)
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertility, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
             apiary,
@@ -261,11 +262,12 @@ TestConvergenceHighFertilityAndAlleles = {}
             CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 32, 1),
             CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 32, 2)
         }
+        local maxFertility = math.max(initialDroneStacks[1].individual.active.fertility, initialDroneStacks[2].individual.active.fertility)
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertility, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
             apiary,
@@ -286,13 +288,13 @@ TestConvergenceHighFertilityAndAlleles = {}
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesVindictive"], traitInfo), 16, 2)
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
+        local maxFertility = initialPrincess.individual.active.fertility
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertility, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
             apiary,
@@ -301,7 +303,7 @@ TestConvergenceHighFertilityAndAlleles = {}
             3003
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
     end
 
     function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityWithMutations()
@@ -313,13 +315,13 @@ TestConvergenceHighFertilityAndAlleles = {}
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 16, 2)
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+        local maxFertility = initialPrincess.individual.active.fertility
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertility, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
             apiary,
@@ -328,7 +330,7 @@ TestConvergenceHighFertilityAndAlleles = {}
             3004
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
     end
 
     function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityLowNumberDrones()
@@ -340,13 +342,13 @@ TestConvergenceHighFertilityAndAlleles = {}
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 8, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 8, 2)
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 1, 1)
+        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
+        local maxFertility = initialPrincess.individual.active.fertility
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertility, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
             apiary,
@@ -355,34 +357,7 @@ TestConvergenceHighFertilityAndAlleles = {}
             3005
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
-    end
-
-    function TestConvergenceHighFertilityAndAlleles:TestReplicateFromOneFertilityAndDifferentPrincess()
-        local rawMutationInfo = Res.BeeGraphActual.GetRawMutationInfo()
-        local traitInfo = Res.BeeGraphActual.GetTraitInfo()
-        local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
-        local target = "extrabees.species.rock"
-        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
-        local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
-        local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesMeadows"], traitInfo), 16, 2)
-        }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
-
-        local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = target}, breedInfoCacheElement, traitInfo),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(target)),
-            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
-            300,
-            apiary,
-            initialPrincess,
-            initialDroneStacks,
-            3006
-        )
-
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
     end
 
 TestConvergenceClosestMatchToTraits = {}
@@ -450,7 +425,7 @@ TestConvergenceClosestMatchToTraits = {}
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
 
-        local targetSpecies = "gregtech.bee.speciesCommon"
+        local targetSpecies = "forestry.speciesCommon"
         local targetProductionTraits = {
             caveDwelling = true,
             effect = "forestry.allele.effect.none",

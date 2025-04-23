@@ -224,12 +224,24 @@ function BeekeeperBot:MakeTemplateHandler(data)
             self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
             self:EnsureSpecialConditionsMet(pathNode)
 
+            -- We will want to breed high fertility into the drones of the target species.
+            local stack1 = self.breeder:GetStackInDroneSlot(1)
+            local stack2 = self.breeder:GetStackInDroneSlot(2)
+            if (stack1 == nil) or (stack2 == nil) then
+                self:OutputError("BreedSpecies: Drones were removed from chest between holdover import and conditions completion.")
+                return nil
+            end
+            local maxFertilityPreExisting = math.max(
+                stack1.individual.active.fertility,
+                stack2.individual.active.fertility
+            )
+
             -- Do the breeding.
             local breedInfoCacheElement = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:Breed(
-                MatchingAlgorithms.HighFertilityAndAllelesMatcher(v.trait, data.traits[v.trait], breedInfoCacheElement, traitInfoCache),
-                MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target),
+                MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertilityPreExisting, v.trait, data.traits[v.trait], breedInfoCacheElement, traitInfoCache),
+                MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target, maxFertilityPreExisting, 64),
                 GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
                 function (princessStack, droneStackList)
                     self:PopulateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCacheElement)
@@ -527,13 +539,19 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         -- Technically, we take the drones away for the output first, then replicate the original stack back up to 64.
         local numberToReplicate = math.min(remaining, 32)
         self.breeder:ExportDroneStacksToHoldovers({1}, {numberToReplicate}, {holdoverSlot})
+        local stack = self.breeder:GetStackInDroneSlot(1)
+        if stack == nil then
+            return nil
+        end
 
         -- Do the breeding.
         local breedInfoCacheElement = {}
         local traitInfoCache = {species = {}}
         finishedDroneSlot = self:Breed(
-            MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", traits.species, breedInfoCacheElement, traitInfoCache),
-            MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(species),
+            MatchingAlgorithms.HighFertilityAndAllelesMatcher(
+                stack.individual.active.fertility, "species", traits.species, breedInfoCacheElement, traitInfoCache
+            ),
+            MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(species, stack.individual.active.fertility, 64),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
             function (princessStack, droneStackList)
                 self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCacheElement)
@@ -601,12 +619,24 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
 
     self:EnsureSpecialConditionsMet(node)
 
+    -- We will want to breed high fertility into the drones of the target species.
+    local stack1 = self.breeder:GetStackInDroneSlot(1)
+    local stack2 = self.breeder:GetStackInDroneSlot(2)
+    if (stack1 == nil) or (stack2 == nil) then
+        self:OutputError("BreedSpecies: Drones were removed from chest between holdover import and conditions completion.")
+        return nil
+    end
+    local maxFertilityPreExisting = math.max(
+        stack1.individual.active.fertility,
+        stack2.individual.active.fertility
+    )
+
     -- Do the breeding.
     local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndAllelesMatcher("species", {uid = node.target}, breedInfoCacheElement, traitInfoCache),
-        MatchingAlgorithms.FullDroneStackOfSpeciesPositiveFertilityFinisher(node.target),
+        MatchingAlgorithms.HighFertilityAndAllelesMatcher(maxFertilityPreExisting, "species", {uid = node.target}, breedInfoCacheElement, traitInfoCache),
+        MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(node.target, maxFertilityPreExisting, 64),
         GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(node.target),
         function (princessStack, droneStackList)
             self:PopulateBreedInfoCache(princessStack, droneStackList, node.target, breedInfoCacheElement)
@@ -689,7 +719,10 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
         if populateCaches ~= nil then
             populateCaches(princessStack, droneStackList)
         end
-        local droneSlot = matchingAlgorithm(princessStack, droneStackList)
+        local droneSlot, score = matchingAlgorithm(princessStack, droneStackList)
+        if score ~= nil then
+            Print(string.format("Picked score: %.1f", score))
+        end
         self:ShutdownOnCancel()
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
 
