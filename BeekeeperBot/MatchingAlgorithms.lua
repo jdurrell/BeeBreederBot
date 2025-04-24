@@ -17,22 +17,29 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
 function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue, cacheElement, traitInfo)
+    local necessaryTraits = {
+        [targetTrait] = targetValue,
+        fertility = maxFertility,
+        temperatureTolerance = "BOTH_5",  -- TODO: These should be configurable for one-way acclimatization.
+        humidityTolerance = "BOTH_5"
+    }
     return function (princessStack, droneStackList)
         return M.GenericHighestScore(
             droneStackList,
             function (droneStack)
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
                     princessStack.individual, droneStack.individual, targetTrait, targetValue, cacheElement, traitInfo
-                ) * 1e4)
+                ) * 1e3) * 1e5
 
                 if score == 0 then
+                    -- Don't choose a drone that has no chance of producing the desired mutation trait.
                     return 0
                 end
 
                 local numTraitsAtLeastOneAllele = 0
                 local numTraitsAtLeastTwoAlleles = 0
                 local totalNumMatchingAlleles = 0
-                for trait, value in pairs({fertility = maxFertility, [targetTrait] = targetValue}) do
+                for trait, value in pairs(necessaryTraits) do
                     local numberMatchingAllelesOfTrait = (
                         AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value) +
                         AnalysisUtil.NumberOfMatchingAlleles(princessStack.individual, trait, value)
@@ -49,11 +56,23 @@ function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue
 
                 -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
                 -- getting as many traits with a target allele as possible.
-                score = score + (numTraitsAtLeastOneAllele * 1e8)
-                score = score + (numTraitsAtLeastTwoAlleles * 1e6)
+                score = score + (numTraitsAtLeastOneAllele * 1e12)
+                score = score + (numTraitsAtLeastTwoAlleles * 1e10)
 
-                -- Lastly, prioritize getting the maximum number of target alleles to eventually get pure-breds.
-                score = score + totalNumMatchingAlleles
+                -- Prioritize getting the maximum number of target alleles to eventually get pure-breds.
+                score = score + totalNumMatchingAlleles * 1e4
+
+                -- Use the drone that is most like the current princess so that we converge the quickest.
+                local numMatchingTotal = 0
+                for trait, value in pairs(princessStack.individual.active) do
+                    if AnalysisUtil.TraitIsEqual(princessStack.individual.inactive, trait, value) then
+                        numMatchingTotal = numMatchingTotal + AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value)
+                    end
+                end
+                score = score + numMatchingTotal * 1e2
+
+                -- As a last tiebreaker, pick the highest stack size.
+                score = score + droneStack.size
 
                 return score
             end
@@ -112,59 +131,6 @@ function M.ClosestMatchToTraitsMatcher(targetTraits)
     end
 end
 
--- Returns matcher that prioritizes drones that, when combined with the princess, give the greatest number of target alleles
--- in the two parents.
----@param maxFertility integer
----@param mutationTrait string
----@param mutationValue any
----@param cacheElement BreedInfoCacheElement
----@param traitInfo TraitInfoSpecies
----@return Matcher
-function M.AsdfMatcher(maxFertility, mutationTrait, mutationValue, cacheElement, traitInfo)
-    return function (princessStack, droneStackList)
-        return M.GenericHighestScore(
-            droneStackList,
-            function (droneStack)
-                local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    princessStack.individual, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
-                ) * 1e4)
-
-                if score == 0 then
-                    return 0
-                end
-
-                local numTraitsAtLeastOneAllele = 0
-                local numTraitsAtLeastTwoAlleles = 0
-                local totalNumMatchingAlleles = 0
-                for trait, value in pairs({fertility = maxFertility, [mutationTrait] = mutationValue}) do
-                    local numberMatchingAllelesOfTrait = (
-                        AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value) +
-                        AnalysisUtil.NumberOfMatchingAlleles(princessStack.individual, trait, value)
-                    )
-
-                    if numberMatchingAllelesOfTrait >= 1 then
-                        numTraitsAtLeastOneAllele = numTraitsAtLeastOneAllele + 1
-                    end
-                    if numberMatchingAllelesOfTrait >= 2 then
-                        numTraitsAtLeastTwoAlleles = numTraitsAtLeastTwoAlleles + 1
-                    end
-                    totalNumMatchingAlleles = totalNumMatchingAlleles + numberMatchingAllelesOfTrait
-                end
-
-                -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
-                -- getting as many traits with a target allele as possible.
-                score = score + (numTraitsAtLeastOneAllele * 1e8)
-                score = score + (numTraitsAtLeastTwoAlleles * 1e6)
-
-                -- Lastly, prioritize getting the maximum number of target alleles to eventually get pure-breds.
-                score = score + totalNumMatchingAlleles
-
-                return score
-            end
-        )
-    end
-end
-
 -- Generic function to wrap algorithms that calculate a score for each drone and pick the one with the highest score.
 -- `scoreFunc` must only return values greater than or equal to 0.
 ---@param droneStackList AnalyzedBeeStack[]
@@ -190,8 +156,6 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
             end
         end
 
-        Sleep(1)
-        Print(string.format("Slot %u: score %.1f", droneStack.slotInChest, score))
         ::continue::
     end
 

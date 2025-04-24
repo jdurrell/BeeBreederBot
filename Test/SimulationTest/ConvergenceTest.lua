@@ -245,7 +245,7 @@ TestConvergenceHighFertilityAndAlleles = {}
             apiary,
             initialPrincess,
             initialDroneStacks,
-            3001
+            12121
         )
 
         Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
@@ -354,7 +354,7 @@ TestConvergenceHighFertilityAndAlleles = {}
             apiary,
             initialPrincess,
             initialDroneStacks,
-            3005
+            65416541
         )
 
         Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
