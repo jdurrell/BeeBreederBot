@@ -18,9 +18,6 @@ local PRINCESS_SLOT      = 1
 local DRONE_SLOT         = 2
 local NUM_INTERNAL_SLOTS = 16
 
--- Info for chests for analyzed bees at the start of the apiary row.
-local BASIC_CHEST_INVENTORY_SLOTS = 27
-
 ---@param componentLib Component
 ---@param robotLib any
 ---@param sidesLib any
@@ -78,7 +75,7 @@ function BreedOperator:GetDronesInChest()
 
     -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
     local drones = {}
-    for i = 1, BASIC_CHEST_INVENTORY_SLOTS do
+    for i = 1, self.ic.getInventorySize(self.sides.front) do
         ---@type AnalyzedBeeStack
         local droneStack = self.ic.getStackInSlot(self.sides.front, i)
         if droneStack ~= nil then
@@ -232,15 +229,15 @@ end
 -- If slots is nil, then trashes all slots.
 ---@param slots integer[] | nil
 function BreedOperator:TrashSlotsFromDroneChest(slots)
+    self.robot.select(1)
+    self.robot.turnRight()
+
     if slots == nil then
         slots = {}
-        for i = 1, 27 do
+        for i = 1, self.ic.getInventorySize(self.sides.front) do
             table.insert(slots, i)
         end
     end
-
-    self.robot.select(1)
-    self.robot.turnRight()
 
     for _, slot in ipairs(slots) do
         local stack = self.ic.getStackInSlot(self.sides.front, slot)
