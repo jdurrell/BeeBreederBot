@@ -137,7 +137,7 @@ function BeekeeperBot:BreedCommandHandler(data)
         ::restart::
         if v.parent1 ~= nil then
             Print(string.format("Replicating %s.", v.parent1))
-            if not self:ReplicateSpecies(v.parent1, true, true, 16, 1) then
+            if not self:ReplicateSpecies(v.parent1, true, true, 8, 1) then
                 self:OutputError("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
                 self:Shutdown(1)
             end
@@ -145,7 +145,7 @@ function BeekeeperBot:BreedCommandHandler(data)
 
         if v.parent2 ~= nil then
             Print(string.format("Replicating %s.", v.parent2))
-            if not self:ReplicateSpecies(v.parent2, true, false, 16, 2) then
+            if not self:ReplicateSpecies(v.parent2, true, false, 8, 2) then
                 self:OutputError("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
                 self:Shutdown(1)
             end
@@ -210,14 +210,14 @@ function BeekeeperBot:MakeTemplateHandler(data)
         for _, pathNode in ipairs(v.path) do
             ::restart::
             if pathNode.parent1 ~= nil then
-                if not self:ReplicateSpecies(pathNode.parent1, true, true, 16, 1) then
+                if not self:ReplicateSpecies(pathNode.parent1, true, true, 8, 1) then
                     self:OutputError("Fatal error: Replicate species '" .. pathNode.parent1 .. "' failed.")
                     self:Shutdown(1)
                 end
             end
 
             if pathNode.parent2 ~= nil then
-                if not self:ReplicateSpecies(pathNode.parent2, true, false, 16, 2) then
+                if not self:ReplicateSpecies(pathNode.parent2, true, false, 8, 2) then
                     self:OutputError("Fatal error: Replicate species '" .. pathNode.parent2 .. "' failed.")
                     self:Shutdown(1)
                 end
