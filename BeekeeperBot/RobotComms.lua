@@ -140,6 +140,7 @@ end
 
 -- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
 ---@param species string
+---@return boolean
 function RobotComms:ReportNewSpeciesToServer(species)
     ::restart::
     -- Report the update to the server.
@@ -151,9 +152,10 @@ function RobotComms:ReportNewSpeciesToServer(species)
         goto restart
     end
     if not self:ValidateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
-        return nil
+        return false
     end
 
+    return true
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.

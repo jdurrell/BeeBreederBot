@@ -116,7 +116,7 @@ function BeekeeperBot:ImportDroneStacksHandler(data)
     local speciesSet = self.breeder:ImportDroneStacksFromInputsToStore()
 
     if speciesSet == nil then
-        self.robotComms:ReportErrorToServer("Failed to import drones.")
+        self:OutputError("Failed to import drones.")
     else
         for spec, _ in pairs(speciesSet) do
             self.robotComms:ReportNewSpeciesToServer(spec)
@@ -653,9 +653,8 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     end
 
     -- If we have enough of the target species now, then inform the server and store the drones at the new location.
-    local storageResponse = self.robotComms:ReportNewSpeciesToServer(node.target)
-    if storageResponse == nil then
-        self:OutputError(string.format("Error getting storage location of %s from server.", node.target))
+    if not self.robotComms:ReportNewSpeciesToServer(node.target) then
+        self:OutputError(string.format("Error reporting storage location of %s to server.", node.target))
         self.breeder:BreakAndReturnFoundationsToInputChest()
         return nil
     end
