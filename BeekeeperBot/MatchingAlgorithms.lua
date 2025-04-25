@@ -29,7 +29,7 @@ function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue
             function (droneStack)
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
                     princessStack.individual, droneStack.individual, targetTrait, targetValue, cacheElement, traitInfo
-                ) * 1e3) * 1e5
+                ) * 1e3) * 1e6
 
                 if score == 0 then
                     -- Don't choose a drone that has no chance of producing the desired mutation trait.

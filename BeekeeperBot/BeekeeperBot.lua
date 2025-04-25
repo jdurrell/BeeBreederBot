@@ -101,6 +101,7 @@ function BeekeeperBot:ReplicateCommandHandler(data)
         self:OutputError(string.format("Failed to replicate species '%s'.", data.species))
     end
 
+    self.breeder:TrashSlotsFromDroneChest(nil)
     self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
     self.breeder:ExportDroneStackToOutput(1, 64)
 end
@@ -161,6 +162,8 @@ function BeekeeperBot:BreedCommandHandler(data)
             self.breeder:ReturnActivePrincessesToStock()
             goto restart
         end
+
+        self.breeder:TrashSlotsFromDroneChest(nil)
     end
 end
 
@@ -581,7 +584,6 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
 
     -- Do cleanup operations.
-    self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         while self.breeder:GetPrincessInChest() == nil do
             Sleep(5)
@@ -659,7 +661,6 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     end
 
     self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
-    self.breeder:TrashSlotsFromDroneChest(nil)
     if returnPrincessesToStock then
         while self.breeder:GetPrincessInChest() == nil do
             Sleep(5)
@@ -694,7 +695,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
             slots = finishedSlotAlgorithm(princessStack, droneStackList)
             if (slots.princess ~= nil) or (slots.drones ~= nil) then
                 -- Convergence succeeded. Break out.
-                break
+                return slots
             end
 
             local numEmptySlots = (inventorySize - #droneStackList)
@@ -710,19 +711,16 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
             end
         end
 
-        -- Check whether we converged above, and break out if so.
-        if (slots.princess ~= nil) or (slots.drones ~= nil) then
-            break
-        end
-
         -- Not finished, but haven't failed. Continue breeding.
         if populateCaches ~= nil then
             populateCaches(princessStack, droneStackList)
         end
+
         local droneSlot, score = matchingAlgorithm(princessStack, droneStackList)
         if score ~= nil then
-            Print(string.format("Picked score: %.1f", score))
+            Print(string.format("i%u: score = %.1f", iteration, score))
         end
+
         self:ShutdownOnCancel()
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
 
