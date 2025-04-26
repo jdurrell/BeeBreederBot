@@ -200,8 +200,9 @@ end
 -- Returns a stack finisher that returns the slot of the finished princess in ANALYZED_PRINCESS_CHEST and then slot of
 -- the finished drones in ANALYZED_DRONE_CHEST if both the princess and a full stack of drones have all the target traits.
 ---@param targetTraits PartialAnalyzedBeeTraits
+---@param stackSize integer
 ---@return StackFinisher
-function M.FullDroneStackAndPrincessOfTraitsFinisher(targetTraits)
+function M.DroneStackAndPrincessOfTraitsFinisher(targetTraits, stackSize)
     return function (princessStack, droneStackList)
         if (princessStack == nil) or (droneStackList == nil) then
             return {}
@@ -215,7 +216,7 @@ function M.FullDroneStackAndPrincessOfTraitsFinisher(targetTraits)
         end
 
         for _, stack in ipairs(droneStackList) do
-            if (stack.size == 64) and AnalysisUtil.AllTraitsEqual(stack.individual, targetTraits) then
+            if (stack.individual ~= nil) and (stack.size >= stackSize) and AnalysisUtil.AllTraitsEqual(stack.individual, targetTraits) then
                 return {princess = princessSlot, drones = stack.slotInChest}
             end
         end

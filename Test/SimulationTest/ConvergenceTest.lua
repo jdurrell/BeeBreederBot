@@ -408,7 +408,7 @@ TestConvergenceClosestMatchToTraits = {}
 
         local successRatio = RunConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackAndPrincessOfTraitsFinisher(targetProductionTraits)),
+            commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
             300,
             apiary,
@@ -466,7 +466,7 @@ TestConvergenceClosestMatchToTraits = {}
 
         local successRatio = RunConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits),
-            commonEndCondition(MatchingAlgorithms.FullDroneStackAndPrincessOfTraitsFinisher(targetProductionTraits)),
+            commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
             300,
             apiary,

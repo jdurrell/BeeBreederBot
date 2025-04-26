@@ -277,8 +277,8 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     local numRetrieved = 0
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         if self.ic.getStackInSlot(self.sides.front, i) ~= nil then
-            local numGotten = self.robot.suck(n - numRetrieved)
-            numRetrieved = numRetrieved + numGotten
+            self.robot.select(numRetrieved + 1)
+            self.ic.suckFromSlot(self.sides.front, i, 1)
 
             if numRetrieved >= n then
                 break
@@ -307,13 +307,27 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     return true
 end
 
-function BreedOperator:ReturnActivePrincessesToStock()
+---@param amount integer | nil
+function BreedOperator:ReturnActivePrincessesToStock(amount)
+    amount = ((amount == nil) and self.numApiaries) or amount
+
     -- Pick up princesses from the active chest.
     -- TODO: Deal with having more than 16 princesses.
     self.robot.turnLeft()
-    for i = 1, NUM_INTERNAL_SLOTS do
-        self.robot.select(i)
-        self.robot.suck(64)
+    local numToRetrieve = amount
+    local internalSlot = 1
+    while numToRetrieve > 0 do
+        self.robot.select(internalSlot)
+        for i = 1, self.ic.getInventorySize(self.sides.front) do
+            local stack = self.ic.getStackInSlot(self.sides.front, i)
+            if (stack ~= nil) and (stack.label:find("[P|p]rincess") ~= nil) then
+                local retrieved = self.ic.suckFromSlot(self.sides.front, i, 64)
+                numToRetrieve = numToRetrieve - retrieved
+            end
+        end
+
+        -- We might not actually have all the princesses immediately, so wait around until they finish.
+        Sleep(5)
     end
     self.robot.turnRight()
 
@@ -527,17 +541,18 @@ end
 
 -- Moves the specified number of princesses from the given slot in the active chest to the output chest.
 ---@param slot integer
-function BreedOperator:ExportPrincessStackToOutput(slot, number)
+---@param amount integer
+function BreedOperator:ExportPrincessStackToOutput(slot, amount)
     self.robot.select(1)
 
     -- Pick up princesses.
     self.robot.turnLeft()
-    self.ic.suckFromSlot(self.sides.front, slot, number)
+    self.ic.suckFromSlot(self.sides.front, slot, amount)
     self.robot.turnRight()
 
     -- Go to chest and unload, then return to the breeder station.
     self:moveToOutputChest()
-    self.robot.drop(number)
+    self.robot.drop(amount)
     self:returnToBreederStationFromOutputChest()
 end
 
