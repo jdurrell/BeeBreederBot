@@ -75,23 +75,17 @@ function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue
                 score = score + droneStack.size
 
                 return score
-            end
+            end,
+            nil
         )
     end
 end
 
 -- Returns matcher that prioritizes drones that, when combined with the princess, give the greatest number of target alleles
 -- in the two parents.
----@param targetTraits PartialAnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@return Matcher
 function M.ClosestMatchToTraitsMatcher(targetTraits)
-    local maxScore = 0
-    for _, _ in pairs(targetTraits) do
-        maxScore = maxScore + (1 << 10)
-        maxScore = maxScore + (1 << 6)
-        maxScore = maxScore + 4
-    end
-
     return function (princessStack, droneStackList)
         return M.GenericHighestScore(
             droneStackList,
@@ -118,15 +112,28 @@ function M.ClosestMatchToTraitsMatcher(targetTraits)
 
                 -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
                 -- getting as many traits with a target allele as possible.
-                score = score + (numTraitsAtLeastOneAllele << 10)
-                score = score + (numTraitsAtLeastTwoAlleles << 6)
+                score = score + (numTraitsAtLeastOneAllele << 22)
+                score = score + (numTraitsAtLeastTwoAlleles << 18)
 
-                -- Lastly, prioritize getting the maximum number of target alleles to eventually get pure-breds.
-                score = score + totalNumMatchingAlleles
+                -- Next, prioritize getting the maximum number of target alleles to eventually get pure-breds.
+                score = score + totalNumMatchingAlleles << 12
+
+                -- If no differences in target traits exist, then pick the drone that is most like the princess's pure-bred traits.
+                -- This helps converge faster by eliminating variance in traits that we don't care about.
+                local numAllelesMatchingPureTraits = 0
+                for trait, value in pairs(princessStack.individual.active) do
+                    if AnalysisUtil.TraitIsEqual(princessStack.individual.inactive, trait, value) then
+                        numAllelesMatchingPureTraits = numAllelesMatchingPureTraits + AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value)
+                    end
+                end
+                score = score + numAllelesMatchingPureTraits << 7
+
+                -- As a last tiebreaker, pick the stack with the highest size to converge the fastest.
+                score = score + droneStack.size
 
                 return score
             end,
-            maxScore
+            nil
         )
     end
 end
@@ -151,7 +158,7 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
             maxDroneStack = droneStack
             maxScore = score
             if maxScore == maxPossibleScore then
-                Print(string.format("Got max score. on slot %u. Terminating early.", droneStack.slotInChest))
+                Print(string.format("Terminating early for max score on slot %u.", droneStack.slotInChest))
                 break
             end
         end
@@ -199,7 +206,7 @@ end
 
 -- Returns a stack finisher that returns the slot of the finished princess in ANALYZED_PRINCESS_CHEST and then slot of
 -- the finished drones in ANALYZED_DRONE_CHEST if both the princess and a full stack of drones have all the target traits.
----@param targetTraits PartialAnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@param stackSize integer
 ---@return StackFinisher
 function M.DroneStackAndPrincessOfTraitsFinisher(targetTraits, stackSize)

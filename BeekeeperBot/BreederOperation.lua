@@ -174,13 +174,14 @@ end
 function BreedOperator:ScanAllDroneStacks()
     self:moveToStorageColumn()
 
+    -- Collect the drone stacks.
     local droneStacks = {}
     local chest = 0
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
             local stack = self.ic.getStackInSlot(self.sides.front, i)
             if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size == 64) then
-                                -- This is a valid drone stack, so add it to the list.
+                -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
                 table.insert(droneStacks, stack.individual.active)
             end
@@ -191,6 +192,10 @@ function BreedOperator:ScanAllDroneStacks()
         self.robot.turnRight()
         chest = chest + 1
     end
+
+    -- Return to the breeder station.
+    self:returnToStorageColumnOriginFromChest(chest)
+    self:returnToBreederStationFromStorageColumn()
 
     return droneStacks
 end
@@ -227,9 +232,10 @@ end
 
 -- Moves all stacks from the given slot in the drone chest to the trash can.
 -- If slots is nil, then trashes all slots.
+-- NOTE: Technically, drones can still appear in the chest after this operation.
+--       It does not wait for all possible offspring to appear.
 ---@param slots integer[] | nil
 function BreedOperator:TrashSlotsFromDroneChest(slots)
-    self.robot.select(1)
     self.robot.turnRight()
 
     if slots == nil then
@@ -239,18 +245,22 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
         end
     end
 
-    for _, slot in ipairs(slots) do
-        local stack = self.ic.getStackInSlot(self.sides.front, slot)
-        if stack == nil then
-            goto continue
+    local slotIdx = 1
+    while slotIdx <= #slots do
+        for i = 1, math.min(NUM_INTERNAL_SLOTS, (#slots - slotIdx) + 1) do
+            self.robot.select(i)
+            local stack = self.ic.getStackInSlot(self.sides.front, slots[slotIdx])
+            if stack == nil then
+                goto continue
+            end
+
+            -- Pick up the stack.
+            self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
         end
 
-        -- Pick up the stack.
-        self.ic.suckFromSlot(self.sides.front, slot, 64)
-
-        -- Trash the stack.
+        -- Trash the stacks.
         self.robot.turnRight()
-        self.robot.drop(64)
+        self:unloadInventory()
 
         -- Turn back to the drone chest.
         self.robot.turnLeft()
@@ -278,7 +288,11 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         if self.ic.getStackInSlot(self.sides.front, i) ~= nil then
             self.robot.select(numRetrieved + 1)
-            self.ic.suckFromSlot(self.sides.front, i, 1)
+            if not self.ic.suckFromSlot(self.sides.front, i, 1) then
+                Print(string.format("Failed to take stock princess out of slot %u.", i))
+                return false
+            end
+            numRetrieved = numRetrieved + 1
 
             if numRetrieved >= n then
                 break
@@ -287,10 +301,11 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     end
 
     -- Error out if we didn't find the requested number.
+    local succeeded = true
     if numRetrieved < n then
+        succeeded = false
         Print(string.format("Failed to retrieve %u stock princesses. Only found %u", n, numRetrieved))
         self:unloadInventory()
-        return false
     end
 
     -- Return to the breeder station.
@@ -304,7 +319,7 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     -- Clean up by returning to starting position.
     self.robot.turnRight()
 
-    return true
+    return succeeded
 end
 
 ---@param amount integer | nil
@@ -345,7 +360,7 @@ function BreedOperator:ReturnActivePrincessesToStock(amount)
 end
 
 -- Retrieves a stack of drones that matches all of the given traits.
----@param traits PartialAnalyzedBeeTraits
+---@param traits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@param activeChestSlot integer | nil
 ---@return boolean success
 function BreedOperator:RetrieveDrones(traits, activeChestSlot)

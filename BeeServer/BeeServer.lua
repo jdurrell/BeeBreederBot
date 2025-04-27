@@ -130,7 +130,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
     -- TODO: Figure this out from a list of default chromosomes, and don't force the player to figure this out manually.
     --       There may be some portability and memory to that, though.
     self.messagingPromptsPending["traitbreedpath"] = true
-    Print(string.format("Trait '%s: %s' is not found in the bee storage.", data.trait, tostring(data.value)))
+    Print(string.format("Trait %s is not found in the bee storage.", TraitsToString({[data.trait] = data.value})))
     Print("Enter a species to breed with the desired trait mutation:")
 end
 
@@ -234,6 +234,10 @@ function BeeServer:TemplateCommandHandler(argv)
         ["tolerantFlyer"] = "boolean"
     }
     local payload = {traits = {}}  ---@type MakeTemplatePayload
+
+    -- Remove the orginal command.
+    table.remove(argv, 1)
+
     for i, v in ipairs(argv) do
         local fields = {}
         for match in v:gmatch("[^=]+") do
@@ -246,8 +250,8 @@ function BeeServer:TemplateCommandHandler(argv)
         end
 
         -- TODO: Actually validate all of the values given to us here.
-        fields[2] = fields[2]:lower()
         if validTraitsTypes[fields[2]] == "boolean" then
+            fields[2] = fields[2]:lower()
             if fields[2] == "true" then
                 payload.traits[fields[1]] = true
             elseif fields[2] == "false" then
@@ -283,6 +287,7 @@ function BeeServer:TemplateCommandHandler(argv)
         end
     end
 
+    Print(string.format("Making internal template: %s.", TraitsToString(payload.traits)))
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, payload)
 end
 
@@ -304,7 +309,7 @@ function BeeServer:TraitBreedPathCommandHandler(argv)
             return
         end
 
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.TraitBreedPathRequest, path)
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.TraitBreedPathResponse, path)
     end
 end
 
@@ -465,6 +470,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
         [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
         [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
+        [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
         [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
     }
 

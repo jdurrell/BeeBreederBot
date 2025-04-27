@@ -159,7 +159,7 @@ function BeekeeperBot:BreedCommandHandler(data)
         elseif not retval then
             -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
             self.breeder:TrashSlotsFromDroneChest(nil)
-            self.breeder:ReturnActivePrincessesToStock()
+            self.breeder:ReturnActivePrincessesToStock(nil)
             goto restart
         end
 
@@ -178,6 +178,9 @@ function BeekeeperBot:MakeTemplateHandler(data)
         self:OutputError("Failed to make template.")
         return
     end
+
+    Print(string.format("Finished making template %s.", TraitsToString(data.traits)))
+    self.breeder:TrashSlotsFromDroneChest(nil)
 end
 
 ---@param data PropagateTemplatePayload
@@ -191,6 +194,9 @@ function BeekeeperBot:PropagateTemplateHandler(data)
         self:OutputError("Failed to propagate remplate.")
         return
     end
+
+    Print(string.format("Finished propagating template to species %s.", data.traits.species.uid))
+    self.breeder:TrashSlotsFromDroneChest(nil)
 end
 
 ---@param targetTraits PartialAnalyzedBeeTraits
@@ -227,7 +233,14 @@ function BeekeeperBot:MakeTemplate(targetTraits)
     end
 
     -- Now, actually breed those traits into the storage population, if necessary.
+    local bredNew = false
     for _, v in ipairs(traitPaths) do
+        bredNew = true
+
+        Print(string.format("Breeding trait %s into the population via species '%s'.",
+            TraitsToString({[v.trait] = targetTraits[v.trait]}),
+            v.path[#(v.path)].target
+        ))
         for _, pathNode in ipairs(v.path) do
             if not self:ReplicateSpecies(pathNode.parent1, true, true, 8, 1) then
                 self:OutputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
@@ -281,18 +294,21 @@ function BeekeeperBot:MakeTemplate(targetTraits)
 
             self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
             self.breeder:TrashSlotsFromDroneChest(nil)
-            self.breeder:ReturnActivePrincessesToStock()
+            self.breeder:ReturnActivePrincessesToStock(nil)
             self.breeder:BreakAndReturnFoundationsToInputChest()
         end
     end
 
-    -- Now that all the required traits are present, refresh our view and look for existing bees that are the closest to the target template.
-    beeTraitSets = self.breeder:ScanAllDroneStacks()
+    -- Refresh our view of the bees if necessary.
+    if bredNew then
+        beeTraitSets = self.breeder:ScanAllDroneStacks()
+    end
     if (beeTraitSets == nil) or (#beeTraitSets == 0) then
         self:OutputError("Failed to find any bees when searching for best initial trait match.")
         return false
     end
 
+    -- Look for existing bees that are the closest match to the target template since they will be the best starting point.
     local maxTraitSet = beeTraitSets[1]
     local maxMatchingTraits = -1
     for _, v in ipairs(beeTraitSets) do
@@ -309,13 +325,6 @@ function BeekeeperBot:MakeTemplate(targetTraits)
         end
     end
 
-    -- Retrieve the existing bees with the highest number of matching traits to have the best starting point.
-    ---@diagnostic disable-next-line: param-type-mismatch
-    if not self.breeder:RetrieveDrones(maxTraitSet, 1) then
-        self:OutputError("Failed to retrieve drones with maxTraits.")
-        return false
-    end
-
     local finishedTraits = {}
     for trait, value in pairs(targetTraits) do
         if AnalysisUtil.TraitIsEqual(maxTraitSet, trait, value) then
@@ -324,7 +333,7 @@ function BeekeeperBot:MakeTemplate(targetTraits)
     end
 
     -- Get 16 drones that have the initial best starting traits.
-    ---@diagnostic disable-next-line: param-type-mismatch
+    Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitSet)))
     if not self:ReplicateTemplate(maxTraitSet, 16, 1, true, false) then
         self:OutputError("Failed to replicate starting template.")
         return false
@@ -334,16 +343,19 @@ function BeekeeperBot:MakeTemplate(targetTraits)
     for trait, value in pairs(targetTraits) do
         if finishedTraits[trait] ~= nil then
             -- We only need to breed in traits that we haven't finished with yet.
+            Print(string.format("Trait %s is already present in the working template.", TraitsToString({[trait] = value})))
             goto continue
         end
 
         -- Get 16 drones that have the requested trait.
+        Print(string.format("Replicating stack with trait %s.", TraitsToString({[trait] = value})))
         if not self:ReplicateTemplate({[trait] = value}, 16, 2, false, false) then
-            self:OutputError("Error replicating template of starting species.")
+            self:OutputError("Failed to replicate template of new trait.")
             return false
         end
 
         -- Now breed the desired traits into the working template.
+        Print(string.format("Adding trait %s into the working template.", TraitsToString({[trait] = value})))
         self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
         local nextTraits = Copy(finishedTraits)
         nextTraits[trait] = value
@@ -362,29 +374,35 @@ function BeekeeperBot:MakeTemplate(targetTraits)
         -- Update the finished traits. We only tried for `trait`, but we might have added others by luck.
         local newTraits = self.breeder:GetStackInDroneSlot(finishedSlots.drones).individual.active
         for newTrait, _ in pairs(newTraits) do
-            if (finishedTraits[newTrait] == nil) and AnalysisUtil.TraitIsEqual(newTraits, newTrait, targetTraits[newTrait]) then
+            if ((finishedTraits[newTrait] == nil) and
+                (targetTraits[newTrait] ~= nil) and
+                AnalysisUtil.TraitIsEqual(newTraits, newTrait, targetTraits[newTrait])
+            ) then
                 finishedTraits[newTrait] = targetTraits[newTrait]
             end
         end
 
-        self.breeder:ExportDroneStacksToHoldovers({1}, {16}, {1})
+        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {16}, {1})
 
         ::continue::
     end
 
     -- Final drone stack is in the holdover chest, but we only have 16. Breed it up to 64 to finish it off, then store it.
+    Print("Working template finished. Breeding template up to full stack.")
     self.breeder:ImportHoldoverStacksToDroneChest({1}, {16}, {1})
-    local finishedSlots = self:Breed(
+    local finishedDrones = self:Breed(
         MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
         GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetTraits),
         nil
-    )
-    if (finishedSlots.drones) == nil then
+    ).drones
+    if finishedDrones == nil then
         self:OutputError("Failed to breed final template up to 64.")
         return false
     end
-    self.breeder:StoreDronesFromActiveChest({finishedSlots.drones})
+
+    self.breeder:StoreDronesFromActiveChest({finishedDrones})
+    self.breeder:ReturnActivePrincessesToStock(nil)
 
     return true
 end
@@ -431,7 +449,7 @@ end
 -- Replicates the given template from pure-bred drones and a pure-bred princess of that template.
 -- Requires drones and princess to already be in the active chests.
 -- Places drone outputs in the holdover chest.
----@param traits PartialAnalyzedBeeTraits
+---@param traits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@param amount integer
 ---@param holdoverDroneSlot integer
 ---@param retrievePrincessesFromStock boolean
@@ -456,7 +474,7 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
     if not self.breeder:RetrieveDrones(traits, 1) then
         self:OutputError(string.format("Failed to retrieve drones for replicating template."))
         if retrievePrincessesFromStock then
-            self.breeder:ReturnActivePrincessesToStock()
+            self.breeder:ReturnActivePrincessesToStock(nil)
         end
         return nil
     end
@@ -480,7 +498,7 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
             -- This should never really happen since we're starting with an absurdly high number of drones.
             self:OutputError("Convergence failure while replicating traits.")
             if retrievePrincessesFromStock then
-                self.breeder:ReturnActivePrincessesToStock()
+                self.breeder:ReturnActivePrincessesToStock(nil)
             end
             return nil
         end
@@ -489,8 +507,9 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
     end
 
     -- Do cleanup operations.
+    self.breeder:StoreDronesFromActiveChest({finishedSlots.drones})
     if returnPrincessesToStock then
-        self.breeder:ReturnActivePrincessesToStock()
+        self.breeder:ReturnActivePrincessesToStock(nil)
     end
 
     return true
@@ -523,7 +542,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     local traits = {species = {uid = species}}
     if not self.breeder:RetrieveDrones(traits, 1) then
         self:OutputError(string.format("Failed to retrieve drones with species %s.", species))
-        self.breeder:ReturnActivePrincessesToStock()
+        self.breeder:ReturnActivePrincessesToStock(nil)
         return nil
     end
 
@@ -561,7 +580,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
 
             -- If we introduced the princesses, then we should clean then up as well.
             if retrievePrincessesFromStock then
-                self.breeder:ReturnActivePrincessesToStock()
+                self.breeder:ReturnActivePrincessesToStock(nil)
             end
 
             -- Don't trash the drone slots in case the user is able to recover something from this.
@@ -571,12 +590,10 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         remaining = remaining - numberToReplicate
     end
 
-    -- Store away the original drones from the final run.
-    self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
-
     -- Do cleanup operations.
+    self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
     if returnPrincessesToStock then
-        self.breeder:ReturnActivePrincessesToStock()
+        self.breeder:ReturnActivePrincessesToStock(nil)
     end
 
     return true
@@ -648,7 +665,7 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
 
     self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
     if returnPrincessesToStock then
-        self.breeder:ReturnActivePrincessesToStock()
+        self.breeder:ReturnActivePrincessesToStock(nil)
     end
 
     self.breeder:BreakAndReturnFoundationsToInputChest()
@@ -700,7 +717,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
 
         local droneSlot, score = matchingAlgorithm(princessStack, droneStackList)
         if score ~= nil then
-            Print(string.format("i%u: score = %.1f", iteration, score))
+            Print(string.format("iteration %u", iteration))
         end
 
         self:ShutdownOnCancel()

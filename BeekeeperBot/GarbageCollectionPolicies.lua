@@ -26,7 +26,7 @@ function M.ClearDronesByFertilityPurityStackSizeCollector(target)
     end
 end
 
----@param targetTraits PartialAnalyzedBeeTraits
+---@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@return GarbageCollector
 function M.ClearDronesByFurthestAlleleMatchingCollector(targetTraits)
     return function (droneStackList, minDronesToClear)
@@ -63,6 +63,7 @@ function M.ClearDronesByFurthestAlleleMatchingCollector(targetTraits)
             end,
             function (droneStack)
                 return (
+                    (droneStack.individual ~= nil) and
                     ((droneStack.individual.active.fertility < 2) or (droneStack.individual.inactive.fertility < 2)) and
                     ((targetTraits.fertility == nil) or targetTraits.fertility > 1)
                 )
