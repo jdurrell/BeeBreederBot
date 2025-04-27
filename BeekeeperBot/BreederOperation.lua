@@ -247,7 +247,8 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 
     local slotIdx = 1
     while slotIdx <= #slots do
-        for i = 1, math.min(NUM_INTERNAL_SLOTS, (#slots - slotIdx) + 1) do
+        local numSlotsToTrashInIteration = math.min(NUM_INTERNAL_SLOTS, (#slots - slotIdx) + 1)
+        for i = 1, numSlotsToTrashInIteration do
             self.robot.select(i)
             local stack = self.ic.getStackInSlot(self.sides.front, slots[slotIdx])
             if stack == nil then
@@ -256,6 +257,7 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 
             -- Pick up the stack.
             self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
+            slotIdx = slotIdx + 1
         end
 
         -- Trash the stacks.

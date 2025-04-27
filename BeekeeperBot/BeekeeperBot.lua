@@ -685,6 +685,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
     local inventorySize = self.breeder:GetDroneChestSize()
 
     while iteration < 300 do
+        iteration = iteration + 1
         local droneStackList
         local princessStack = nil
         while princessStack == nil do
@@ -722,8 +723,6 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
 
         self:ShutdownOnCancel()
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
-
-        iteration = iteration + 1
     end
 
     return slots
