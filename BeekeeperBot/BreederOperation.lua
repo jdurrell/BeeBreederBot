@@ -40,6 +40,11 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     obj.ic = componentLib.inventory_controller
     obj.robot = robotLib
     obj.sides = sidesLib
+
+    if (numApiaries < 1) or (numApiaries > 4) then
+        Print(string.format("Number of apiaries must be from 1 to 4 (inclusive). Got invalid number: %d", numApiaries))
+        return nil
+    end
     obj.numApiaries = numApiaries
 
     return obj
@@ -89,14 +94,6 @@ function BreedOperator:GetDronesInChest()
     return drones
 end
 
----@param side integer
-function BreedOperator:swapBees(side)
-    self.robot.select(PRINCESS_SLOT)
-    self.bk.swapQueen(side)
-    self.robot.select(DRONE_SLOT)
-    self.bk.swapDrone(side)
-end
-
 -- Robot walks the apiary row and starts an empty apiary with the bees in the inventories in the given slots.
 -- Starts at the breeding station and ends at the breeding station.
 ---@param princessSlot integer
@@ -114,41 +111,35 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self.ic.suckFromSlot(self.sides.front, droneSlot, 1)
     self.robot.turnLeft()
 
-    -- Move to the start of the apiary row.
+    -- Move to the 1st apiary.
     self.robot.up()
-    self:moveForwards(2)
+    self.robot.forward()
 
-    -- Scan in both directions until we find an empty apiary for this princess-drone pair.
-    -- Then, place them inside the apiary.
-    local distFromStart = 0
-    local scanForwards = true
-    while true do
-        -- TODO: This isn't necessarily a good condition because there could be problematic environments.
-        if self.bk.getBeeProgress(self.sides.left) == 0 then
-            -- This apiary is empty. Place the princess and drone here.
-           self:swapBees(self.sides.left)
-           break
-        end
-
-        if scanForwards then
-            self.robot.forward()
-            distFromStart = distFromStart + 1
-
-            if distFromStart == self.numApiaries then
-                scanForwards = false
-            end
-        else
-            self.robot.back()
-            distFromStart = distFromStart - 1
-
-            if distFromStart == 0 then
-                scanForwards = true
-            end
-        end
+    -- Find the next open apiary.
+    local chosenApiary = 1
+    while self:housingIsOccupied() do
+        -- Apiaries are set up in a cross.
+        self.robot.turnRight()
+        self:moveForwards(2)
+        self.robot.turnLeft()
+        self:moveForwards(2)
+        self.robot.turnLeft()
+        chosenApiary = chosenApiary + 1
     end
 
-    -- Return to the breeder station.
-    self:moveBackwards(distFromStart + 2)
+    -- We are at an open apiary, so place the bees inside.
+    self:swapBees(self.sides.front)
+
+    -- Return to the breeder station by retracing our steps.
+    -- TODO: We could improve this by being aware of the relative location of the final apiary, but a simple retrace is easier for now.
+    self.robot.turnLeft()
+    for i = 2, chosenApiary do
+        self:moveForwards(2)
+        self.robot.turnRight()
+        self:moveForwards(2)
+    end
+    self.robot.turnRight()
+    self.robot.back()
     self.robot.down()
 end
 
@@ -324,6 +315,8 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     return succeeded
 end
 
+-- Returns `amount` princesses from the active chest to the stock chest.
+-- If `amount` is nil, then returns all (numApiaries) of the princesses.
 ---@param amount integer | nil
 function BreedOperator:ReturnActivePrincessesToStock(amount)
     amount = ((amount == nil) and self.numApiaries) or amount
@@ -340,6 +333,7 @@ function BreedOperator:ReturnActivePrincessesToStock(amount)
             if (stack ~= nil) and (stack.label:find("[P|p]rincess") ~= nil) then
                 local retrieved = self.ic.suckFromSlot(self.sides.front, i, 64)
                 numToRetrieve = numToRetrieve - retrieved
+                internalSlot = internalSlot + 1
             end
         end
 
@@ -667,14 +661,31 @@ function BreedOperator:PlaceFoundations(block)
     end
 
     -- Place the foundations.
+    local apiary = 1
     self.robot.forward()
-    for i = 1, self.numApiaries do
-        self.robot.forward()
+    self.robot.place()
+    for i = 2, self.numApiaries do
+        -- Apiaries are set up in a cross.
+        self.robot.turnRight()
+        self:moveForwards(2)
+        self.robot.turnLeft()
+        self:moveForwards(2)
         self.robot.turnLeft()
         self.robot.place()
-        self.robot.turnRight()
+        apiary = apiary + 1
     end
-    self:moveBackwards(self.numApiaries + 1)
+
+    -- Return to the breeder station by retracing our steps.
+    -- TODO: We could improve this by being aware of the relative location of the final apiary, but a simple retrace is easier for now.
+    self.robot.turnLeft()
+    for i = 2, apiary do
+        self:moveForwards(2)
+        self.robot.turnRight()
+        self:moveForwards(2)
+    end
+    self.robot.turnRight()
+    self.robot.back()
+    self.robot.down()
 
     return "success"
 end
@@ -695,14 +706,32 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     self:returnToBreederStationFromInputChest()
 
     -- Break the existing foundation blocks, then return to the breeder station.
+    -- Place the foundations.
+    local apiary = 1
     self.robot.forward()
-    for i = 1, self.numApiaries do
-        self.robot.forward()
+    self.robot.swing()
+    for i = 2, self.numApiaries do
+        -- Apiaries are set up in a cross.
+        self.robot.turnRight()
+        self:moveForwards(2)
+        self.robot.turnLeft()
+        self:moveForwards(2)
         self.robot.turnLeft()
         self.robot.swing()
-        self.robot.turnRight()
+        apiary = apiary + 1
     end
-    self:moveBackwards(self.numApiaries + 1)
+
+    -- Return to the breeder station by retracing our steps.
+    -- TODO: We could improve this by being aware of the relative location of the final apiary, but a simple retrace is easier for now.
+    self.robot.turnLeft()
+    for i = 2, apiary do
+        self:moveForwards(2)
+        self.robot.turnRight()
+        self:moveForwards(2)
+    end
+    self.robot.turnRight()
+    self.robot.back()
+    self.robot.down()
 
     -- Return the pickaxe and the foundation blocks to the inputs chest.
     self:moveToInputChest()
@@ -784,6 +813,15 @@ function BreedOperator:getEmptySlotInChest()
     return -1
 end
 
+-- Returns whether the bee housing in front of the robot is occupied.
+---@return boolean
+function BreedOperator:housingIsOccupied()
+    -- Since we guarantee tolerances, all selected bees must be able to work.
+    -- Therefore, bees are in the apiary iff the bees can work.
+    -- TODO: Perhaps this should use more sophisticated getStackInSlot() logic.
+    return self.bk.canWork(self.sides.front)
+end
+
 -- Moves the robot from the breeder station to position 0 of the storage column.
 function BreedOperator:moveToStorageColumn()
     --- Move to the chest row.
@@ -851,6 +889,14 @@ function BreedOperator:returnToBreederStationFromOutputChest()
     self.robot.turnRight()
     self:moveForwards(2)
     self.robot.down()
+end
+
+---@param side integer
+function BreedOperator:swapBees(side)
+    self.robot.select(PRINCESS_SLOT)
+    self.bk.swapQueen(side)
+    self.robot.select(DRONE_SLOT)
+    self.bk.swapDrone(side)
 end
 
 ---@param dist integer

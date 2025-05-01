@@ -130,41 +130,11 @@ function BeekeeperBot:BreedCommandHandler(data)
         return
     end
 
-    local breedPath = data
-
-    -- Breed the commanded species based on the given path.
-    for _, v in ipairs(breedPath) do
-        ::restart::
-        if v.parent1 ~= nil then
-            Print(string.format("Replicating %s.", v.parent1))
-            if not self:ReplicateSpecies(v.parent1, true, true, 8, 1) then
-                self:OutputError("Fatal error: Replicate species '" .. v.parent1 .. "' failed.")
-                self:Shutdown(1)
-            end
-        end
-
-        if v.parent2 ~= nil then
-            Print(string.format("Replicating %s.", v.parent2))
-            if not self:ReplicateSpecies(v.parent2, true, false, 8, 2) then
-                self:OutputError("Fatal error: Replicate species '" .. v.parent2 .. "' failed.")
-                self:Shutdown(1)
-            end
-        end
-
-        Print(string.format("Breeding %s from %s and %s.", v.target, v.parent1, v.parent2))
-        local retval = self:BreedSpecies(v, false, true)
-        if retval == nil then
-            self:OutputError(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
-            self:Shutdown(1)
-        elseif not retval then
-            -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
-            self.breeder:TrashSlotsFromDroneChest(nil)
-            self.breeder:ReturnActivePrincessesToStock(nil)
-            goto restart
-        end
-
-        self.breeder:TrashSlotsFromDroneChest(nil)
+    if not self:BreedSpeciesCommand(data) then
+        self:OutputError("Failed to breed new species.")
     end
+
+    self.breeder:TrashSlotsFromDroneChest(nil)
 end
 
 ---@param data MakeTemplatePayload
@@ -197,6 +167,42 @@ function BeekeeperBot:PropagateTemplateHandler(data)
 
     Print(string.format("Finished propagating template to species %s.", data.traits.species.uid))
     self.breeder:TrashSlotsFromDroneChest(nil)
+end
+
+---@param breedPath BreedPathNode[]
+---@return boolean
+function BeekeeperBot:BreedSpeciesCommand(breedPath)
+    -- Breed the commanded species based on the given path.
+    for _, v in ipairs(breedPath) do
+        if v.parent1 ~= nil then
+            Print(string.format("Replicating %s.", v.parent1))
+            if not self:ReplicateSpecies(v.parent1, true, true, 8, 1) then
+                self:OutputError(string.format("Fatal error: Replicate species '%s' failed.", v.parent1))
+                return false
+            end
+        end
+
+        if v.parent2 ~= nil then
+            Print(string.format("Replicating %s.", v.parent2))
+            if not self:ReplicateSpecies(v.parent2, true, false, 8, 2) then
+                self:OutputError(string.format("Fatal error: Replicate species '%s' failed.", v.parent2))
+                return false
+            end
+        end
+
+        Print(string.format("Breeding %s from %s and %s.", v.target, v.parent1, v.parent2))
+        local retval = self:BreedSpecies(v, false, true)
+        if retval == nil then
+            self:OutputError(string.format("Fatal error: Breeding species '%s' from '%s' and '%s' failed.", v.target, v.parent1, v.parent2))
+            self:Shutdown(1)
+        elseif not retval then
+            -- If the breeding the new mutation didn't converge, then we have to restart from replicating the parents.
+            self.breeder:ReturnActivePrincessesToStock(nil)
+            return false
+        end
+    end
+
+    return true
 end
 
 ---@param targetTraits PartialAnalyzedBeeTraits
