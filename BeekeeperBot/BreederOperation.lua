@@ -113,7 +113,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
 
     -- Move to the 1st apiary.
     self.robot.up()
-    self.robot.forward()
+    self:moveForwards(2)
 
     -- Find the next open apiary.
     local chosenApiary = 1
@@ -139,8 +139,16 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
         self:moveForwards(2)
     end
     self.robot.turnRight()
-    self.robot.back()
+    self:moveBackwards(2)
     self.robot.down()
+end
+
+-- Toggles the state of the lever on the bottom of the world accelerator.
+-- Assumes that there are no foundation blocks in the way.
+function BreedOperator:ToggleWorldAccelerator()
+    self:moveForwards(3)
+    self.robot.use()
+    self:moveBackwards(3)
 end
 
 -- Stores the drones from the given slot in the drone chest in the storage chest at the given point.
@@ -662,7 +670,7 @@ function BreedOperator:PlaceFoundations(block)
 
     -- Place the foundations.
     local apiary = 1
-    self.robot.forward()
+    self:moveForwards(2)
     self.robot.place()
     for i = 2, self.numApiaries do
         -- Apiaries are set up in a cross.
@@ -684,7 +692,7 @@ function BreedOperator:PlaceFoundations(block)
         self:moveForwards(2)
     end
     self.robot.turnRight()
-    self.robot.back()
+    self:moveBackwards(2)
     self.robot.down()
 
     return "success"
@@ -708,7 +716,7 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     -- Break the existing foundation blocks, then return to the breeder station.
     -- Place the foundations.
     local apiary = 1
-    self.robot.forward()
+    self:moveForwards(2)
     self.robot.swing()
     for i = 2, self.numApiaries do
         -- Apiaries are set up in a cross.
@@ -730,7 +738,7 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
         self:moveForwards(2)
     end
     self.robot.turnRight()
-    self.robot.back()
+    self:moveBackwards(2)
     self.robot.down()
 
     -- Return the pickaxe and the foundation blocks to the inputs chest.

@@ -91,21 +91,6 @@ function BeekeeperBot:CancelCommandHandler(data)
     self:Shutdown(0)
 end
 
----@param data ReplicateCommandPayload
-function BeekeeperBot:ReplicateCommandHandler(data)
-    if (data == nil) or (data.species == nil) then
-        return
-    end
-
-    if not self:ReplicateSpecies(data.species, true, true, 64, 1) then
-        self:OutputError(string.format("Failed to replicate species '%s'.", data.species))
-    end
-
-    self.breeder:TrashSlotsFromDroneChest(nil)
-    self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
-    self.breeder:ExportDroneStackToOutput(1, 64)
-end
-
 function BeekeeperBot:ImportPrincessesCommandHandler(data)
     if not self.breeder:ImportPrincessesFromInputsToStock() then
         self.robotComms:ReportErrorToServer("Failed to import princesses")
@@ -124,17 +109,36 @@ function BeekeeperBot:ImportDroneStacksHandler(data)
     end
 end
 
+---@param data ReplicateCommandPayload
+function BeekeeperBot:ReplicateCommandHandler(data)
+    if (data == nil) or (data.species == nil) then
+        return
+    end
+
+    if not self:ReplicateSpecies(data.species, true, true, 64, 1) then
+        self:OutputError(string.format("Failed to replicate species '%s'.", data.species))
+        return
+    end
+
+    self.breeder:TrashSlotsFromDroneChest(nil)
+    self.breeder:ImportHoldoverStacksToDroneChest({1}, {64}, {1})
+    self.breeder:ExportDroneStackToOutput(1, 64)
+end
+
 ---@param data BreedCommandPayload
 function BeekeeperBot:BreedCommandHandler(data)
-    if data == nil then
+    if (data == nil) or (data[1] == nil) then
+        self:OutputError("Got invalid BreedCommand payload.")
         return
     end
 
     if not self:BreedSpeciesCommand(data) then
         self:OutputError("Failed to breed new species.")
+        return
     end
 
     self.breeder:TrashSlotsFromDroneChest(nil)
+    Print(string.format("Finished breeding path ending in %s.", data[#data].target))
 end
 
 ---@param data MakeTemplatePayload
@@ -149,8 +153,8 @@ function BeekeeperBot:MakeTemplateHandler(data)
         return
     end
 
-    Print(string.format("Finished making template %s.", TraitsToString(data.traits)))
     self.breeder:TrashSlotsFromDroneChest(nil)
+    Print(string.format("Finished making template %s.", TraitsToString(data.traits)))
 end
 
 ---@param data PropagateTemplatePayload
@@ -165,8 +169,8 @@ function BeekeeperBot:PropagateTemplateHandler(data)
         return
     end
 
-    Print(string.format("Finished propagating template to species %s.", data.traits.species.uid))
     self.breeder:TrashSlotsFromDroneChest(nil)
+    Print(string.format("Finished propagating template to species %s.", data.traits.species.uid))
 end
 
 ---@param breedPath BreedPathNode[]
@@ -690,6 +694,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
     local iteration = 0
     local inventorySize = self.breeder:GetDroneChestSize()
 
+    self.breeder:ToggleWorldAccelerator()
     while iteration < 300 do
         iteration = iteration + 1
         local droneStackList
@@ -701,6 +706,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
             slots = finishedSlotAlgorithm(princessStack, droneStackList)
             if (slots.princess ~= nil) or (slots.drones ~= nil) then
                 -- Convergence succeeded. Break out.
+                self.breeder:ToggleWorldAccelerator()
                 return slots
             end
 
@@ -731,6 +737,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
         self.breeder:InitiateBreeding(princessStack.slotInChest, droneSlot)
     end
 
+    self.breeder:ToggleWorldAccelerator()
     return slots
 end
 
