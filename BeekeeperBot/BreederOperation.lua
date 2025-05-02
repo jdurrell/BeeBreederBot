@@ -18,6 +18,10 @@ local PRINCESS_SLOT      = 1
 local DRONE_SLOT         = 2
 local NUM_INTERNAL_SLOTS = 16
 
+-- Apiary slots.
+local APIARY_PRINCESS_SLOT = 1
+local APIARY_DRONE_SLOT    = 2
+
 ---@param componentLib Component
 ---@param robotLib any
 ---@param sidesLib any
@@ -128,7 +132,10 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     end
 
     -- We are at an open apiary, so place the bees inside.
-    self:swapBees(self.sides.front)
+    self.robot.select(PRINCESS_SLOT)
+    self.ic.dropIntoSlot(self.sides.front, APIARY_PRINCESS_SLOT)
+    self.robot.select(DRONE_SLOT)
+    self.ic.dropIntoSlot(self.sides.front, APIARY_DRONE_SLOT)
 
     -- Return to the breeder station by retracing our steps.
     -- TODO: We could improve this by being aware of the relative location of the final apiary, but a simple retrace is easier for now.
@@ -249,14 +256,11 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
         local numSlotsToTrashInIteration = math.min(NUM_INTERNAL_SLOTS, (#slots - slotIdx) + 1)
         for i = 1, numSlotsToTrashInIteration do
             self.robot.select(i)
-            local stack = self.ic.getStackInSlot(self.sides.front, slots[slotIdx])
-            if stack == nil then
-                goto continue
+            if self.ic.getStackInSlot(self.sides.front, slots[slotIdx]) ~= nil then
+                -- Pick up the stack.
+                self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
+                slotIdx = slotIdx + 1
             end
-
-            -- Pick up the stack.
-            self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
-            slotIdx = slotIdx + 1
         end
 
         -- Trash the stacks.
@@ -265,21 +269,22 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 
         -- Turn back to the drone chest.
         self.robot.turnLeft()
-        ::continue::
     end
 
     -- Clean up by returning to starting position.
     self.robot.turnLeft()
 end
 
--- Moves `n` princesses from the stock chest into the princess chest.
+-- Moves `n` princesses from the stock chest into the princess chest. If `n` is nil, then moves `numApiaries` princesses.
 -- Attempts to choose princesses according to the preferences list.
 -- TODO: Actually utilize the preferences list.
 -- TODO: Deal with n > 16.
----@param n integer
+---@param n integer | nil
 ---@param preferences string[] | nil
 ---@return boolean success
 function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
+    n = ((n == nil) and self.numApiaries) or n
+
     -- Move to the stock princesses chest.
     self:moveToStorageColumn()
     self:moveToStockPrincessChestFromStorageColumnOrigin()
@@ -346,7 +351,9 @@ function BreedOperator:ReturnActivePrincessesToStock(amount)
         end
 
         -- We might not actually have all the princesses immediately, so wait around until they finish.
-        Sleep(5)
+        if numToRetrieve > 0 then
+            Sleep(5)
+        end
     end
     self.robot.turnRight()
 
@@ -824,10 +831,10 @@ end
 -- Returns whether the bee housing in front of the robot is occupied.
 ---@return boolean
 function BreedOperator:housingIsOccupied()
-    -- Since we guarantee tolerances, all selected bees must be able to work.
-    -- Therefore, bees are in the apiary iff the bees can work.
-    -- TODO: Perhaps this should use more sophisticated getStackInSlot() logic.
-    return self.bk.canWork(self.sides.front)
+    return (
+        (self.ic.getStackInSlot(self.sides.front, APIARY_PRINCESS_SLOT) ~= nil) or
+        (self.ic.getStackInSlot(self.sides.front, APIARY_DRONE_SLOT) ~= nil)
+    )
 end
 
 -- Moves the robot from the breeder station to position 0 of the storage column.
@@ -897,14 +904,6 @@ function BreedOperator:returnToBreederStationFromOutputChest()
     self.robot.turnRight()
     self:moveForwards(2)
     self.robot.down()
-end
-
----@param side integer
-function BreedOperator:swapBees(side)
-    self.robot.select(PRINCESS_SLOT)
-    self.bk.swapQueen(side)
-    self.robot.select(DRONE_SLOT)
-    self.bk.swapDrone(side)
 end
 
 ---@param dist integer

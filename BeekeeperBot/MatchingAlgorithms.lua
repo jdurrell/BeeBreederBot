@@ -11,19 +11,27 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- with the given princess while also prioritizing the highest fertility trait available in the pool and filtering out
 -- fertility of 1 or lower.
 ---@param maxFertility integer
+---@param numPrincesses integer
 ---@param targetTrait string
 ---@param targetValue any
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
-function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue, cacheElement, traitInfo)
+function M.HighFertilityAndMutatedAlleleMatcher(maxFertility, numPrincesses, targetTrait, targetValue, cacheElement, traitInfo)
     local necessaryTraits = {
         [targetTrait] = targetValue,
         fertility = maxFertility,
         temperatureTolerance = "BOTH_5",  -- TODO: These should be configurable for one-way acclimatization.
         humidityTolerance = "BOTH_5"
     }
+    local princessCount = 0
+    local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
     return function (princessStack, droneStackList)
+        if princessCount % numPrincesses == 0 then
+            comparisonPrincessIndividual = princessStack.individual
+        end
+        princessCount = princessCount + 1
+
         return M.GenericHighestScore(
             droneStackList,
             function (droneStack)
@@ -62,17 +70,28 @@ function M.HighFertilityAndAllelesMatcher(maxFertility, targetTrait, targetValue
                 -- Prioritize getting the maximum number of target alleles to eventually get pure-breds.
                 score = score + totalNumMatchingAlleles * 1e4
 
-                -- Use the drone that is most like the current princess so that we converge the quickest.
+                -- Pick the highest stack size becuase it's likely to be the closest to convergence,
+                -- but only if all of its traits are pure-bred. A large stack with non-pure-bred traits
+                -- will result in princess oscillation instead of convergence.
+                local fullyPureBred = true
+                for trait, value in pairs(droneStack.individual.active) do
+                    if not AnalysisUtil.TraitIsEqual(droneStack.individual.inactive, trait, value) then
+                        fullyPureBred = false
+                        break
+                    end
+                end
+                if fullyPureBred then
+                    score = score + droneStack.size * 1e2
+                end
+
+                -- As a last tiebreaker, pick the drone that is most like the current princesses.
                 local numMatchingTotal = 0
-                for trait, value in pairs(princessStack.individual.active) do
-                    if AnalysisUtil.TraitIsEqual(princessStack.individual.inactive, trait, value) then
+                for trait, value in pairs(comparisonPrincessIndividual.active) do
+                    if AnalysisUtil.TraitIsEqual(comparisonPrincessIndividual.inactive, trait, value) then
                         numMatchingTotal = numMatchingTotal + AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value)
                     end
                 end
-                score = score + numMatchingTotal * 1e2
-
-                -- As a last tiebreaker, pick the highest stack size.
-                score = score + droneStack.size
+                score = score + numMatchingTotal
 
                 return score
             end,
@@ -84,8 +103,11 @@ end
 -- Returns matcher that prioritizes drones that, when combined with the princess, give the greatest number of target alleles
 -- in the two parents.
 ---@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
+---@param numPrincesses integer
 ---@return Matcher
-function M.ClosestMatchToTraitsMatcher(targetTraits)
+function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses)
+    local princessCount = 0
+    local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
     return function (princessStack, droneStackList)
         return M.GenericHighestScore(
             droneStackList,
@@ -116,20 +138,37 @@ function M.ClosestMatchToTraitsMatcher(targetTraits)
                 score = score + (numTraitsAtLeastTwoAlleles << 18)
 
                 -- Next, prioritize getting the maximum number of target alleles to eventually get pure-breds.
-                score = score + totalNumMatchingAlleles << 12
+                score = score + (totalNumMatchingAlleles << 12)
 
-                -- If no differences in target traits exist, then pick the drone that is most like the princess's pure-bred traits.
+                -- Pick the highest stack size becuase it's likely to be the closest to convergence,
+                -- but only if all of its traits are pure-bred. A large stack with non-pure-bred traits
+                -- will result in princess oscillation instead of convergence.
+                local fullyPureBred = true
+                for trait, value in pairs(droneStack.individual.active) do
+                    if not AnalysisUtil.TraitIsEqual(droneStack.individual.inactive, trait, value) then
+                        fullyPureBred = false
+                        break
+                    end
+                end
+                if fullyPureBred then
+                    score = score + (droneStack.size << 5)
+                end
+
+                -- As a last tiebreaker, if no differences in target traits exist, then pick the drone that is most like the princess's pure-bred traits.
                 -- This helps converge faster by eliminating variance in traits that we don't care about.
+                -- With multiple princesses, we don't want the princesses to fracture into creating different stacks.
+                if princessCount % numPrincesses == 0 then
+                    comparisonPrincessIndividual = princessStack.individual
+                end
+                princessCount = princessCount + 1
+
                 local numAllelesMatchingPureTraits = 0
-                for trait, value in pairs(princessStack.individual.active) do
-                    if AnalysisUtil.TraitIsEqual(princessStack.individual.inactive, trait, value) then
+                for trait, value in pairs(comparisonPrincessIndividual.active) do
+                    if AnalysisUtil.TraitIsEqual(comparisonPrincessIndividual.inactive, trait, value) then
                         numAllelesMatchingPureTraits = numAllelesMatchingPureTraits + AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value)
                     end
                 end
-                score = score + numAllelesMatchingPureTraits << 7
-
-                -- As a last tiebreaker, pick the stack with the highest size to converge the fastest.
-                score = score + droneStack.size
+                score = score + numAllelesMatchingPureTraits
 
                 return score
             end,
