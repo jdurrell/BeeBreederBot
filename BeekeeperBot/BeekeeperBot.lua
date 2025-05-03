@@ -722,7 +722,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
             local numEmptySlots = (inventorySize - #droneStackList)
             if numEmptySlots < 4 then  -- 4 is the highest naturally occurring fertility. TODO: Consider whether this should truly leave 8 slots.
                 -- If there are not many open slots in the drone chest, then eliminate some of them to make room for newer generations.
-                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, numEmptySlots - 4)
+                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, 4 - numEmptySlots)
                 self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
             end
 
