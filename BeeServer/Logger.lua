@@ -84,7 +84,6 @@ function M.LogSpeciesToDisk(filepath, species)
     end
 
     for _, line in ipairs(speciesInLog) do
-        Print(line)
         fs, errMsg = logfile:write(line .. "\n")
         if fs == nil then
             Print(string.format("Failed to overwrite logfile: %s", errMsg))
