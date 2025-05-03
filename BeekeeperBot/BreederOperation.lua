@@ -257,11 +257,11 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
         for i = 1, numSlotsToTrashInIteration do
             self.robot.select(i)
             if self.ic.getStackInSlot(self.sides.front, slots[slotIdx]) ~= nil then
-                -- Pick up the stack.
                 self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
-                slotIdx = slotIdx + 1
             end
         end
+
+        slotIdx = slotIdx + numSlotsToTrashInIteration
 
         -- Trash the stacks.
         self.robot.turnRight()
