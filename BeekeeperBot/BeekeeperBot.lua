@@ -180,7 +180,7 @@ function BeekeeperBot:BreedSpeciesCommand(breedPath)
     for _, v in ipairs(breedPath) do
         if v.parent1 ~= nil then
             Print(string.format("Replicating %s.", v.parent1))
-            if not self:ReplicateSpecies(v.parent1, true, true, 8, 1) then
+            if not self:ReplicateSpecies(v.parent1, true, true, 4 + (4 * self.breeder.numApiaries), 1) then
                 self:OutputError(string.format("Fatal error: Replicate species '%s' failed.", v.parent1))
                 return false
             end
@@ -188,7 +188,7 @@ function BeekeeperBot:BreedSpeciesCommand(breedPath)
 
         if v.parent2 ~= nil then
             Print(string.format("Replicating %s.", v.parent2))
-            if not self:ReplicateSpecies(v.parent2, true, false, 8, 2) then
+            if not self:ReplicateSpecies(v.parent2, true, false, 4 + (4 * self.breeder.numApiaries), 2) then
                 self:OutputError(string.format("Fatal error: Replicate species '%s' failed.", v.parent2))
                 return false
             end
@@ -245,6 +245,7 @@ function BeekeeperBot:MakeTemplate(targetTraits)
     -- Now, actually breed those traits into the storage population, if necessary.
     local bredNew = false
     for _, v in ipairs(traitPaths) do
+        local numSpeciesReplicate = 4 + (4 * self.breeder.numApiaries)
         bredNew = true
 
         Print(string.format("Breeding trait %s into the population via species '%s'.",
@@ -252,18 +253,18 @@ function BeekeeperBot:MakeTemplate(targetTraits)
             v.path[#(v.path)].target
         ))
         for _, pathNode in ipairs(v.path) do
-            if not self:ReplicateSpecies(pathNode.parent1, true, true, 8, 1) then
+            if not self:ReplicateSpecies(pathNode.parent1, true, true, numSpeciesReplicate, 1) then
                 self:OutputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
                 return false
             end
 
-            if not self:ReplicateSpecies(pathNode.parent2, true, false, 8, 2) then
+            if not self:ReplicateSpecies(pathNode.parent2, true, false, numSpeciesReplicate, 2) then
                 self:OutputError(string.format("Replicate parent 2 '%s' failed.",  pathNode.parent2))
                 return false
             end
 
             -- Set up the breeding station.
-            self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {8, 8}, {1, 2})
+            self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {numSpeciesReplicate, numSpeciesReplicate}, {1, 2})
             self:EnsureSpecialConditionsMet(pathNode)
 
             -- We will certainly want to breed high fertility into the drones of the target species.
@@ -344,7 +345,8 @@ function BeekeeperBot:MakeTemplate(targetTraits)
 
     -- Get 16 drones that have the initial best starting traits.
     Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitSet)))
-    if not self:ReplicateTemplate(maxTraitSet, 16, 1, true, false) then
+    local numTraitReplicate = 8 + (4 * self.breeder.numApiaries)
+    if not self:ReplicateTemplate(maxTraitSet, numTraitReplicate, 1, true, false) then
         self:OutputError("Failed to replicate starting template.")
         return false
     end
@@ -359,7 +361,7 @@ function BeekeeperBot:MakeTemplate(targetTraits)
 
         -- Get 16 drones that have the requested trait.
         Print(string.format("Replicating stack with trait %s.", TraitsToString({[trait] = value})))
-        if not self:ReplicateTemplate({[trait] = value}, 16, 2, false, false) then
+        if not self:ReplicateTemplate({[trait] = value}, numTraitReplicate, 2, false, false) then
             self:OutputError("Failed to replicate template of new trait.")
             return false
         end
@@ -424,18 +426,19 @@ function BeekeeperBot:PropagateTemplate(targetTraits)
     nonSpeciesTraits.species = nil
 
     -- Retrieve drones that have the requested species allele. Convert a stock princess to a pure-bred of that species.
-    if not self:ReplicateSpecies(targetTraits.species.uid, true, true, 16, 1) then
+    local numTraitReplicate = 8 + (4 * self.breeder.numApiaries)
+    if not self:ReplicateSpecies(targetTraits.species.uid, true, true, numTraitReplicate, 1) then
         self:OutputError(string.format("Failed to replicate species '%s'.", targetTraits.species.uid))
         return false
     end
 
-    if not self:ReplicateTemplate(nonSpeciesTraits, 16, 2, true, false) then
+    if not self:ReplicateTemplate(nonSpeciesTraits, numTraitReplicate, 2, true, false) then
         self:OutputError("Error replicating starting template.")
         return false
     end
 
     -- Now breed the desired traits onto the desired species.
-    self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {16, 16}, {1, 2})
+    self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {numTraitReplicate, numTraitReplicate}, {1, 2})
     local finishedSlots = self:Breed(
         MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
