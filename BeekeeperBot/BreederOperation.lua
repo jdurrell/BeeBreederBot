@@ -54,26 +54,23 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     return obj
 end
 
--- Returns the next princess in the active princess chest, or `nil` if there is none.
----@return AnalyzedBeeStack | nil
-function BreedOperator:GetPrincessInChest()
+-- Returns the list of princesses in the active princess chest.
+---@return AnalyzedBeeStack[]
+function BreedOperator:GetPrincessesInChest()
     self.robot.turnLeft()
 
-    -- Spin until we have a princess to use.
-    ---@type AnalyzedBeeStack
-    local princess = nil
+    local princesses = {}
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
         if (stack ~= nil) and (stack.label:find("[P|p]rincess") ~= nil) then
-            princess = stack
-            princess.slotInChest = i
-            break
+            stack.slotInChest = i
+            table.insert(princesses, stack)
         end
     end
 
     self.robot.turnRight()
 
-    return princess
+    return princesses
 end
 
 -- Returns a list of drones in the active drone chest.
@@ -253,15 +250,15 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 
     local slotIdx = 1
     while slotIdx <= #slots do
-        local numSlotsToTrashInIteration = math.min(NUM_INTERNAL_SLOTS, (#slots - slotIdx) + 1)
-        for i = 1, numSlotsToTrashInIteration do
-            self.robot.select(i)
+        local internalSlot = 1
+        while (slotIdx <= #slots) and (internalSlot <= 16) do
+            self.robot.select(internalSlot)
             if self.ic.getStackInSlot(self.sides.front, slots[slotIdx]) ~= nil then
                 self.ic.suckFromSlot(self.sides.front, slots[slotIdx], 64)
+                internalSlot = internalSlot + 1
             end
+            slotIdx = slotIdx + 1
         end
-
-        slotIdx = slotIdx + numSlotsToTrashInIteration
 
         -- Trash the stacks.
         self.robot.turnRight()
@@ -416,7 +413,7 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
     if found then
         self.robot.turnRight()
 
-        while not self.ic.dropIntoSlot(self.sides.front, activeChestSlot) do
+        while not self.ic.dropIntoSlot(self.sides.front, activeChestSlot, 64) do
             -- If we fail to unload this stack into the active chest, then other drones must have
             -- been placed here by the piping system and taken this slot. Simply trash them.
             self.robot.select(2)
@@ -425,6 +422,14 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
             self.robot.drop(64)
             self.robot.turnLeft()
             self.robot.select(1)
+        end
+
+        if self.robot.count(1) ~= 0 then
+            -- It is possible that the slot we are dropping into already has drones that match the current stack.
+            -- In that case, we have already filled that stack to 64 above, so we can discard the rest of these drones.
+            self.robot.turnRight()
+            self.robot.drop(64)
+            self.robot.turnLeft()
         end
 
         self.robot.turnLeft()

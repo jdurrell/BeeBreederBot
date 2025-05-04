@@ -114,8 +114,8 @@ function M.GenericLowestScoreRemoval(droneStackList, minDronesToClear, scoreFunc
 
             insertionIdx = insertionIdx - 1
         end
-        if insertionIdx <= (minDronesToClear  - #slotsToRemove) then
-            if #worstScores >= (minDronesToClear  - #slotsToRemove) then
+        if insertionIdx <= (minDronesToClear - #slotsToRemove) then
+            if #worstScores >= (minDronesToClear - #slotsToRemove) then
                 table.remove(worstScores, #worstScores)
                 table.remove(worstScoreIndices, #worstScoreIndices)
             end

@@ -73,6 +73,18 @@ function M.GetTotalTolerance(beeTraits, toleranceString)
     return 0, 0
 end
 
+---@return boolean
+---@param individual AnalyzedBeeIndividual
+function M.AllTraitsPure(individual)
+    for trait, value in pairs(individual.active) do
+        if not M.TraitIsEqual(individual.inactive, trait, value) then
+            return false
+        end
+    end
+
+    return true
+end
+
 -- Returns whether the bee represented by the given stack is a pure bred version of the given species.
 ---@param individual AnalyzedBeeIndividual
 ---@param species string

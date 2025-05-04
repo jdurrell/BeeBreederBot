@@ -143,14 +143,7 @@ function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses)
                 -- Pick the highest stack size becuase it's likely to be the closest to convergence,
                 -- but only if all of its traits are pure-bred. A large stack with non-pure-bred traits
                 -- will result in princess oscillation instead of convergence.
-                local fullyPureBred = true
-                for trait, value in pairs(droneStack.individual.active) do
-                    if not AnalysisUtil.TraitIsEqual(droneStack.individual.inactive, trait, value) then
-                        fullyPureBred = false
-                        break
-                    end
-                end
-                if fullyPureBred then
+                if AnalysisUtil.AllTraitsPure(droneStack.individual) then
                     score = score + (droneStack.size << 5)
                 end
 
