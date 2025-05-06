@@ -147,12 +147,19 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self.robot.down()
 end
 
--- Toggles the state of the lever on the bottom of the world accelerator.
--- Assumes that there are no foundation blocks in the way.
+-- Toggles the state of the lever on the opposite side of the acitve chest, which is wired to the accelerator.
 function BreedOperator:ToggleWorldAccelerator()
-    self:moveForwards(3)
+    self.robot.forward()
+    self.robot.turnRight()
+    self:moveForwards(2)
+    self.robot.turnRight()
+
     self.robot.use()
-    self:moveBackwards(3)
+
+    self.robot.turnLeft()
+    self:moveBackwards(2)
+    self.robot.turnLeft()
+    self.robot.back()
 end
 
 -- Stores the drones from the given slot in the drone chest in the storage chest at the given point.
