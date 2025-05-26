@@ -238,7 +238,14 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(maxFertility, 1, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+                1,
+                "species",
+                {uid = target},
+                {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
+                breedInfoCacheElement,
+                traitInfo
+            ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -266,7 +273,14 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(maxFertility, 1, "species", {uid = target}, breedInfoCacheElement, traitInfo),
+            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+                1,
+                "species",
+                {uid = target},
+                {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
+                breedInfoCacheElement,
+                traitInfo
+            ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,

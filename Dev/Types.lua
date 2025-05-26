@@ -155,6 +155,8 @@ local BeeSpecies = {}
 
 ---@class BeekeeperBotConfig
 ---@field apiaries integer
+---@field defaultHumidityTolerance string
+---@field defaultTemperatureTolerance string
 ---@field port integer
 ---@field serverAddr string
 local BeekeeperBotConfig = {}

@@ -14,6 +14,7 @@ local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 local RobotComms = require("BeekeeperBot.RobotComms")
 
 ---@class BeekeeperBot
+---@field config BeekeeperBotConfig
 ---@field component Component
 ---@field event Event
 ---@field breeder BreedOperator
@@ -42,6 +43,16 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     -- Do this in the constructor instead of statically so that we can inject our
     -- own system libraries for testing.
     obj.event = eventLib
+
+    if not TableContains({"UP_5", "DOWN_5", "BOTH_5"}, config.defaultHumidityTolerance) then
+        Print(string.format("Invalid `defaultHumidityTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'."))
+        obj:shutdown(1)
+    end
+    if not TableContains({"UP_5", "DOWN_5", "BOTH_5"}, config.defaultTemperatureTolerance) then
+        Print(string.format("Invalid `defaultTemperatureTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'."))
+        obj:shutdown(1)
+    end
+    obj.config = config
 
     local robotComms = RobotComms:Create(componentLib, eventLib, serialLib, config.serverAddr, config.port)
     if robotComms == nil then
@@ -289,7 +300,14 @@ function BeekeeperBot:MakeTemplate(targetTraits)
             local breedInfoCacheElement = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:Breed(
-                MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(maxFertilityPreExisting, self.breeder.numApiaries, v.trait, targetTraits[v.trait], breedInfoCacheElement, traitInfoCache),
+                MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+                    self.breeder.numApiaries,
+                    v.trait,
+                    targetTraits[v.trait],
+                    {fertility = maxFertilityPreExisting, humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
+                    breedInfoCacheElement,
+                    traitInfoCache
+                ),
                 MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target, maxFertilityPreExisting, 64),
                 GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
                 function (princessStack, droneStackList)
@@ -555,8 +573,8 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     for _, stack in ipairs(self.breeder:GetDronesInChest()) do
         if ((stack.size >= amount) and
             AnalysisUtil.IsPureBred(stack.individual, species) and
-            (AnalysisUtil.NumberOfMatchingAlleles(stack.individual, "humidityTolerance", "BOTH_5") == 2) and
-            (AnalysisUtil.NumberOfMatchingAlleles(stack.individual, "temperatureTolerance", "BOTH_5") == 2) and
+            (AnalysisUtil.NumberOfMatchingAlleles(stack.individual, "humidityTolerance", self.config.defaultHumidityTolerance) == 2) and
+            (AnalysisUtil.NumberOfMatchingAlleles(stack.individual, "temperatureTolerance", self.config.defaultTemperatureTolerance) == 2) and
             ((stack.individual.active.fertility > 1) and (stack.individual.inactive.fertility > 1))
         ) then
             self.breeder:ExportDroneStacksToHoldovers({stack.slotInChest}, {amount}, {holdoverSlot})
@@ -683,7 +701,14 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(maxFertilityPreExisting, self.breeder.numApiaries, "species", {uid = node.target}, breedInfoCacheElement, traitInfoCache),
+        MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+            self.breeder.numApiaries,
+            "species",
+            {uid = node.target},
+            {fertility = maxFertilityPreExisting, humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
+            breedInfoCacheElement,
+            traitInfoCache
+        ),
         MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(node.target, maxFertilityPreExisting, 64),
         GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(node.target),
         function (princessStack, droneStackList)

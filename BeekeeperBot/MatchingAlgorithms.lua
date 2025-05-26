@@ -10,22 +10,18 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- Returns a matcher that prioritizes drones that are expected to produce the highest number of target alleles
 -- with the given princess while also prioritizing the highest fertility trait available in the pool and filtering out
 -- fertility of 1 or lower.
----@param maxFertility integer
 ---@param numPrincesses integer
----@param targetTrait string
----@param targetValue any
+---@param mutationTrait string
+---@param mutationValue any
+---@param preferredTraits PartialAnalyzedBeeTraits
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
-function M.HighFertilityAndMutatedAlleleMatcher(maxFertility, numPrincesses, targetTrait, targetValue, cacheElement, traitInfo)
-    local necessaryTraits = {
-        [targetTrait] = targetValue,
-        fertility = maxFertility,
-        temperatureTolerance = "BOTH_5",  -- TODO: These should be configurable for one-way acclimatization.
-        humidityTolerance = "BOTH_5"
-    }
+function M.HighFertilityAndMutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, cacheElement, traitInfo)
+    preferredTraits[mutationTrait] = mutationValue
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
+
     return function (princessStack, droneStackList)
         if princessCount % numPrincesses == 0 then
             comparisonPrincessIndividual = princessStack.individual
@@ -36,7 +32,7 @@ function M.HighFertilityAndMutatedAlleleMatcher(maxFertility, numPrincesses, tar
             droneStackList,
             function (droneStack)
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    princessStack.individual, droneStack.individual, targetTrait, targetValue, cacheElement, traitInfo
+                    princessStack.individual, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
                 ) * 1e3) * 1e6
 
                 if score == 0 then
@@ -47,7 +43,7 @@ function M.HighFertilityAndMutatedAlleleMatcher(maxFertility, numPrincesses, tar
                 local numTraitsAtLeastOneAllele = 0
                 local numTraitsAtLeastTwoAlleles = 0
                 local totalNumMatchingAlleles = 0
-                for trait, value in pairs(necessaryTraits) do
+                for trait, value in pairs(preferredTraits) do
                     local numberMatchingAllelesOfTrait = (
                         AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value) +
                         AnalysisUtil.NumberOfMatchingAlleles(princessStack.individual, trait, value)
