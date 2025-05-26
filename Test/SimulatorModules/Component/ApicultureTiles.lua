@@ -4,33 +4,46 @@
 ---@class ApicultureTile
 local M = {}
 
----@type ForestryMutation[]
-local mutations = {}
+require("Shared.Shared")
+
+local mutations = {}  ---@type ForestryMutation[]
+local species = {}    ---@type BeeSpecies[]
 
 -- Testing-only function to initialize the apiculture data for different test cases.
 -- This *must* be called before actually using this module in a test.
 ---@param mutationSet ForestryMutation[]
-function M.__Initialize(mutationSet)
+---@param speciesList BeeSpecies[] | nil
+function M.__Initialize(mutationSet, speciesList)
     mutations = mutationSet
+
+    -- Support an unspecified list of species to avoid having to create a lot more testing data.
+    if speciesList == nil then
+        species = {}
+        local added = {}
+        for _, v in ipairs(mutationSet) do
+            if added[v.allele1] == nil then
+                table.insert(species, {name = v.allele1, uid = v.allele1})
+                added[v.allele1] = true
+            end
+            if added[v.allele2] == nil then
+                table.insert(species, {name = v.allele2, uid = v.allele2})
+                added[v.allele2] = true
+            end
+            if added[v.result] == nil then
+                table.insert(species, {name = v.result, uid = v.result})
+                added[v.result] = true
+            end
+        end
+    else
+        species = speciesList
+    end
 end
 
 ---@return BeeSpecies[]
 function M.listAllSpecies()
     -- Hacky way of getting the relevant information without redoing all of TestData.
     -- TODO: This should have more official support from the mutation set.
-    local speciesSet = {}
-    for _, mut in ipairs(mutations) do
-        speciesSet[mut.allele1] = true
-        speciesSet[mut.allele2] = true
-        speciesSet[mut.result] = true
-    end
-
-    local speciesArray = {}
-    for species, _ in pairs(speciesSet) do
-        table.insert(speciesArray, {uid = species})
-    end
-
-    return speciesArray
+    return Copy(species)
 end
 
 ---@param uid string

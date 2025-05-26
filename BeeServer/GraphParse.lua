@@ -47,6 +47,7 @@ function M.AddMutationToGraph(graph, allele1, allele2, result, chance, specialCo
     table.insert(graph[allele2].childMutations[result], {parent = allele1, chance = chance, specialConditions = specialConditions})
 end
 
+---@param beehouseComponent ApicultureTile
 ---@return SpeciesGraph
 function M.ImportBeeGraph(beehouseComponent)
     ---@type SpeciesGraph
@@ -60,6 +61,23 @@ function M.ImportBeeGraph(beehouseComponent)
     end
 
     return graph
+end
+
+---@param beehouseComponent ApicultureTile
+---@return table<string, string[]>
+function M.ImportBeeNames(beehouseComponent)
+    local names = {}
+
+    for _, species in ipairs(beehouseComponent.listAllSpecies()) do
+        local name = species.name:lower()
+        if names[name] == nil then
+            names[name] = {}
+        end
+
+        table.insert(names[name], species.uid)
+    end
+
+    return names
 end
 
 return M

@@ -15,6 +15,7 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field event Event
 ---@field term Term
 ---@field beeGraph SpeciesGraph
+---@field beeNameToUids table<string, string[]>
 ---@field botAddr string
 ---@field comm CommLayer
 ---@field messagingPromptsPending table<string, boolean>
@@ -159,28 +160,53 @@ end
 
 ---@param argv string[]
 function BeeServer:BreedCommandHandler(argv)
-    local species = argv[2]
-    if species == nil then
+    if argv[2] == nil then
         Print("Error: expected a species name.")
         return
     end
 
-    if self.beeGraph[species] == nil then
-        Print("Error: could not find species '" .. species .. "' in breeding graph.")
-        return
+    local targetUid = ((self.beeGraph[argv[2]] ~= nil) and argv[2]) or nil
+    if targetUid == nil then
+        -- If the provided name wasn't a uid, then attempt to resolve it as a species name.
+        local species = argv[2]:lower()
+        if self.beeNameToUids[species] == nil then
+            Print(string.format("Unrecognized bee name '%s'.", species))
+            return nil
+        end
+
+        if #(self.beeNameToUids[species]) > 1 then
+            Print(string.format("Bee name '%s' corresponds to multiple species.\nPlease enter the number of the correct species in the list below:", species))
+            for i, uid in ipairs(self.beeNameToUids[species]) do
+                Print(string.format("[%u]: %s", i, uid))
+            end
+
+            local choiceString = self.term.read()
+            if (choiceString == false) or (choiceString == nil) then
+                return nil
+            end
+            local numericalChoice = tonumber(choiceString, 10)
+            if (numericalChoice == nil) or (self.beeNameToUids[species][numericalChoice] == nil) then
+                Print("Unrecognized input.")
+                return nil
+            end
+
+            targetUid = self.beeNameToUids[species][numericalChoice]
+        else
+            targetUid = self.beeNameToUids[species][1]
+        end
     end
 
     for _, leaf in ipairs(self.leafSpeciesList) do
-        if leaf == species then
+        if leaf == targetUid then
             -- If we already have the species, then send this as a replicate command.
-            Print("Replicating " .. species .. " from stored drones.")
-            local payload = {species = species}
+            Print("Replicating " .. targetUid .. " from stored drones.")
+            local payload = {species = targetUid}
             self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ReplicateCommand, payload)
             return
         end
     end
 
-    local path = self:GetBreedPath(species, false)
+    local path = self:GetBreedPath(targetUid, false)
     if path == nil then
         return
     end
@@ -356,18 +382,18 @@ end
 ---------------------
 --- Other instance functions.
 
----@param species string
+---@param targetUid string
 ---@param forceRebreed boolean
 ---@return BreedPathNode[] | nil
-function BeeServer:GetBreedPath(species, forceRebreed)
-    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, species, forceRebreed)
+function BeeServer:GetBreedPath(targetUid, forceRebreed)
+    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, targetUid, forceRebreed)
     if path == nil then
-        Print("Error: Could not find breeding path for species '" .. species .. "'.")
+        Print(string.format("Error: Could not find breeding path for species '%s'.", targetUid, targetUid))
         return nil
     end
 
     -- We computed a valid path for this species. Send it to the robot and print it out for the user.
-    Print("Will breed " .. species .. " bees. Full breeding order:")
+    Print(string.format("Will breed %s bees. Full breeding order:", targetUid))
     local printstr = ""
     for _, node in ipairs(path) do
         if printstr == "" then
@@ -383,8 +409,7 @@ function BeeServer:GetBreedPath(species, forceRebreed)
     Print("Required foundation blocks:")
     printstr = ""
     for _, node in ipairs(path) do
-        ---@type string[] | nil
-        local conditions = nil
+        local conditions = nil  ---@type string[] | nil
         for _, mut in ipairs(self.beeGraph[node.target].parentMutations) do
             if (
                 ((mut.parents[1] == node.parent1) and (mut.parents[2] == node.parent2)) or
@@ -492,6 +517,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
         obj:Shutdown(1)
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
+    obj.beeNameToUids = GraphParse.ImportBeeNames(componentLib.tile_for_apiculture_0_name)
     Print("Imported bee graph.")
 
     -- Read our local logfile to figure out which species we already have.
