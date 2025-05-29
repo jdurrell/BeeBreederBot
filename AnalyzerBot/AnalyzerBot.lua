@@ -36,13 +36,14 @@ end
 -- Runs the main robot loop.
 function AnalyzerBot:Run()
     while true do
-        self:importBees()
+        -- Avoid just spamming activity.
+        Sleep(5)
 
+        self:importBees()
         while not self:analyzeBeesInInventory() do
             -- Refill honey when we run out.
             self:refillHoney()
         end
-
         self:exportBees()
     end
 end
