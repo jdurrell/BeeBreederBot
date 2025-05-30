@@ -499,6 +499,11 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
         return nil
     end
 
+    if (traits["fertility"] ~= nil) and (traits["fertility"] <= 1) then
+        self:OutputError("invalid argument. Cannot replicate drones with 1 or lower fertility.")
+        return nil
+    end
+
     -- Retrieve the princesses.
     if retrievePrincessesFromStock then
         if not self.breeder:RetrieveStockPrincessesFromChest(nil, {traits.species.uid}) then
@@ -513,8 +518,36 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
         if retrievePrincessesFromStock then
             self.breeder:ReturnActivePrincessesToStock(nil)
         end
+
         return nil
     end
+
+    local stack = self.breeder:GetStackInDroneSlot(1)
+    if stack == nil then
+        self:OutputError(string.format("Drones not found in chest after retrieval."))
+        if retrievePrincessesFromStock then
+            self.breeder:ReturnActivePrincessesToStock(nil)
+        end
+        return nil
+    end
+
+    if (stack.individual.active.fertility == 1) and (stack.individual.inactive.fertility == 1) then
+        -- If the drone we want to replicate has generationally negative fertility, then don't bother replicating
+        -- because we can't. Just output the drones we've got. There is already validation above for trying to specifically
+        -- replicate that trait, so this isn't a mistake. Anyone using this doesn't care about the difference, then.
+        if stack.size < amount then
+            self:OutputError("Unable to output drones with non-replicatable fertility.")
+            return nil
+        end
+
+        self.breeder:ExportDroneStacksToHoldovers({1}, {amount}, {holdoverDroneSlot})
+
+        return true
+    end
+
+    -- Choose a higher than 1 fertility to replicate, if we need to.
+    local replicateTraits = Copy(traits)
+    replicateTraits["fertility"] = ((replicateTraits["fertility"] == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits["fertility"]
 
     local remaining = amount
     local finishedSlots = {drones = nil, princess = nil}
@@ -525,9 +558,9 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
 
         -- Do the breeding.
         finishedSlots = self:Breed(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(traits, self.breeder.numApiaries),
-            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(traits, 64),
-            GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(traits),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(replicateTraits, self.breeder.numApiaries),
+            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(replicateTraits, 64),
+            GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(replicateTraits),
             nil
         )
 
@@ -606,6 +639,20 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
             self.breeder:ReturnActivePrincessesToStock(nil)
         end
         return false
+    end
+
+   if (droneStack.individual.active.fertility <= 1) and (droneStack.individual.inactive.fertility <= 1) then
+        -- If the drone we want to replicate has generationally negative fertility, then don't bother replicating
+        -- because we can't. Just output the drones we've got. There is already validation above for trying to specifically
+        -- replicate that trait, so this isn't a mistake. Anyone using this doesn't care about the difference, then.
+        if droneStack.size < amount then
+            self:OutputError("Unable to output drones with non-replicatable fertility.")
+            return false
+        end
+
+        self.breeder:ExportDroneStacksToHoldovers({1}, {amount}, {holdoverSlot})
+
+        return true
     end
 
     local finishedDroneSlot
