@@ -159,6 +159,10 @@ function BeekeeperBot:MakeTemplateHandler(data)
         return
     end
 
+    -- Set default tolerances.
+    data.traits.temperatureTolerance = ((data.traits.temperatureTolerance == nil) and self.config.defaultTemperatureTolerance) or data.traits.temperatureTolerance
+    data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
+
     if not self:MakeTemplate(data.traits) then
         self:OutputError("Failed to make template.")
         return
@@ -174,6 +178,10 @@ function BeekeeperBot:PropagateTemplateHandler(data)
         self:OutputError("Received invalid PropagateTemplate payload.")
         return
     end
+
+    -- Set default tolerances.
+    data.traits.temperatureTolerance = ((data.traits.temperatureTolerance == nil) and self.config.defaultTemperatureTolerance) or data.traits.temperatureTolerance
+    data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
 
     if not self:PropagateTemplate(data.traits) then
         self:OutputError("Failed to propagate remplate.")
@@ -499,7 +507,7 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
         return nil
     end
 
-    if (traits["fertility"] ~= nil) and (traits["fertility"] <= 1) then
+    if (traits.fertility ~= nil) and (traits.fertility <= 1) then
         self:OutputError("invalid argument. Cannot replicate drones with 1 or lower fertility.")
         return nil
     end
@@ -547,7 +555,7 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
 
     -- Choose a higher than 1 fertility to replicate, if we need to.
     local replicateTraits = Copy(traits)
-    replicateTraits["fertility"] = ((replicateTraits["fertility"] == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits["fertility"]
+    replicateTraits.fertility = ((replicateTraits.fertility == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits.fertility
 
     local remaining = amount
     local finishedSlots = {drones = nil, princess = nil}
