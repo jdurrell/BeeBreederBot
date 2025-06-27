@@ -163,9 +163,19 @@ function BeekeeperBot:MakeTemplateHandler(data)
     data.traits.temperatureTolerance = ((data.traits.temperatureTolerance == nil) and self.config.defaultTemperatureTolerance) or data.traits.temperatureTolerance
     data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
 
-    if not self:MakeTemplate(data.traits) then
-        self:OutputError("Failed to make template.")
-        return
+    if data.raw then
+        -- If raw is specified, then the user is responsible for organizing everything in the proper chests.
+        self:Breed(
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(data.traits, self.breeder.numApiaries),
+            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(data.traits, 64),
+            GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(data.traits),
+            nil
+        )
+    else
+        if not self:MakeTemplate(data.traits) then
+            self:OutputError("Failed to make template.")
+            return
+        end
     end
 
     self.breeder:TrashSlotsFromDroneChest(nil)

@@ -259,7 +259,7 @@ function BeeServer:TemplateCommandHandler(argv)
         ["territory"] = "integer",
         ["tolerantFlyer"] = "boolean"
     }
-    local payload = {traits = {}}  ---@type MakeTemplatePayload
+    local payload = {traits = {}, raw = TableContains(argv, "--raw")}  ---@type MakeTemplatePayload
 
     -- Remove the orginal command.
     table.remove(argv, 1)
@@ -503,9 +503,9 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.terminalHandlerTable = {
         ["breed"] = BeeServer.BreedCommandHandler,
         ["continue"] = BeeServer.ContinueCommandHandler,
-        ["template"] = BeeServer.TemplateCommandHandler,
         ["import"] = BeeServer.ImportCommandHandler,
-        ["shutdown"] = BeeServer.ShutdownCommandHandler
+        ["shutdown"] = BeeServer.ShutdownCommandHandler,
+        ["template"] = BeeServer.TemplateCommandHandler
     }
 
     -- Obtain the full bee graph from the attached adapter and apiary.

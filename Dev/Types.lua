@@ -196,7 +196,7 @@ local CodedMessage = {}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PropagateTemplatePayload {traits: PartialAnalyzedBeeTraits}
 ---@alias PrintErrorPayload {errorMessage: string}
----@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits}
+---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
 ---@alias TraitBreedPathRequestPayload {trait: string, value: any}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 
