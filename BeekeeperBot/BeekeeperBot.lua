@@ -769,7 +769,7 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
         MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
             self.breeder.numApiaries,
             "species",
-            {uid = node.target},
+            {uid = node.target, caveDwelling = true, tolerantFlyer = true},  -- Cave-dwelling and rain tolerance might actually not show up, but the finisher doesn't require them, so this is fine.
             {fertility = maxFertilityPreExisting, humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
             breedInfoCacheElement,
             traitInfoCache
