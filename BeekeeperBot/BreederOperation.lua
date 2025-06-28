@@ -854,12 +854,12 @@ function BreedOperator:moveToStorageColumn()
     --- Move to the chest row.
     self.robot.forward()
     self.robot.turnRight()
-    self:moveForwards(4)
+    self:moveForwards(3)
 end
 
 -- Moves the robot from position 0 of the storage column back to the breeder station.
 function BreedOperator:returnToBreederStationFromStorageColumn()
-    self:moveBackwards(4)
+    self:moveBackwards(3)
     self.robot.turnLeft()
     self.robot.back()
 end
