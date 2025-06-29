@@ -8,6 +8,7 @@
 ---@field robot any robot library
 ---@field sides any sides library
 ---@field numApiaries integer
+---@field nextApiary integer
 local BreedOperator = {}
 
 require("Shared.Shared")
@@ -50,6 +51,7 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
         return nil
     end
     obj.numApiaries = numApiaries
+    obj.nextApiary = 0
 
     return obj
 end
@@ -116,35 +118,77 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self.robot.up()
     self:moveForwards(2)
 
-    -- Find the next open apiary.
-    local chosenApiary = 1
-    while self:housingIsOccupied() do
-        -- Apiaries are set up in a cross.
-        self.robot.turnRight()
-        self:moveForwards(2)
-        self.robot.turnLeft()
-        self:moveForwards(2)
-        self.robot.turnLeft()
-        chosenApiary = chosenApiary + 1
+    -- In case different queens have different lifetimes, we will need to try a different one.
+    local placed = false
+    while not placed do
+        if self.nextApiary == 0 then
+            -- We are already here. No other movement to do.
+            placed = self:PlaceBeesInApiary()
+        elseif self.nextApiary == 1 then
+            -- Apiary is one forward and to the right from the first one.
+            self.robot.turnRight()
+            self.robot.forward()
+            self.robot.turnLeft()
+            self.robot.forward()
+
+            placed = self:PlaceBeesInApiary()
+
+            self.robot.back()
+            self.robot.turnRight()
+            self.robot.back()
+            self.robot.turnLeft()
+        elseif self.nextApiary == 2 then
+            -- Apiary is one forward and to the left from the first one.
+            self.robot.turnLeft()
+            self.robot.forward()
+            self.robot.turnRight()
+            self.robot.forward()
+
+            placed = self:PlaceBeesInApiary()
+
+            self.robot.back()
+            self.robot.turnLeft()
+            self.robot.back()
+            self.robot.turnRight()
+        elseif self.nextApiary == 3 then
+            -- Apiary is two forward from the first one.
+            self.robot.turnRight()
+            self:moveForwards(2)
+            self.robot.turnLeft()
+            self:moveForwards(3)
+            self.robot.turnLeft()
+            self.robot.forward()
+
+            placed = self:PlaceBeesInApiary()
+
+            self.robot.back()
+            self.robot.turnRight()
+            self:moveBackwards(3)
+            self.robot.turnRight()
+            self:moveBackwards(2)
+            self.robot.turnLeft()
+        end
+
+        self.nextApiary = (self.nextApiary + 1) % self.numApiaries
     end
 
-    -- We are at an open apiary, so place the bees inside.
+    -- Return to the breeder station from the first apiary.
+    self:moveBackwards(2)
+    self.robot.down()
+end
+
+---@return boolean
+function BreedOperator:PlaceBeesInApiary()
     self.robot.select(PRINCESS_SLOT)
-    self.ic.dropIntoSlot(self.sides.front, APIARY_PRINCESS_SLOT)
+
+    -- We only need to check the princess/queen slot for occupancy.
+    if not self.ic.dropIntoSlot(self.sides.front, APIARY_PRINCESS_SLOT) then
+        return false
+    end
     self.robot.select(DRONE_SLOT)
     self.ic.dropIntoSlot(self.sides.front, APIARY_DRONE_SLOT)
 
-    -- Return to the breeder station by retracing our steps.
-    -- TODO: We could improve this by being aware of the relative location of the final apiary, but a simple retrace is easier for now.
-    self.robot.turnLeft()
-    for i = 2, chosenApiary do
-        self:moveForwards(2)
-        self.robot.turnRight()
-        self:moveForwards(2)
-    end
-    self.robot.turnRight()
-    self:moveBackwards(2)
-    self.robot.down()
+    return true
 end
 
 -- Toggles the state of the lever on the opposite side of the acitve chest, which is wired to the accelerator.
