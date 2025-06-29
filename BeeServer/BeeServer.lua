@@ -519,12 +519,18 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
     --       We need more generous matching here to determine the correct component.
     Print("Importing bee graph...")
-    if not TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
+    local apicultureComponent
+    if TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
+        apicultureComponent = componentLib.tile_for_apiculture_0_name
+    elseif TableContains(componentLib.list(), "tile_for_apiculture_2_name") then
+        apicultureComponent = componentLib.tile_for_apiculture_2_name
+    else
         Print("Couldn't find attached apiculture tile in the component library.")
+        Print("tile_for_apiculture_0_name, tile_for_apiculture_2_name not found.")
         obj:Shutdown(1)
     end
-    obj.beeGraph = GraphParse.ImportBeeGraph(componentLib.tile_for_apiculture_0_name)
-    obj.beeNameToUids = GraphParse.ImportBeeNames(componentLib.tile_for_apiculture_0_name)
+    obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
+    obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
     Print("Imported bee graph.")
 
     -- Read our local logfile to figure out which species we already have.

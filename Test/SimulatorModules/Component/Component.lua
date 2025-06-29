@@ -4,6 +4,7 @@
 ---@field inventory_controller any
 ---@field modem Modem
 ---@field tile_for_apiculture_0_name ApicultureTile
+---@field tile_for_apiculture_2_name ApicultureTile
 local M = {}
 
 M.modem = require("Test.SimulatorModules.Component.Modem")
