@@ -264,7 +264,14 @@ function BeeServer:TemplateCommandHandler(argv)
     -- Remove the orginal command.
     table.remove(argv, 1)
 
+    local parameterArgs = {}
     for i, v in ipairs(argv) do
+        if v:find("=", 1, true) ~= nil then
+            table.insert(parameterArgs, v)
+        end
+    end
+
+    for i, v in ipairs(parameterArgs) do
         local fields = {}
         for match in v:gmatch("[^=]+") do
             table.insert(fields, match)
