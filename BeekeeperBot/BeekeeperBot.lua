@@ -176,9 +176,10 @@ function BeekeeperBot:MakeTemplateHandler(data)
             self:OutputError("Failed to make template.")
             return
         end
+
+        self.breeder:TrashSlotsFromDroneChest(nil)
     end
 
-    self.breeder:TrashSlotsFromDroneChest(nil)
     Print(string.format("Finished making template %s.", TraitsToString(data.traits)))
 end
 
@@ -816,12 +817,10 @@ end
 function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCollectionAlgorithm, populateCaches)
     -- Experimentally, convergence should happen well before 300 iterations. If we hit that many, then convergence probably failed.
     local slots = {princess = nil, drones = nil}
-    local iteration = 0
     local inventorySize = self.breeder:GetDroneChestSize()
 
     self.breeder:ToggleWorldAccelerator()
-    while iteration < (300 * self.breeder.numApiaries) do
-        iteration = iteration + 1
+    for iteration = 1, (300 * self.breeder.numApiaries) do
         local droneStackList
         local princessStackList = {}
         while #princessStackList == 0 do
@@ -838,6 +837,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
                 end
                 self.breeder:ToggleWorldAccelerator()
 
+                Print(string.format("Finished stacks: princess = %u, drones = %u.", slots.princess, slots.drones))
                 return slots
             end
 
