@@ -568,14 +568,12 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
     local replicateTraits = Copy(traits)
     replicateTraits.fertility = ((replicateTraits.fertility == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits.fertility
 
-    local remaining = amount
     local finishedSlots = {drones = nil, princess = nil}
-    while remaining > 0 do
-        -- Technically, we take the drones away for the output first, then replicate the original stack back up to 64.
-        local numberToReplicate = math.min(remaining, 32)
-        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToReplicate}, {holdoverDroneSlot})
-
-        -- Do the breeding.
+    local breedRemaining = 64 - stack.size
+    local exportRemaining = amount
+    while (breedRemaining > 0) or (exportRemaining > 0) do
+        -- Do the breeding. We start by breeding first in case we grabbed a stack that wasn't full to begin with.
+        -- If the stack was already full, then Breed() will return immediately.
         finishedSlots = self:Breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(replicateTraits, self.breeder.numApiaries),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(replicateTraits, 64),
@@ -592,7 +590,11 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
             return nil
         end
 
-        remaining = remaining - numberToReplicate
+        -- Take drones away for the output and replicate the original stack back up to 64.
+        local numberToExport = math.min(breedRemaining, 32)
+        exportRemaining = exportRemaining - numberToExport
+        breedRemaining = 64 - numberToExport
+        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToExport}, {holdoverDroneSlot})
     end
 
     -- Do cleanup operations.
@@ -675,22 +677,16 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     local finishedDroneSlot
-    local remaining = amount
-    while remaining > 0 do
-        -- Technically, we take the drones away for the output first, then replicate the original stack back up to 64.
-        local numberToReplicate = math.min(remaining, 32)
-        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToReplicate}, {holdoverSlot})
-        local stack = self.breeder:GetStackInDroneSlot(1)
-        if stack == nil then
-            return false
-        end
-
-        -- Do the breeding.
+    local breedRemaining = 64 - droneStack.size
+    local exportRemaining = amount
+    while (breedRemaining > 0) or (exportRemaining > 0) do
+        -- Do the breeding. We start by breeding first in case we grabbed a stack that wasn't full to begin with.
+        -- If the stack was already full, then Breed() will return immediately.
         local breedInfoCacheElement = {}
         local traitInfoCache = {species = {}}
         finishedDroneSlot = self:Breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(droneStack.individual.active, self.breeder.numApiaries),
-            MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(species, stack.individual.active.fertility, 64),
+            MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(species, droneStack.individual.active.fertility, 64),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(species),
             function (princessStack, droneStackList)
                 self:PopulateBreedInfoCache(princessStack, droneStackList, species, breedInfoCacheElement)
@@ -713,7 +709,11 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
             return false
         end
 
-        remaining = remaining - numberToReplicate
+        -- Take drones away for the output and replicate the original stack back up to 64.
+        local numberToExport = math.min(exportRemaining, 32)
+        exportRemaining = exportRemaining - numberToExport
+        breedRemaining = 64 - numberToExport
+        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToExport}, {holdoverSlot})
     end
 
     -- Do cleanup operations.

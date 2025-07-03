@@ -234,7 +234,7 @@ function BreedOperator:ScanAllDroneStacks()
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
             local stack = self.ic.getStackInSlot(self.sides.front, i)
-            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size == 64) then
+            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
                 table.insert(droneStacks, stack.individual.active)
@@ -437,7 +437,7 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
             local stack = self.ic.getStackInSlot(self.sides.front, i)
             if ((stack ~= nil) and
                 (string.find(stack.label, "[D|d]rone") ~= nil) and
-                (stack.size == 64) and
+                (stack.size >= 32) and
                 AnalysisUtil.AllTraitsEqual(stack.individual, traits)
             ) then
                 self.ic.suckFromSlot(self.sides.front, i, 64)
