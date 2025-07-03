@@ -47,6 +47,9 @@ function M.TraitIsEqual(beeTraits, trait, value)
         return (beeTraits.species.uid == value.uid)
     elseif trait == "territory" then
         return (beeTraits.territory[1] == value[1])
+    elseif trait == "speed" then
+        -- "Speed" often has weird floating-point problems.
+        return math.abs(beeTraits.speed - value) <= 0.01
     end
 
     return (beeTraits[trait] == value)
