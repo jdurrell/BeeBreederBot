@@ -569,9 +569,9 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
     replicateTraits.fertility = ((replicateTraits.fertility == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits.fertility
 
     local finishedSlots = {drones = nil, princess = nil}
-    local breedRemaining = 64 - stack.size
     local exportRemaining = amount
-    while (breedRemaining > 0) or (exportRemaining > 0) do
+    local numberToExport = math.min(exportRemaining, 32)
+    while numberToExport > 0 do
         -- Do the breeding. We start by breeding first in case we grabbed a stack that wasn't full to begin with.
         -- If the stack was already full, then Breed() will return immediately.
         finishedSlots = self:Breed(
@@ -591,10 +591,9 @@ function BeekeeperBot:ReplicateTemplate(traits, amount, holdoverDroneSlot, retri
         end
 
         -- Take drones away for the output and replicate the original stack back up to 64.
-        local numberToExport = math.min(breedRemaining, 32)
+        numberToExport = math.min(exportRemaining, 32)
         exportRemaining = exportRemaining - numberToExport
-        breedRemaining = 64 - numberToExport
-        self.breeder:ExportDroneStacksToHoldovers({1}, {numberToExport}, {holdoverDroneSlot})
+        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {numberToExport}, {holdoverDroneSlot})
     end
 
     -- Do cleanup operations.
@@ -677,9 +676,9 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
     end
 
     local finishedDroneSlot
-    local breedRemaining = 64 - droneStack.size
     local exportRemaining = amount
-    while (breedRemaining > 0) or (exportRemaining > 0) do
+    local numberToExport = math.min(exportRemaining, 32)
+    while numberToExport > 0 do
         -- Do the breeding. We start by breeding first in case we grabbed a stack that wasn't full to begin with.
         -- If the stack was already full, then Breed() will return immediately.
         local breedInfoCacheElement = {}
@@ -710,9 +709,8 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         end
 
         -- Take drones away for the output and replicate the original stack back up to 64.
-        local numberToExport = math.min(exportRemaining, 32)
+        numberToExport = math.min(exportRemaining, 32)
         exportRemaining = exportRemaining - numberToExport
-        breedRemaining = 64 - numberToExport
         self.breeder:ExportDroneStacksToHoldovers({1}, {numberToExport}, {holdoverSlot})
     end
 
