@@ -115,7 +115,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     self.robot.turnLeft()
 
     -- Move to the 1st apiary.
-    self.robot.up()
+    self:moveUpwards(1)
     self:moveForwards(2)
 
     -- In case different queens have different lifetimes, we will need to try a different one.
@@ -127,28 +127,28 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
         elseif self.nextApiary == 1 then
             -- Apiary is one forward and to the right from the first one.
             self.robot.turnRight()
-            self.robot.forward()
+            self:moveForwards(1)
             self.robot.turnLeft()
-            self.robot.forward()
+            self:moveForwards(1)
 
             placed = self:PlaceBeesInApiary()
 
-            self.robot.back()
+            self:moveBackwards(1)
             self.robot.turnRight()
-            self.robot.back()
+            self:moveBackwards(1)
             self.robot.turnLeft()
         elseif self.nextApiary == 2 then
             -- Apiary is one forward and to the left from the first one.
             self.robot.turnLeft()
-            self.robot.forward()
+            self:moveForwards(1)
             self.robot.turnRight()
-            self.robot.forward()
+            self:moveForwards(1)
 
             placed = self:PlaceBeesInApiary()
 
-            self.robot.back()
+            self:moveBackwards(1)
             self.robot.turnLeft()
-            self.robot.back()
+            self:moveBackwards(1)
             self.robot.turnRight()
         elseif self.nextApiary == 3 then
             -- Apiary is two forward from the first one.
@@ -157,11 +157,11 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
             self.robot.turnLeft()
             self:moveForwards(3)
             self.robot.turnLeft()
-            self.robot.forward()
+            self:moveForwards(1)
 
             placed = self:PlaceBeesInApiary()
 
-            self.robot.back()
+            self:moveBackwards(1)
             self.robot.turnRight()
             self:moveBackwards(3)
             self.robot.turnRight()
@@ -174,7 +174,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
 
     -- Return to the breeder station from the first apiary.
     self:moveBackwards(2)
-    self.robot.down()
+    self:moveDownwards(1)
 end
 
 ---@return boolean
@@ -193,7 +193,7 @@ end
 
 -- Toggles the state of the lever on the opposite side of the acitve chest, which is wired to the accelerator.
 function BreedOperator:ToggleWorldAccelerator()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnRight()
     self:moveForwards(2)
     self.robot.turnRight()
@@ -203,7 +203,7 @@ function BreedOperator:ToggleWorldAccelerator()
     self.robot.turnLeft()
     self:moveBackwards(2)
     self.robot.turnLeft()
-    self.robot.back()
+    self:moveBackwards(1)
 end
 
 -- Stores the drones from the given slot in the drone chest in the storage chest at the given point.
@@ -242,7 +242,7 @@ function BreedOperator:ScanAllDroneStacks()
         end
 
         self.robot.turnLeft()
-        self.robot.forward()
+        self:moveForwards(1)
         self.robot.turnRight()
         chest = chest + 1
     end
@@ -449,7 +449,7 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
 
         if not found then
             self.robot.turnLeft()
-            self.robot.forward()
+            self:moveForwards(1)
             self.robot.turnRight()
             chest = chest + 1
         else
@@ -499,7 +499,7 @@ end
 ---@param droneChestSlots integer[]
 function BreedOperator:ImportHoldoverStacksToDroneChest(holdoverChestSlots, amounts, droneChestSlots)
     -- Move to the Holdover chest, located 1 block vertical from the robot's default position at the breeder station.
-    self.robot.up()
+    self:moveUpwards(1)
     self.robot.turnRight()
 
     -- Get the drone stacks out of the Holdover chest.
@@ -509,7 +509,7 @@ function BreedOperator:ImportHoldoverStacksToDroneChest(holdoverChestSlots, amou
     end
 
     -- Place the drone stacks into the Drone chest.
-    self.robot.down()
+    self:moveDownwards(1)
     for i, slot in ipairs(droneChestSlots) do
         self.robot.select(i)
         while not self.ic.dropIntoSlot(self.sides.front, slot, amounts[i]) do
@@ -532,7 +532,7 @@ end
 ---@param princessChestSlots integer[]
 function BreedOperator:ImportHoldoverStacksToPrincessChest(holdoverChestSlots, amounts, princessChestSlots)
     -- Move to the Holdover chest, located 1 block vertical from the robot's default position at the breeder station.
-    self.robot.up()
+    self:moveUpwards(1)
     self.robot.turnRight()
 
     -- Get the princess stacks out of the Holdover chest.
@@ -542,7 +542,7 @@ function BreedOperator:ImportHoldoverStacksToPrincessChest(holdoverChestSlots, a
     end
 
     -- Place the princess stacks into the Drone chest.
-    self.robot.down()
+    self:moveDownwards(1)
     self.robot.turnLeft()
     self.robot.turnLeft()
     for i, slot in ipairs(princessChestSlots) do
@@ -567,14 +567,14 @@ function BreedOperator:ExportDroneStacksToHoldovers(droneChestSlots, amounts, ho
     end
 
     -- Place stack in the holdover chest.
-    self.robot.up()
+    self:moveUpwards(1)
     for i, slot in ipairs(holdoverChestSlots) do
         self.robot.select(i)
         self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
     end
 
     -- Clean up by returning to starting position.
-    self.robot.down()
+    self:moveDownwards(1)
     self.robot.turnLeft()
 end
 
@@ -593,14 +593,14 @@ function BreedOperator:ExportPrincessStacksToHoldovers(princessChestSlots, amoun
     -- Place stack in the holdover chest.
     self.robot.turnRight()
     self.robot.turnRight()
-    self.robot.up()
+    self:moveUpwards(1)
     for i, slot in ipairs(holdoverChestSlots) do
         self.robot.select(i)
         self.ic.dropIntoSlot(self.sides.front, slot, amounts[i])
     end
 
     -- Clean up by returning to starting position.
-    self.robot.down()
+    self:moveDownwards(1)
     self.robot.turnLeft()
 end
 
@@ -756,7 +756,7 @@ function BreedOperator:PlaceFoundations(block)
     end
     self.robot.turnRight()
     self:moveBackwards(2)
-    self.robot.down()
+    self:moveDownwards(1)
 
     return "success"
 end
@@ -802,7 +802,7 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     end
     self.robot.turnRight()
     self:moveBackwards(2)
-    self.robot.down()
+    self:moveDownwards(1)
 
     -- Return the pickaxe and the foundation blocks to the inputs chest.
     self:moveToInputChest()
@@ -839,7 +839,7 @@ function BreedOperator:storeDrones()
         local emptySlot = self:getEmptySlotInChest()
         while emptySlot == -1 do
             self.robot.turnLeft()
-            self.robot.forward()
+            self:moveForwards(1)
             self.robot.turnRight()
             chest = chest + 1
 
@@ -896,7 +896,7 @@ end
 -- Moves the robot from the breeder station to position 0 of the storage column.
 function BreedOperator:moveToStorageColumn()
     --- Move to the chest row.
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnRight()
     self:moveForwards(3)
 end
@@ -905,18 +905,18 @@ end
 function BreedOperator:returnToBreederStationFromStorageColumn()
     self:moveBackwards(3)
     self.robot.turnLeft()
-    self.robot.back()
+    self:moveBackwards(1)
 end
 
 function BreedOperator:moveToStockPrincessChestFromStorageColumnOrigin()
     self.robot.turnRight()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnLeft()
 end
 
 function BreedOperator:returnToStorageColumnOriginFromStockPrincessChest()
     self.robot.turnLeft()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnRight()
 end
 
@@ -930,63 +930,63 @@ end
 
 -- Moves the robot from the breeder station to facing the input chest.
 function BreedOperator:moveToInputChest()
-    self.robot.up()
+    self:moveUpwards(1)
     self:moveBackwards(2)
     self.robot.turnLeft()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnLeft()
 end
 
 function BreedOperator:returnToBreederStationFromInputChest()
     self.robot.turnLeft()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnLeft()
     self:moveForwards(2)
-    self.robot.down()
+    self:moveDownwards(1)
 end
 
 -- Moves the robot from the breeder station to facing the output chest.
 function BreedOperator:moveToOutputChest()
-    self.robot.up()
+    self:moveUpwards(1)
     self:moveBackwards(2)
     self.robot.turnRight()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnRight()
 end
 
 function BreedOperator:returnToBreederStationFromOutputChest()
     self.robot.turnRight()
-    self.robot.forward()
+    self:moveForwards(1)
     self.robot.turnRight()
     self:moveForwards(2)
-    self.robot.down()
+    self:moveDownwards(1)
 end
 
 ---@param dist integer
 function BreedOperator:moveForwards(dist)
     for i = 1, dist do
-        self.robot.forward()
+        while not self.robot.forward() do end
     end
 end
 
 ---@param dist integer
 function BreedOperator:moveBackwards(dist)
     for i = 1, dist do
-        self.robot.back()
+        while not self.robot.back() do end
     end
 end
 
 ---@param dist integer
 function BreedOperator:moveUpwards(dist)
     for i = 1, dist do
-        self.robot.up()
+        while not self.robot.up() do end
     end
 end
 
 ---@param dist integer
 function BreedOperator:moveDownwards(dist)
     for i = 1, dist do
-        self.robot.down()
+        while not self.robot.down() do end
     end
 end
 
