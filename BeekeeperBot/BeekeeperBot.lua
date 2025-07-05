@@ -352,6 +352,7 @@ function BeekeeperBot:MakeTemplate(targetTraits)
             self.breeder:BreakAndReturnFoundationsToInputChest()
         end
     end
+    Print("All required traits now in population.")
 
     -- Refresh our view of the bees if necessary.
     if bredNew then

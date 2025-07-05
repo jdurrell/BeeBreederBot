@@ -5,26 +5,14 @@ local M = {}
 ---@param value any
 ---@return integer
 function M.NumberOfMatchingAlleles(bee, trait, value)
-    if trait == "species" then
-        return (
-            (((bee.active.species.uid == value.uid) and 1) or 0) +
-            (((bee.inactive.species.uid == value.uid) and 1) or 0)
-        )
-    elseif trait == "territory" then
-        return (
-            (((bee.active.territory[1] == value[1]) and 1) or 0) +
-            (((bee.inactive.territory[1] == value[1]) and 1) or 0)
-        )
-    else
-        return (
-            (((bee.active[trait] == value) and 1) or 0) +
-            (((bee.inactive[trait] == value) and 1) or 0)
-        )
-    end
+    return (
+        ((M.TraitIsEqual(bee.active, trait, value) and 1) or 0) +
+        ((M.TraitIsEqual(bee.inactive, trait, value) and 1) or 0)
+    )
 end
 
 ---@param bee AnalyzedBeeIndividual
----@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
+---@param targetTraits AnalyzedBeeTraits | PartialAnalyzedBeeTraits 
 ---@return boolean
 function M.AllTraitsEqual(bee, targetTraits)
     for trait, value in pairs(targetTraits) do
