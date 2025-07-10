@@ -836,7 +836,7 @@ function BeekeeperBot:Breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
                 end
                 self.breeder:ToggleWorldAccelerator()
 
-                Print(string.format("Finished stacks: princess = %u, drones = %u.", slots.princess, slots.drones))
+                Print(string.format("Finished stacks: princess = %s, drones = %s.", tostring(slots.princess), tostring(slots.drones)))
                 return slots
             end
 
