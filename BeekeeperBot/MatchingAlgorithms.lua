@@ -8,8 +8,8 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@alias ScoreFunction fun(droneStack: AnalyzedBeeStack): number
 
 -- Returns a matcher that prioritizes drones that are expected to produce the highest number of target alleles
--- with the given princess while also prioritizing the highest fertility trait available in the pool and filtering out
--- fertility of 1 or lower.
+-- with the given princess while also prioritizing traits that make the breeding faster namely high fertility, low lifespan,
+-- cave-dwelling, and rain-tolerance. It will also prioritize traits that are generally beneficial, like production speed.
 ---@param numPrincesses integer
 ---@param mutationTrait string
 ---@param mutationValue any
@@ -17,12 +17,24 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@param cacheElement BreedInfoCacheElement
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
-function M.HighFertilityAndMutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, cacheElement, traitInfo)
+function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, cacheElement, traitInfo)
     preferredTraits[mutationTrait] = mutationValue
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
 
+    -- Track the "best" of various traits to pivot to including them automatically.
+    -- This optimizes the breeding speed.
+    local maxFertilitySeen = ((preferredTraits.fertility ~= nil) and preferredTraits.fertility) or math.mininteger
+    local minLifespanSeen = ((preferredTraits.lifespan ~= nil) and preferredTraits.lifespan) or math.maxinteger
+
+    -- Allow a trait given by the caller to override whatever we think is "best".
+    local lockFertility = (mutationTrait == "fertility") or (preferredTraits.fertility ~= nil)
+    local lockLifespan = (mutationTrait == "lifespan") or (preferredTraits.lifespan ~= nil)
+    local lockCaveDwelling = (mutationTrait == "caveDwelling") or (preferredTraits.caveDwelling ~= nil)
+    local lockTolerantFlyer = (mutationTrait == "tolerantFlyer") or (preferredTraits.tolerantFlyer ~= nil)
+
     return function (princessStack, droneStackList)
+        local princessBee = princessStack.individual
         if princessCount % numPrincesses == 0 then
             comparisonPrincessIndividual = princessStack.individual
         end
@@ -31,6 +43,8 @@ function M.HighFertilityAndMutatedAlleleMatcher(numPrincesses, mutationTrait, mu
         return M.GenericHighestScore(
             droneStackList,
             function (droneStack)
+                local droneBee = droneStack.individual
+
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
                     princessStack.individual, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
                 ) * 1e3) * 1e6
@@ -38,6 +52,25 @@ function M.HighFertilityAndMutatedAlleleMatcher(numPrincesses, mutationTrait, mu
                 if score == 0 then
                     -- Don't choose a drone that has no chance of producing the desired mutation trait.
                     return 0
+                end
+
+                -- If the caller didn't specifically request one of these traits, then attempt to adjust the preferred traits for
+                -- the ones that cause faster breeding.
+                -- TODO: Although this is probably best in the general case, if the trait isn't actually sourced from the target species
+                -- (i.e. it's from the princess or some intermittent drone), then it is much more possible for it to breed back out of the population.
+                if (not lockFertility) and (math.max(droneBee.active.fertility, droneBee.inactive.fertility) > maxFertilitySeen) then
+                    maxFertilitySeen = math.max(droneBee.active.fertility, droneBee.inactive.fertility)
+                    preferredTraits.fertility = maxFertilitySeen
+                end
+                if (not lockLifespan) and math.min(droneBee.active.lifespan, droneBee.inactive.lifespan) then
+                    minLifespanSeen = math.min(droneBee.active.lifespan, droneBee.inactive.lifespan)
+                    preferredTraits.lifespan = minLifespanSeen
+                end
+                if (not lockCaveDwelling) and (droneBee.active.caveDwelling or droneBee.inactive.caveDwelling) then
+                    preferredTraits.caveDwelling = true
+                end
+                if (not lockTolerantFlyer) and (droneBee.active.tolerantFlyer or droneBee.inactive.tolerantFlyer) then
+                    preferredTraits.tolerantFlyer = true
                 end
 
                 local numTraitsAtLeastOneAllele = 0

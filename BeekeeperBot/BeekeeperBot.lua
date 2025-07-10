@@ -319,11 +319,11 @@ function BeekeeperBot:MakeTemplate(targetTraits)
             local breedInfoCacheElement = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:Breed(
-                MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+                MatchingAlgorithms.MutatedAlleleMatcher(
                     self.breeder.numApiaries,
                     v.trait,
                     targetTraits[v.trait],
-                    {fertility = maxFertilityPreExisting, humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
+                    {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
                     breedInfoCacheElement,
                     traitInfoCache
                 ),
@@ -676,7 +676,7 @@ function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, ret
         return true
     end
 
-    local finishedDroneSlot
+    local finishedDroneSlot = nil
     local exportRemaining = amount
     local numberToExport = math.min(exportRemaining, 32)
     while numberToExport > 0 do
@@ -736,14 +736,9 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
         self.breeder:RetrieveStockPrincessesFromChest(nil, {node.parent1, node.parent2})
     end
 
-    -- Breed the target using the left-over drones from both parents and the princesses
-    -- implied to be created by breeding the replacements for parent 2.
-    -- TODO: It is technically possible that some princesses may not have been converted
-    --   to one of the two parents. In this case, it could be impossible to get a drone that
-    --   has a non-zero chance to breed the target. For now, we will just rely on random
-    --   chance to eventually get us out of this scenario instead of detecting it outright.
-    --   To solve the above, we could have the matcher prioritize breeding one of the parents
-    --   if breeding the target has 0 chance with all princesses/drones.
+    -- Breed the target using the left-over drones from both parents.
+    -- As long as the drones were properly replicated beforehand, this shouldn't
+    -- require any specific princesses.
 
     -- Move starter bees to their respective chests.
     self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {64, 64}, {1, 2})
@@ -766,11 +761,11 @@ function BeekeeperBot:BreedSpecies(node, retrievePrincessesFromStock, returnPrin
     local breedInfoCacheElement = {}
     local traitInfoCache = {species = {}}
     local finishedDroneSlot = self:Breed(
-        MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+        MatchingAlgorithms.MutatedAlleleMatcher(
             self.breeder.numApiaries,
             "species",
-            {uid = node.target, caveDwelling = true, tolerantFlyer = true},  -- Cave-dwelling and rain tolerance might actually not show up, but the finisher doesn't require them, so this is fine.
-            {fertility = maxFertilityPreExisting, humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
+            {uid = node.target},
+            {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
             breedInfoCacheElement,
             traitInfoCache
         ),

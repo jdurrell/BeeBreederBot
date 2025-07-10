@@ -238,7 +238,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+            MatchingAlgorithms.MutatedAlleleMatcher(
                 1,
                 "species",
                 {uid = target},
@@ -273,7 +273,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
 
         local successRatio = RunConvergenceTest(
-            MatchingAlgorithms.HighFertilityAndMutatedAlleleMatcher(
+            MatchingAlgorithms.MutatedAlleleMatcher(
                 1,
                 "species",
                 {uid = target},
