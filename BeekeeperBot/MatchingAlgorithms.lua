@@ -25,12 +25,16 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
     -- Track the "best" of various traits to pivot to including them automatically.
     -- This optimizes the breeding speed.
     local maxFertilitySeen = ((preferredTraits.fertility ~= nil) and preferredTraits.fertility) or math.mininteger
+    local maxSpeedSeen = ((preferredTraits.speed) and preferredTraits.speed) or math.mininteger
     local minLifespanSeen = ((preferredTraits.lifespan ~= nil) and preferredTraits.lifespan) or math.maxinteger
 
     -- Allow a trait given by the caller to override whatever we think is "best".
     local lockFertility = (mutationTrait == "fertility") or (preferredTraits.fertility ~= nil)
     local lockLifespan = (mutationTrait == "lifespan") or (preferredTraits.lifespan ~= nil)
+    local lockSpeed = (mutationTrait == "speed") or (preferredTraits.speed ~= nil)
+    local lockEffect = (mutationTrait == "effect") or (preferredTraits.effect ~= nil)
     local lockCaveDwelling = (mutationTrait == "caveDwelling") or (preferredTraits.caveDwelling ~= nil)
+    local lockNocturnal = (mutationTrait == "nocturnal") or (preferredTraits.nocturnal ~= nil)
     local lockTolerantFlyer = (mutationTrait == "tolerantFlyer") or (preferredTraits.tolerantFlyer ~= nil)
 
     return function (princessStack, droneStackList)
@@ -46,7 +50,7 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 local droneBee = droneStack.individual
 
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    princessStack.individual, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
+                    princessBee, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
                 ) * 1e3) * 1e6
 
                 if score == 0 then
@@ -61,16 +65,33 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 if (not lockFertility) and (math.max(droneBee.active.fertility, droneBee.inactive.fertility) > maxFertilitySeen) then
                     maxFertilitySeen = math.max(droneBee.active.fertility, droneBee.inactive.fertility)
                     preferredTraits.fertility = maxFertilitySeen
+                    lockFertility = (maxFertilitySeen == 4)
                 end
-                if (not lockLifespan) and math.min(droneBee.active.lifespan, droneBee.inactive.lifespan) then
+                if (not lockSpeed) and (math.max(droneBee.active.speed, droneBee.inactive.speed) > maxSpeedSeen) then
+                    maxSpeedSeen = math.max(droneBee.active.speed, droneBee.inactive.speed)
+                    preferredTraits.speed = maxSpeedSeen
+                    lockSpeed = (math.abs(maxSpeedSeen - 2.0) < 0.001)
+                end
+                if (not lockLifespan) and (math.min(droneBee.active.lifespan, droneBee.inactive.lifespan) < minLifespanSeen) then
                     minLifespanSeen = math.min(droneBee.active.lifespan, droneBee.inactive.lifespan)
                     preferredTraits.lifespan = minLifespanSeen
+                    lockLifespan = (minLifespanSeen == 10)
+                end
+                if (not lockEffect) and ((droneBee.active.effect == "NONE") or (droneBee.inactive.effect == "NONE")) then
+                    preferredTraits.effect = "NONE"
+                    lockEffect = true
                 end
                 if (not lockCaveDwelling) and (droneBee.active.caveDwelling or droneBee.inactive.caveDwelling) then
                     preferredTraits.caveDwelling = true
+                    lockCaveDwelling = true
+                end
+                if (not lockNocturnal) and (droneBee.active.nocturnal or droneBee.inactive.nocturnal) then
+                    preferredTraits.nocturnal = true
+                    lockNocturnal = true
                 end
                 if (not lockTolerantFlyer) and (droneBee.active.tolerantFlyer or droneBee.inactive.tolerantFlyer) then
                     preferredTraits.tolerantFlyer = true
+                    lockTolerantFlyer = true
                 end
 
                 local numTraitsAtLeastOneAllele = 0
@@ -78,8 +99,8 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 local totalNumMatchingAlleles = 0
                 for trait, value in pairs(preferredTraits) do
                     local numberMatchingAllelesOfTrait = (
-                        AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value) +
-                        AnalysisUtil.NumberOfMatchingAlleles(princessStack.individual, trait, value)
+                        AnalysisUtil.NumberOfMatchingAlleles(droneBee, trait, value) +
+                        AnalysisUtil.NumberOfMatchingAlleles(princessBee, trait, value)
                     )
 
                     if numberMatchingAllelesOfTrait >= 1 then
@@ -103,8 +124,8 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 -- but only if all of its traits are pure-bred. A large stack with non-pure-bred traits
                 -- will result in princess oscillation instead of convergence.
                 local fullyPureBred = true
-                for trait, value in pairs(droneStack.individual.active) do
-                    if not AnalysisUtil.TraitIsEqual(droneStack.individual.inactive, trait, value) then
+                for trait, value in pairs(droneBee.active) do
+                    if not AnalysisUtil.TraitIsEqual(droneBee.inactive, trait, value) then
                         fullyPureBred = false
                         break
                     end
@@ -117,7 +138,7 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 local numMatchingTotal = 0
                 for trait, value in pairs(comparisonPrincessIndividual.active) do
                     if AnalysisUtil.TraitIsEqual(comparisonPrincessIndividual.inactive, trait, value) then
-                        numMatchingTotal = numMatchingTotal + AnalysisUtil.NumberOfMatchingAlleles(droneStack.individual, trait, value)
+                        numMatchingTotal = numMatchingTotal + AnalysisUtil.NumberOfMatchingAlleles(droneBee, trait, value)
                     end
                 end
                 score = score + numMatchingTotal
