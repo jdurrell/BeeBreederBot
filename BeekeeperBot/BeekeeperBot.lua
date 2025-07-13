@@ -138,18 +138,42 @@ end
 
 ---@param data BreedCommandPayload
 function BeekeeperBot:BreedCommandHandler(data)
-    if (data == nil) or (data[1] == nil) then
+    if (data == nil) or (data.path == nil) or (data.path[1] == nil) then
         self:OutputError("Got invalid BreedCommand payload.")
         return
     end
 
-    if not self:BreedSpeciesCommand(data) then
-        self:OutputError("Failed to breed new species.")
-        return
+    if data.raw then
+        local node = data.path[1]
+        local breedInfoCacheElement = {}
+        local traitInfoCache = {species = {}}
+
+        self:Breed(
+            MatchingAlgorithms.MutatedAlleleMatcher(
+                self.breeder.numApiaries,
+                "species",
+                {uid = node.target},
+                {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
+                breedInfoCacheElement,
+                traitInfoCache
+            ),
+            MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(node.target, 2, 64),
+            GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(node.target),
+            function (princessStack, droneStackList)
+                self:PopulateBreedInfoCache(princessStack, droneStackList, node.target, breedInfoCacheElement)
+                self:PopulateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+            end
+        )
+    else
+        if not self:BreedSpeciesCommand(data) then
+            self:OutputError("Failed to breed new species.")
+            return
+        end
+
+        self.breeder:TrashSlotsFromDroneChest(nil)
     end
 
-    self.breeder:TrashSlotsFromDroneChest(nil)
-    Print(string.format("Finished breeding path ending in %s.", data[#data].target))
+    Print(string.format("Finished breeding path ending in %s.", data.path[#(data.path)].target))
 end
 
 ---@param data MakeTemplatePayload

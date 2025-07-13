@@ -165,9 +165,9 @@ function BeeServer:BreedCommandHandler(argv)
         return
     end
 
+    -- If the provided name wasn't a uid, then attempt to resolve it from the species name.
     local targetUid = ((self.beeGraph[argv[2]] ~= nil) and argv[2]) or nil
     if targetUid == nil then
-        -- If the provided name wasn't a uid, then attempt to resolve it as a species name.
         local species = argv[2]:lower()
         if self.beeNameToUids[species] == nil then
             Print(string.format("Unrecognized bee name '%s'.", species))
@@ -196,6 +196,13 @@ function BeeServer:BreedCommandHandler(argv)
         end
     end
 
+    if TableContains(argv, "--raw") then
+        -- If this is a raw command, then we assume everything is set up for the bot, so it doesn't need parents or foundations.
+        local payload = {path = {{target = targetUid, parent1 = "", parent2 = ""}}, raw = true}
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, payload)
+        return
+    end
+
     for _, leaf in ipairs(self.leafSpeciesList) do
         if leaf == targetUid then
             -- If we already have the species, then send this as a replicate command.
@@ -211,7 +218,8 @@ function BeeServer:BreedCommandHandler(argv)
         return
     end
 
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, path)
+    local payload = {path = path, raw = false}
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, payload)
 end
 
 ---@param argv string[]

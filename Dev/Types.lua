@@ -191,7 +191,7 @@ local CodedMessage = {}
 ---@alias SpeciesFoundRequestPayload {species: string}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
----@alias BreedCommandPayload BreedPathNode[]
+---@alias BreedCommandPayload {path: BreedPathNode[], raw: boolean}
 ---@alias ReplicateCommandPayload {species: string}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PropagateTemplatePayload {traits: PartialAnalyzedBeeTraits}
