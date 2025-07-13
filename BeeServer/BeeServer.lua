@@ -291,7 +291,7 @@ function BeeServer:TemplateCommandHandler(argv)
         end
 
         -- TODO: Actually validate all of the values given to us here.
-        if validTraitsTypes[fields[2]] == "boolean" then
+        if validTraitsTypes[fields[1]] == "boolean" then
             fields[2] = fields[2]:lower()
             if fields[2] == "true" then
                 payload.traits[fields[1]] = true
