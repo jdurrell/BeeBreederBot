@@ -126,7 +126,7 @@ function BeekeeperBot:ReplicateCommandHandler(data)
         return
     end
 
-    if not self:ReplicateSpecies(data.species, true, true, 64, 1) then
+    if not self:ReplicateSpecies(data.species, 64, 1, true, true) then
         self:OutputError(string.format("Failed to replicate species '%s'.", data.species))
         return
     end
@@ -235,7 +235,7 @@ function BeekeeperBot:BreedSpeciesCommand(breedPath)
     for _, v in ipairs(breedPath) do
         if v.parent1 ~= nil then
             Print(string.format("Replicating %s.", v.parent1))
-            if not self:ReplicateSpecies(v.parent1, true, true, numDronesReplicate, 1) then
+            if not self:ReplicateSpecies(v.parent1, numDronesReplicate, 1, true, true) then
                 self:OutputError(string.format("Error: Replicate species '%s' failed.", v.parent1))
                 return false
             end
@@ -243,7 +243,7 @@ function BeekeeperBot:BreedSpeciesCommand(breedPath)
 
         if v.parent2 ~= nil then
             Print(string.format("Replicating %s.", v.parent2))
-            if not self:ReplicateSpecies(v.parent2, true, false, numDronesReplicate, 2) then
+            if not self:ReplicateSpecies(v.parent2, numDronesReplicate, 2, true, false) then
                 self:OutputError(string.format("Error: Replicate species '%s' failed.", v.parent2))
                 return false
             end
@@ -313,12 +313,12 @@ function BeekeeperBot:MakeTemplate(targetTraits)
             v.path[#(v.path)].target
         ))
         for _, pathNode in ipairs(v.path) do
-            if not self:ReplicateSpecies(pathNode.parent1, true, true, numSpeciesReplicate, 1) then
+            if not self:ReplicateSpecies(pathNode.parent1, numSpeciesReplicate, 1, true, true) then
                 self:OutputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
                 return false
             end
 
-            if not self:ReplicateSpecies(pathNode.parent2, true, false, numSpeciesReplicate, 2) then
+            if not self:ReplicateSpecies(pathNode.parent2, numSpeciesReplicate, 2, true, false) then
                 self:OutputError(string.format("Replicate parent 2 '%s' failed.",  pathNode.parent2))
                 return false
             end
@@ -495,7 +495,7 @@ function BeekeeperBot:PropagateTemplate(targetTraits)
 
     -- Retrieve drones that have the requested species allele. Convert a stock princess to a pure-bred of that species.
     local numTraitReplicate = 8 + (4 * self.breeder.numApiaries)
-    if not self:ReplicateSpecies(targetTraits.species.uid, true, true, numTraitReplicate, 1) then
+    if not self:ReplicateSpecies(targetTraits.species.uid, numTraitReplicate, 1, true, true) then
         self:OutputError(string.format("Failed to replicate species '%s'.", targetTraits.species.uid))
         return false
     end
@@ -633,12 +633,12 @@ end
 -- Replicates drones of the given species.
 -- Places outputs into the holdover chest.
 ---@param species string
----@param retrievePrincessesFromStock boolean
----@param returnPrincessesToStock boolean
 ---@param amount integer
 ---@param holdoverSlot integer
+---@param retrievePrincessesFromStock boolean
+---@param returnPrincessesToStock boolean
 ---@return boolean success
-function BeekeeperBot:ReplicateSpecies(species, retrievePrincessesFromStock, returnPrincessesToStock, amount, holdoverSlot)
+function BeekeeperBot:ReplicateSpecies(species, amount, holdoverSlot, retrievePrincessesFromStock, returnPrincessesToStock)
 
     -- We can't replicate more than a full stack at a time because we support holdoverSlot semantics.
     if amount > 64 then
