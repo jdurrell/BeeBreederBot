@@ -272,8 +272,8 @@ end
 ---@param targetTraits PartialAnalyzedBeeTraits
 ---@return boolean
 function BeekeeperBot:MakeTemplate(targetTraits)
-    local beeTraitSets = self.breeder:ScanAllDroneStacks()  -- TODO: Do we have enough memory for this?
-    if (beeTraitSets == nil) or (#beeTraitSets == 0) then
+    self.breeder:RefreshStorageCache()  -- TODO: Do we have enough memory for this?
+    if self.breeder.storageCache:IsEmpty() then
         self:OutputError("Failed to find any bees when searching for best initial trait match.")
         return false
     end
@@ -282,8 +282,8 @@ function BeekeeperBot:MakeTemplate(targetTraits)
     local traitPaths = {}  ---@type {trait: string, path: BreedPathNode[]}[]
     for trait, value in pairs(targetTraits) do
         local traitExisting = false
-        for _, v  in ipairs(beeTraitSets) do
-            if AnalysisUtil.TraitIsEqual(v, trait, value) then
+        for _, v  in ipairs(self.breeder.storageCache.cache) do
+            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
                 traitExisting = true
                 break
             end
@@ -380,20 +380,20 @@ function BeekeeperBot:MakeTemplate(targetTraits)
 
     -- Refresh our view of the bees if necessary.
     if bredNew then
-        beeTraitSets = self.breeder:ScanAllDroneStacks()
+        self.breeder:RefreshStorageCache()
     end
-    if (beeTraitSets == nil) or (#beeTraitSets == 0) then
+    if self.breeder.storageCache:IsEmpty() then
         self:OutputError("Failed to find any bees when searching for best initial trait match.")
         return false
     end
 
     -- Look for existing bees that are the closest match to the target template since they will be the best starting point.
-    local maxTraitSet = beeTraitSets[1]
+    local maxTraitSet = self.breeder.storageCache.cache[1].traits
     local maxMatchingTraits = -1
-    for _, v in ipairs(beeTraitSets) do
+    for _, v in ipairs(self.breeder.storageCache.cache) do
         local matchingTraits = 0
         for trait, value in pairs(targetTraits) do
-            if AnalysisUtil.TraitIsEqual(v, trait, value) then
+            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
                 matchingTraits = matchingTraits + 1
             end
         end

@@ -9,10 +9,12 @@
 ---@field sides any sides library
 ---@field numApiaries integer
 ---@field nextApiary integer
+---@field storageCache StorageRowCache
 local BreedOperator = {}
 
 require("Shared.Shared")
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
+local StorageCache = require("BeekeeperBot.StorageCache")
 
 -- Slots for holding items in the robot.
 local PRINCESS_SLOT      = 1
@@ -52,6 +54,7 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     end
     obj.numApiaries = numApiaries
     obj.nextApiary = 0
+    obj.storageCache = StorageCache:Create()
 
     return obj
 end
@@ -223,13 +226,12 @@ function BreedOperator:StoreDronesFromActiveChest(slots)
     return self:storeDrones()
 end
 
--- Returns a list of bees in the storage system and where to find them.
----@return AnalyzedBeeTraits[]
-function BreedOperator:ScanAllDroneStacks()
+-- Clears the storage cache, then loads it with all of the drones in the storage row.
+function BreedOperator:RefreshStorageCache()
+    self.storageCache:Clear()
     self:moveToStorageColumn()
 
     -- Collect the drone stacks.
-    local droneStacks = {}
     local chest = 0
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
@@ -237,7 +239,7 @@ function BreedOperator:ScanAllDroneStacks()
             if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
-                table.insert(droneStacks, stack.individual.active)
+                self.storageCache:LoadDrone(stack, chest)
             end
         end
 
@@ -250,8 +252,6 @@ function BreedOperator:ScanAllDroneStacks()
     -- Return to the breeder station.
     self:returnToStorageColumnOriginFromChest(chest)
     self:returnToBreederStationFromStorageColumn()
-
-    return droneStacks
 end
 
 ---@param slot integer
