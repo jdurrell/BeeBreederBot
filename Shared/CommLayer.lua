@@ -105,12 +105,12 @@ function CommLayer:GetIncoming(timeout, messageCode, expectedAddr)
         return nil, nil
     end
 
-    return {code = code, payload = self:DeserializeMessage(payload)}, addr
+    return {code = code, payload = self:deserializeMessage(payload)}, addr
 end
 
 ---@param message string
 ---@return table
-function CommLayer:DeserializeMessage(message)
+function CommLayer:deserializeMessage(message)
     if message == nil then
 -- Disable this because this condition is likely better checked by checking for `event` == nil.
 ---@diagnostic disable-next-line: return-type-mismatch

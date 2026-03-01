@@ -126,7 +126,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
     while not placed do
         if self.nextApiary == 0 then
             -- We are already here. No other movement to do.
-            placed = self:PlaceBeesInApiary()
+            placed = self:placeBeesInApiary()
         elseif self.nextApiary == 1 then
             -- Apiary is one forward and to the right from the first one.
             self.robot.turnRight()
@@ -134,7 +134,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
             self.robot.turnLeft()
             self:moveForwards(1)
 
-            placed = self:PlaceBeesInApiary()
+            placed = self:placeBeesInApiary()
 
             self:moveBackwards(1)
             self.robot.turnRight()
@@ -147,7 +147,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
             self.robot.turnRight()
             self:moveForwards(1)
 
-            placed = self:PlaceBeesInApiary()
+            placed = self:placeBeesInApiary()
 
             self:moveBackwards(1)
             self.robot.turnLeft()
@@ -162,7 +162,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
             self.robot.turnLeft()
             self:moveForwards(1)
 
-            placed = self:PlaceBeesInApiary()
+            placed = self:placeBeesInApiary()
 
             self:moveBackwards(1)
             self.robot.turnRight()
@@ -181,7 +181,7 @@ function BreedOperator:InitiateBreeding(princessSlot, droneSlot)
 end
 
 ---@return boolean
-function BreedOperator:PlaceBeesInApiary()
+function BreedOperator:placeBeesInApiary()
     self.robot.select(PRINCESS_SLOT)
 
     -- We only need to check the princess/queen slot for occupancy.

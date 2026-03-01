@@ -7,19 +7,19 @@ local MutationMath = require("BeeServer.MutationMath")
 
 TestFactorial = {}
     function TestFactorial:TestFactorialBasic()
-        Luaunit.assertEquals(MutationMath.Factorial(0), 1)
-        Luaunit.assertEquals(MutationMath.Factorial(1), 1)
-        Luaunit.assertEquals(MutationMath.Factorial(2), 2)
-        Luaunit.assertEquals(MutationMath.Factorial(3), 6)
-        Luaunit.assertEquals(MutationMath.Factorial(4), 24)
-        Luaunit.assertEquals(MutationMath.Factorial(5), 120)
-        Luaunit.assertEquals(MutationMath.Factorial(6), 720)
+        Luaunit.assertEquals(MutationMath.factorial(0), 1)
+        Luaunit.assertEquals(MutationMath.factorial(1), 1)
+        Luaunit.assertEquals(MutationMath.factorial(2), 2)
+        Luaunit.assertEquals(MutationMath.factorial(3), 6)
+        Luaunit.assertEquals(MutationMath.factorial(4), 24)
+        Luaunit.assertEquals(MutationMath.factorial(5), 120)
+        Luaunit.assertEquals(MutationMath.factorial(6), 720)
     end
 
 TestPowerset = {}
     function TestPowerset:TestOneInput()
-        Luaunit.assertItemsEquals(MutationMath.ComputePowerset({1.0}), {{}, {1.0}})
-        Luaunit.assertItemsEquals(MutationMath.ComputePowerset({0.34}), {{}, {0.34}})
+        Luaunit.assertItemsEquals(MutationMath.computePowerset({1.0}), {{}, {1.0}})
+        Luaunit.assertItemsEquals(MutationMath.computePowerset({0.34}), {{}, {0.34}})
     end
 
     function TestPowerset:TestMultipleInputs()
@@ -27,11 +27,11 @@ TestPowerset = {}
         local num2 = 0.5
         local num3 = 0.787
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePowerset({num1, num2}),
+            MutationMath.computePowerset({num1, num2}),
             {{}, {num1}, {num2}, {num1, num2}}
         )
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePowerset({num1, num2, num3}),
+            MutationMath.computePowerset({num1, num2, num3}),
             {{}, {num1}, {num2}, {num3}, {num1, num2}, {num1, num3}, {num2, num3}, {num1, num2, num3}}
         )
     end
@@ -42,27 +42,27 @@ TestPowerset = {}
         local num1_b = 0.4
         local num2 = 0.9
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePowerset({num1_a, num1_b}),
+            MutationMath.computePowerset({num1_a, num1_b}),
             {{}, {num1_a}, {num1_b}, {num1_a, num1_b}}
         )
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePowerset({num1_a, num1_b, num2}),
+            MutationMath.computePowerset({num1_a, num1_b, num2}),
             {{}, {num1_a}, {num1_b}, {num2}, {num1_a, num1_b}, {num1_a, num2}, {num1_b, num2}, {num1_a, num1_b, num2}}
         )
     end
 
     function TestPowerset:TestNoInput()
-        Luaunit.assertEquals(MutationMath.ComputePowerset({}), {{}})
+        Luaunit.assertEquals(MutationMath.computePowerset({}), {{}})
     end
 
 TestPermutations = {}
     function TestPermutations:TestNoInputs()
-        Luaunit.assertEquals(MutationMath.ComputePermutations({}), {})
+        Luaunit.assertEquals(MutationMath.computePermutations({}), {})
     end
 
     function TestPermutations:TestOneInput()
-        Luaunit.assertEquals(MutationMath.ComputePermutations({0.2}), {{0.2}})
-        Luaunit.assertEquals(MutationMath.ComputePermutations({0.123}), {{0.123}})
+        Luaunit.assertEquals(MutationMath.computePermutations({0.2}), {{0.2}})
+        Luaunit.assertEquals(MutationMath.computePermutations({0.123}), {{0.123}})
     end
 
     function TestPermutations:TestMultipleInputs()
@@ -70,11 +70,11 @@ TestPermutations = {}
         local num2 = 0.5
         local num3 = 0.1
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePermutations({num1, num2}),
+            MutationMath.computePermutations({num1, num2}),
             {{num1, num2}, {num2, num1}}
         )
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePermutations({num1, num2, num3}),
+            MutationMath.computePermutations({num1, num2, num3}),
             {{num1, num2, num3}, {num1, num3, num2}, {num2, num1, num3}, {num2, num3, num1}, {num3, num1, num2}, {num3, num2, num1}}
         )
     end
@@ -84,11 +84,11 @@ TestPermutations = {}
         local num2 = 0.3
         local num3 = 0.3
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePermutations({num1, num2}),
+            MutationMath.computePermutations({num1, num2}),
             {{num1, num2}, {num2, num1}}
         )
         Luaunit.assertItemsEquals(
-            MutationMath.ComputePermutations({num1, num2, num3}),
+            MutationMath.computePermutations({num1, num2, num3}),
             {{num1, num2, num3}, {num1, num3, num2}, {num2, num1, num3}, {num2, num3, num1}, {num3, num1, num2}, {num3, num2, num1}}
         )
     end
@@ -97,7 +97,7 @@ TestPermutations = {}
 TestMutationChanceForTarget = {}
     function TestMutationChanceForTarget:TestNoOtherMutations()
         local targetChance = 0.234
-        Luaunit.assertEquals(MutationMath.CalculateMutationChanceForTarget(targetChance, {}), targetChance)
+        Luaunit.assertEquals(MutationMath.calculateMutationChanceForTarget(targetChance, {}), targetChance)
     end
 
     function TestMutationChanceForTarget:TestOneOtherMutation()
@@ -106,7 +106,7 @@ TestMutationChanceForTarget = {}
         local correct = 0.4625
         Luaunit.assertAlmostEquals(correct, (1/2 * targetChance) + (1/2 * (1-otherMutation) * targetChance), Res.MathMargin, "Test constructed improperly.")
         Luaunit.assertAlmostEquals(
-            MutationMath.CalculateMutationChanceForTarget(targetChance, {otherMutation}),
+            MutationMath.calculateMutationChanceForTarget(targetChance, {otherMutation}),
             correct,
             Res.MathMargin
         )
@@ -123,7 +123,7 @@ TestMutationChanceForTarget = {}
                 Res.MathMargin,
             "Test constructed improperly."
         )
-        Luaunit.assertAlmostEquals(MutationMath.CalculateMutationChanceForTarget(targetChance, otherMutations2), correct2, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MutationMath.calculateMutationChanceForTarget(targetChance, otherMutations2), correct2, Res.MathMargin)
 
         local otherMutations3 = {0.6, 0.2, 0.12}
         local correct3 = 0.12168
@@ -135,38 +135,38 @@ TestMutationChanceForTarget = {}
                 Res.MathMargin,
             "Test constructed improperly."
         )
-        Luaunit.assertAlmostEquals(MutationMath.CalculateMutationChanceForTarget(targetChance, otherMutations3), correct3, Res.MathMargin)
+        Luaunit.assertAlmostEquals(MutationMath.calculateMutationChanceForTarget(targetChance, otherMutations3), correct3, Res.MathMargin)
     end
 
 TestMutationChances = {}
     function TestMutationChances:TestOnlyTargetMutationPossible()
-        local target, nonTarget = MutationMath.CalculateMutationChances("Common", {"Common"}, {["Common"]=0.234})
+        local target, nonTarget = MutationMath.calculateMutationChances("Common", {"Common"}, {["Common"]=0.234})
         Luaunit.assertEquals(target, 0.234)
         Luaunit.assertEquals(nonTarget, 0.0)
     end
 
     function TestMutationChances:TestOnlyNonTargetMutationPossible()
-        local target, nonTarget = MutationMath.CalculateMutationChances("Common", {"Cultivated"}, {["Cultivated"]=0.567})
+        local target, nonTarget = MutationMath.calculateMutationChances("Common", {"Cultivated"}, {["Cultivated"]=0.567})
         Luaunit.assertEquals(target, 0.0)
         Luaunit.assertEquals(nonTarget, 0.567)
     end
 
     function TestMutationChances:TestNoMutationsPossible()
-        local target, nonTarget = MutationMath.CalculateMutationChances("Common", {}, {})
+        local target, nonTarget = MutationMath.calculateMutationChances("Common", {}, {})
         Luaunit.assertEquals(target, 0.0)
         Luaunit.assertEquals(nonTarget, 0.0)
     end
 
     function TestMutationChances:TestOneOtherMutation()
         local c = {["Common"]=0.2, ["Cultivated"]=0.3}
-        local targetChance, nonTargetChance = MutationMath.CalculateMutationChances("Common", {"Common", "Cultivated"}, c)
+        local targetChance, nonTargetChance = MutationMath.calculateMutationChances("Common", {"Common", "Cultivated"}, c)
         Luaunit.assertAlmostEquals(targetChance, ((1/2) * c["Common"]) + ((1/2) * (1 - c["Cultivated"]) * c["Common"]), Res.MathMargin)
         Luaunit.assertAlmostEquals(nonTargetChance, ((1/2) * c["Cultivated"]) + ((1/2) * (1 - c["Common"]) * c["Cultivated"]), Res.MathMargin)
     end
 
     function TestMutationChances:TestMultipleOtherMutations()
         local c = {["Common"]=0.2, ["Cultivated"]=0.3, ["Diligent"]=0.4}
-        local targetChance, nonTargetChance = MutationMath.CalculateMutationChances("Common", {"Common", "Cultivated", "Diligent"}, c)
+        local targetChance, nonTargetChance = MutationMath.calculateMutationChances("Common", {"Common", "Cultivated", "Diligent"}, c)
 
         Luaunit.assertAlmostEquals(targetChance, (
             ((2/6) * c["Common"]) +

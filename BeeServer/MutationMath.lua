@@ -4,7 +4,7 @@ local M = {}
 
 ---@param x integer
 ---@return integer
-function M.Factorial(x)
+function M.factorial(x)
     local output = 1
     for i = 1, x do
         output = output * i
@@ -18,7 +18,7 @@ end
 -- Returns the powerset of the elements of `list`. This treats all elements of `list` as unique elements,
 -- regardless of whether any have the same value. Thus, it can return duplicates in the case of duplicate
 -- elements provided.
-function M.ComputePowerset(list)
+function M.computePowerset(list)
     local combinations = {}
 
     -- Empty set.
@@ -66,7 +66,7 @@ end
 ---@generic T
 ---@param list T[]
 ---@return T[][]
-function M.ComputePermutations(list)
+function M.computePermutations(list)
     if #list == 1 then
         return {{list[1]}}  -- In theory, we could just return list, but I'm a little scared of the reference being misused.
     end
@@ -81,7 +81,7 @@ function M.ComputePermutations(list)
             end
         end
 
-        local subPermutations = M.ComputePermutations(subValues)
+        local subPermutations = M.computePermutations(subValues)
         for _, subPermutation in ipairs(subPermutations) do
             table.insert(subPermutation, val)
             table.insert(permutationsList, subPermutation)
@@ -106,14 +106,14 @@ end
 ---@param chanceForTarget number
 ---@param siblingChances number[]
 ---@return number
-function M.CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
+function M.calculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- TODO: Account for escritoire reseach. - Probably won't do this. If you're doing escritoire, you would probably just do everything else by hand.
 
     -- In theory, this algorithm runs in factorial time because it takes every permutation of the mutation shuffle.
     -- In practice, though, there are usually very few mutations (< 3) for a given set of parents, so this doesn't take very long.
 
     -- Get the list of all combinations of siblings could be tested for mutation by Forestry before the target.
-    local combinations = M.ComputePowerset(siblingChances)
+    local combinations = M.computePowerset(siblingChances)
 
     -- For each combination, compute the chance for that combination.
     -- Then, multiply that chance by the number of Forestry evaluation-order permutations that
@@ -121,7 +121,7 @@ function M.CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
     -- This weights that chance in the sum according to the probability of it coming up.
     -- Add all the weighted chances together, then divide by the total number of permutations to get the actual chance.
     local weightedChanceSum = 0
-    local numPermutationsTotal = M.Factorial(#siblingChances + 1)
+    local numPermutationsTotal = M.factorial(#siblingChances + 1)
     for _, combo in ipairs(combinations) do
         local weightedChance = chanceForTarget
         for _, chance in ipairs(combo) do
@@ -130,7 +130,7 @@ function M.CalculateMutationChanceForTarget(chanceForTarget, siblingChances)
 
         -- Number of permutations this chances applies to is the number of permutations of siblings in this combo (evaluated before target)
         -- multiplied by the number of permutations of siblings not in this combo (evaluated after target).
-        local numPermutationsThisCombo = M.Factorial(#combo) * M.Factorial(#siblingChances - #combo)
+        local numPermutationsThisCombo = M.factorial(#combo) * M.factorial(#siblingChances - #combo)
 
         weightedChanceSum = weightedChanceSum + (weightedChance * numPermutationsThisCombo)
     end
@@ -153,12 +153,12 @@ end
 ---@param siblings string[]
 ---@param chances table<string, number>  Mappings of species to "NEI" mutation chance.
 ---@return number, number  -- targetMutChance, nonTargetMutChance
-function M.CalculateMutationChances(target, siblings, chances)
+function M.calculateMutationChances(target, siblings, chances)
     if #siblings == 0 then
         return 0.0, 0.0
     end
 
-    local permutations = M.ComputePermutations(siblings)
+    local permutations = M.computePermutations(siblings)
 
     -- For each permutation, calculate the probability of getting a target or non-target and add the probability to the total sum.
     -- Then, divide that sum by the total number of permutations to get the true probability of that event happening.
@@ -207,7 +207,7 @@ function M.CalculateBreedInfo(parent1, parent2, target, beeGraph)
         end
     end
 
-    return M.CalculateMutationChances(target, siblings, childMutationChances)
+    return M.calculateMutationChances(target, siblings, childMutationChances)
 end
 
 return M

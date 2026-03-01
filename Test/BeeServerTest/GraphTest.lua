@@ -11,7 +11,7 @@ local GraphQuery = require("BeeServer.GraphQuery")
 -- is not fully recursive, this is needed to properly compare the unordered lists deeper in the graph.
 ---@param graph1 SpeciesGraph
 ---@param graph2 SpeciesGraph
-function AssertGraphsEquivalent(graph1, graph2)
+local function assertGraphsEquivalent(graph1, graph2)
     -- Both graphs should have the same species.
     for species, _ in pairs(graph1) do
         Luaunit.assertNotIsNil(graph2[species])
@@ -109,7 +109,7 @@ TestGraphParse = {}
         }
         local graph = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
     end
 
     function TestGraphParse:TestAddMutationAddMoreParents()
@@ -148,14 +148,14 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
 
         -- Now try it again, but in a different order.
         graph = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
     end
 
     function TestGraphParse:TestAddMutationTestMultiStepLine()
@@ -210,7 +210,7 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
         GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
 
         -- Now try it again in some different orders.
         graph = {}
@@ -219,7 +219,7 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)        
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
 
 
         graph = {}
@@ -228,7 +228,7 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
 
         graph = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
@@ -236,7 +236,7 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
-        AssertGraphsEquivalent(graph, expected)
+        assertGraphsEquivalent(graph, expected)
     end
 
 TestGraphQuery = {}

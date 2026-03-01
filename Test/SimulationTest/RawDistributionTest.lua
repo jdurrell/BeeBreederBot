@@ -15,7 +15,7 @@ local AlphaLevelToTwoSidedZThreshold = {
 ---@param generateSample fun(): number
 ---@param value number
 ---@param n integer
-local function VerifyAlwaysGeneratesValue(generateSample, value, n)
+local function verifyAlwaysGeneratesValue(generateSample, value, n)
     for i = 1, n do
         Luaunit.assertEquals(generateSample(), value, "'Always Equals' failed at iteration " .. tostring(i) .. ".")
     end
@@ -27,7 +27,7 @@ end
 ---@param variance number | nil
 ---@param n integer | nil  Number of samples to retrieve.
 ---@param alphaLevel number | nil
-local function PerformZTest(generateSample, muZero, variance, n, alphaLevel)
+local function performZTest(generateSample, muZero, variance, n, alphaLevel)
     n = ((n == nil) and 100000) or n
     alphaLevel = ((alphaLevel == nil) and 0.01) or alphaLevel
     Luaunit.assertNotIsNil(AlphaLevelToTwoSidedZThreshold[alphaLevel], "Test-internal error: alpha level not found in lookup table.")
@@ -80,7 +80,7 @@ end
 ---@param target string
 ---@param bee AnalyzedBeeIndividual
 ---@return boolean
-local function IsPureBredTarget(target, bee)
+local function isPureBredTarget(target, bee)
     return (bee.active.species.uid == target) and (bee.inactive.species.uid == target)
 end
 
@@ -93,7 +93,7 @@ end
 ---@param numTrials integer | nil
 ---@param alphaLevel number | nil
 ---@param seed integer | nil
-local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpecies2, droneSpecies1, droneSpecies2, resourceProvider, numTrials, alphaLevel, seed)
+local function runArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpecies2, droneSpecies1, droneSpecies2, resourceProvider, numTrials, alphaLevel, seed)
     numTrials = ((numTrials ~= nil) and numTrials) or 100000
     math.randomseed(((seed ~= nil) and seed) or 456)
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), resourceProvider.GetTraitInfo())
@@ -109,17 +109,17 @@ local function RunArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpe
     )
     local sampleFunction = function ()
         local _, drones = apiary:GenerateDescendants(queen, drone)
-        return (IsPureBredTarget(target, drones[1]) and 1) or 0
+        return (isPureBredTarget(target, drones[1]) and 1) or 0
     end
 
     if (expectedProbability == 0) or (expectedProbability == 1) then
-        VerifyAlwaysGeneratesValue(sampleFunction, expectedProbability, numTrials)
+        verifyAlwaysGeneratesValue(sampleFunction, expectedProbability, numTrials)
     else
         -- Since we have large n, we can approximate the binomial distribution B(n, p) (`n` trials each with probability `p` of success)
         -- representing the outcome of the sequence of Bernoulli trials as a normal distribution N(np, p(1-p)/n) (with mean `np` and
         -- variance `p(1-p)/n).
         -- The Z-test verifies this for us.
-        PerformZTest(
+        performZTest(
             sampleFunction,
             expectedProbability,
             expectedProbability * (1 - expectedProbability),
@@ -135,7 +135,7 @@ end
 ---@param fertility integer | nil
 ---@param traitInfo TraitInfoFull
 ---@return AnalyzedBeeIndividual
-local function CreateBeeFromActiveAndInactive(activeSpecies, inactiveSpecies, fertility, traitInfo)
+local function createBeeFromActiveAndInactive(activeSpecies, inactiveSpecies, fertility, traitInfo)
     -- If one trait is dominant and the other is recessive, then randomize the order.
     if (traitInfo.species[activeSpecies] ~= traitInfo.species[inactiveSpecies]) and math.random() < 0.5 then
         return Util.CreateBee(Util.CreateGenome(inactiveSpecies, activeSpecies, fertility), traitInfo)
@@ -152,7 +152,7 @@ end
 ---@param resourceProvider any  -- TODO: Adjust this once TestData has been refactored into proper provider classes.
 ---@param numTrials integer | nil
 ---@param alphaLevel number | nil
-local function RunAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, queenSpeciesInactive, droneSpeciesActive, droneSpeciesInactive, queenFertility, resourceProvider, numTrials, alphaLevel)
+local function runAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, queenSpeciesInactive, droneSpeciesActive, droneSpeciesInactive, queenFertility, resourceProvider, numTrials, alphaLevel)
     math.randomseed(456)
     numTrials = ((numTrials ~= nil) and numTrials) or 100000
     local traitInfo = resourceProvider.GetTraitInfo()
@@ -169,12 +169,12 @@ local function RunAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, qu
     local sampleFunction = function ()
         -- Randomize the order of species chromosomes according to dominance rules.
         local _, drones = apiary:GenerateDescendants(
-            CreateBeeFromActiveAndInactive(queenSpeciesActive, queenSpeciesInactive, queenFertility, traitInfo),
-            CreateBeeFromActiveAndInactive(droneSpeciesActive, droneSpeciesInactive, nil, traitInfo)
+            createBeeFromActiveAndInactive(queenSpeciesActive, queenSpeciesInactive, queenFertility, traitInfo),
+            createBeeFromActiveAndInactive(droneSpeciesActive, droneSpeciesInactive, nil, traitInfo)
         )
 
         for _, outputDrone in ipairs(drones) do
-            if IsPureBredTarget(target, outputDrone) then
+            if isPureBredTarget(target, outputDrone) then
                 return 1
             end
         end
@@ -183,9 +183,9 @@ local function RunAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, qu
     end
 
     if (expectedProbability == 0) or (expectedProbability == 1) then
-        VerifyAlwaysGeneratesValue(sampleFunction, expectedProbability, numTrials)
+        verifyAlwaysGeneratesValue(sampleFunction, expectedProbability, numTrials)
     else
-        PerformZTest(
+        performZTest(
             sampleFunction,
             expectedProbability,
             expectedProbability * (1 - expectedProbability),
@@ -198,96 +198,96 @@ end
 TestArbitraryOffspringIsPureBredTargetSimulation = {}
     function TestArbitraryOffspringIsPureBredTargetSimulation:TestParentAllelesCanMutateIntoTarget()
         local target = "Cultivated"
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Common", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Common", "Forest", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Common", "Forest", "Common", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Common", "Common", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Common", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Common", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Common", "Forest", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Common", "Forest", "Common", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Common", "Common", "Common", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Common", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
     function TestArbitraryOffspringIsPureBredTargetSimulation:TestNoMutationSomeAllelesAlreadyTarget()
         local target = "Cultivated"
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunArbitraryOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Forest", "Forest", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
     function TestArbitraryOffspringIsPureBredTargetSimulation:TestMultiplePossibleMutationsNoExistingPurity()
-        RunArbitraryOffspringAccuracyTest("Result1", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest("Result2", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest("Result3", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest("Result4", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest("Result1", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest("Result2", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest("Result3", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest("Result4", "Root1", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
     end
 
     function TestArbitraryOffspringIsPureBredTargetSimulation:TestMultiplePossibleMutationsWithExistingPartialPurity()
         local target = "Result3"
-        RunArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Result3", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest(target, "Root1", "Result3", "Result3", "Root2", Res.BeeGraphSimpleDuplicateMutations)
-        RunArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Result3", "Result3", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Root2", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Result3", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest(target, "Root1", "Result3", "Result3", "Root2", Res.BeeGraphSimpleDuplicateMutations)
+        runArbitraryOffspringAccuracyTest(target, "Result3", "Root1", "Result3", "Result3", Res.BeeGraphSimpleDuplicateMutations)
     end
 
     function TestArbitraryOffspringIsPureBredTargetSimulation:TestParentsAlreadyPure()
-        RunArbitraryOffspringAccuracyTest("Cultivated", "Cultivated", "Cultivated", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runArbitraryOffspringAccuracyTest("Cultivated", "Cultivated", "Cultivated", "Cultivated", "Cultivated", Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
 TestAtLeastOneOffspringIsPureBredTargetSimulation = {}
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestNoChanceAnyOffspringIsPure()
         local target = "Cultivated"
-        RunAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Forest", "Forest", "Forest", "Forest", 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestPartialPurity()
         local target = "Cultivated"
-        RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, "Cultivated", "Forest", "Cultivated", "Forest", 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestParentsAlreadyPure()
         local target = "Cultivated"
-        RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
-        RunAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 1, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 2, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 3, Res.BeeGraphMundaneIntoCommonIntoCultivated)
+        runAtLeastOneOffspringAccuracyTest(target, target, target, target, target, 4, Res.BeeGraphMundaneIntoCommonIntoCultivated)
     end
 
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestNoExistingPurityWithDominance()
         local target = "RecessiveResult"
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Dominant1", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Dominant1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Dominant1", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive1", "Recessive1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Dominant1", "Dominant1", "Dominant1", "Recessive1", 2, Res.BeeGraphSimpleDominance)
     end
 
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestPartialPurityWithDominance()
         local target = "DominantResult"
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "DominantResult", "DominantResult", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive2", "Recessive2", "DominantResult", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "DominantResult", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "DominantResult", "DominantResult", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive2", "Recessive2", "DominantResult", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "DominantResult", "DominantResult", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
 
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "DominantResult", "Recessive3", "DominantResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
 
         target = "RecessiveResult"
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "RecessiveResult", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive2", "Recessive2", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "RecessiveResult", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive2", "RecessiveResult", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive2", "Recessive2", "RecessiveResult", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "RecessiveResult", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
 
-        RunAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
-        RunAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "Recessive2", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
+        runAtLeastOneOffspringAccuracyTest(target, "RecessiveResult", "Recessive3", "RecessiveResult", "Recessive2", 2, Res.BeeGraphSimpleDominance)
     end
 
     function TestAtLeastOneOffspringIsPureBredTargetSimulation:TestDominanceMultipleMutations()
-        RunAtLeastOneOffspringAccuracyTest("Result1", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
-        RunAtLeastOneOffspringAccuracyTest("Result1", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
-        RunAtLeastOneOffspringAccuracyTest("Result2", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
-        RunAtLeastOneOffspringAccuracyTest("Result2", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        runAtLeastOneOffspringAccuracyTest("Result1", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        runAtLeastOneOffspringAccuracyTest("Result1", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        runAtLeastOneOffspringAccuracyTest("Result2", "Root1", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
+        runAtLeastOneOffspringAccuracyTest("Result2", "Root2", "Root1", "Root2", "Root1", 2, Res.BeeGraphSimpleDominanceDuplicateMutations)
     end
 
 ---@param target string
@@ -318,8 +318,8 @@ local function RunExpectedTargetAllelesTest(target, queenSpeciesActive, queenSpe
     for i = 1, numTrials do
         -- Randomize the order of species chromosomes according to dominance rules.
         local _, drones = apiary:GenerateDescendants(
-            CreateBeeFromActiveAndInactive(queenSpeciesActive, queenSpeciesInactive, nil, traitInfo),
-            CreateBeeFromActiveAndInactive(droneSpeciesActive, droneSpeciesInactive, nil, traitInfo)
+            createBeeFromActiveAndInactive(queenSpeciesActive, queenSpeciesInactive, nil, traitInfo),
+            createBeeFromActiveAndInactive(droneSpeciesActive, droneSpeciesInactive, nil, traitInfo)
         )
 
         sum = sum + (((drones[1].active.species.uid == target) and 1) or 0) + (((drones[1].inactive.species.uid == target) and 1) or 0)

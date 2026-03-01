@@ -213,7 +213,7 @@ function BeeServer:BreedCommandHandler(argv)
         end
     end
 
-    local path = self:GetBreedPath(targetUid, false)
+    local path = self:getBreedPath(targetUid, false)
     if path == nil then
         return
     end
@@ -344,7 +344,7 @@ function BeeServer:TraitBreedPathCommandHandler(argv)
             return
         end
 
-        local path = self:GetBreedPath(species, true)
+        local path = self:getBreedPath(species, true)
         if path == nil then
             Print(string.format("No path found for species '%s'.", species))
             return
@@ -361,14 +361,14 @@ function BeeServer:ShutdownCommandHandler(argv)
     if self.botAddr ~= nil then
         self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.CancelCommand)
     end
-    self:Shutdown(0)
+    self:shutdown(0)
 end
 
-function BeeServer:PollForTerminalInputAndHandle()
+function BeeServer:pollForTerminalInputAndHandle()
     local text = self.term.read()
     if (text == nil) or (text == false) then
         Print("Received cancellation token.")
-        self:Shutdown(1)
+        self:shutdown(1)
         return
     end
 
@@ -400,7 +400,7 @@ end
 ---@param targetUid string
 ---@param forceRebreed boolean
 ---@return BreedPathNode[] | nil
-function BeeServer:GetBreedPath(targetUid, forceRebreed)
+function BeeServer:getBreedPath(targetUid, forceRebreed)
     local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, targetUid, forceRebreed)
     if path == nil then
         Print(string.format("Error: Could not find breeding path for species '%s'.", targetUid, targetUid))
@@ -456,7 +456,7 @@ end
 
 -- Shuts down the server.
 ---@param code integer
-function BeeServer:Shutdown(code)
+function BeeServer:shutdown(code)
     if self.comm ~= nil then
         self.comm:Close()
     end
@@ -497,10 +497,10 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     if obj.comm == nil then
         Print("Failed to open communication layer.")
 
-        -- TODO: Verify whether it is valid to call obj:Shutdown() here.
+        -- TODO: Verify whether it is valid to call obj:shutdown() here.
         --       In theory, it should be fine since we already set the metatable,
         --       but that should be verified.
-        obj:Shutdown(1)
+        obj:shutdown(1)
     end
 
     -- Register request handlers.
@@ -535,7 +535,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     else
         Print("Couldn't find attached apiculture tile in the component library.")
         Print("tile_for_apiculture_0_name, tile_for_apiculture_2_name not found.")
-        obj:Shutdown(1)
+        obj:shutdown(1)
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
     obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
@@ -564,7 +564,7 @@ function BeeServer:RunServer()
     Print("Startup Success!")
 
     while true do
-        self:PollForTerminalInputAndHandle()
+        self:pollForTerminalInputAndHandle()
     end
 end
 

@@ -11,7 +11,7 @@ local CommLayer = require("Shared.CommLayer")
 ---@param message any
 ---@param shouldHavePayload boolean
 ---@return boolean
-function RobotComms:ValidateExpectedMessage(expectedCode, message, shouldHavePayload)
+function RobotComms:validateExpectedMessage(expectedCode, message, shouldHavePayload)
     if message == nil then
         Print("Got unexpected nil response when expecting response of type " .. tostring(expectedCode) .. ".")
         return false
@@ -51,7 +51,7 @@ function RobotComms:EstablishComms()
             if response == nil then
                 -- If we didn't get a response, then we will need to re-send the request.
                 break
-            elseif (self:ValidateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) and
+            elseif (self:validateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) and
                 (response.payload.transactionId == tid)
             ) then
                 self.serverAddr = UnwrapNull(addr)
@@ -77,7 +77,7 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
     if response == nil then
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, response, true) then
+    if not self:validateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, response, true) then
         return nil
     end
 
@@ -96,7 +96,7 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value)
     if response == nil then
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, response, true) then
+    if not self:validateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, response, true) then
         return nil
     end
 
@@ -125,7 +125,7 @@ function RobotComms:GetTraitInfoFromServer(species)
     if response == nil then
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
+    if not self:validateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
         return nil
     end
 
@@ -151,7 +151,7 @@ function RobotComms:ReportNewSpeciesToServer(species)
     if response == nil then
         goto restart
     end
-    if not self:ValidateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
+    if not self:validateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
         return false
     end
 

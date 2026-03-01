@@ -19,7 +19,7 @@ local M = {}
 -- Shuffles the given list in place.
 ---@generic T
 ---@param list T[]
-local function Shuffle(list)
+local function shuffle(list)
     for i = 1, #list do
         local randIdx = math.random(#list)
         local temp = list[i]
@@ -50,10 +50,10 @@ end
 ---@return AnalyzedBeeIndividual princess, AnalyzedBeeIndividual[] drones
 function M:GenerateDescendants(queen, drone)
 
-    local princess = self:CreateOffspring(queen, drone, {}, {})
+    local princess = self:createOffspring(queen, drone, {}, {})
     local drones = {}
     for i = 1, queen.active.fertility do
-        table.insert(drones, self:CreateOffspring(queen, drone, {}, {}))
+        table.insert(drones, self:createOffspring(queen, drone, {}, {}))
     end
 
     return princess, drones
@@ -65,12 +65,12 @@ end
 ---@param frames string[]
 ---@param conditions string[]
 ---@return AnalyzedBeeIndividual child
-function M:CreateOffspring(queen, drone, frames, conditions)
+function M:createOffspring(queen, drone, frames, conditions)
     local parent1 = Copy(queen)
     local parent2 = Copy(drone)
 
-    local mutated1 = self:MutateSpecies(queen.__genome, drone.__genome)
-    local mutated2 = self:MutateSpecies(drone.__genome, queen.__genome)
+    local mutated1 = self:mutateSpecies(queen.__genome, drone.__genome)
+    local mutated2 = self:mutateSpecies(drone.__genome, queen.__genome)
 
     if mutated1 ~= nil then
         parent1.__genome = mutated1
@@ -79,7 +79,7 @@ function M:CreateOffspring(queen, drone, frames, conditions)
         parent2.__genome = mutated2
     end
 
-    local childGenome = self:InheritChromosomes(parent1.__genome, parent2.__genome)
+    local childGenome = self:inheritChromosomes(parent1.__genome, parent2.__genome)
 
     return Util.CreateBee(childGenome, self.traitInfo)
 end
@@ -88,7 +88,7 @@ end
 ---@param parent1 ForestryGenome
 ---@param parent2 ForestryGenome
 ---@return ForestryGenome
-function M:InheritChromosomes(parent1, parent2)
+function M:inheritChromosomes(parent1, parent2)
     local genome = {}
     for gene, _ in pairs(parent1) do
         local choice1, choice2
@@ -121,7 +121,7 @@ end
 ---@param parent1 ForestryGenome
 ---@param parent2 ForestryGenome
 ---@return ForestryGenome | nil
-function M:MutateSpecies(parent1, parent2)
+function M:mutateSpecies(parent1, parent2)
 
     -- Choose between mutating on A-D or B-C.
     local allele1, allele2
@@ -143,7 +143,7 @@ function M:MutateSpecies(parent1, parent2)
     end
 
     -- Try the mutations in a random order.
-    Shuffle(possibleMutations)
+    shuffle(possibleMutations)
     for _, mut in ipairs(possibleMutations) do
         if (math.random() * 100) < mut.chance then
 

@@ -20,43 +20,43 @@ local territoryEnum = RollingEnum:Create()
 
 ---@param bool boolean
 ---@return integer
-local function BooleanToInteger(bool)
+local function booleanToInteger(bool)
     return (bool and 1) or 0
 end
 
 ---@param individual AnalyzedBeeIndividual
 ---@return string
-local function HashIndividual(individual)
+local function hashIndividual(individual)
     local genome = individual.__genome
 
     -- Lua integers are 64-bit integers, so we can pack the values from each genome into 40 bits.
     -- As an optimization, we will ignore humidity and temperature because we assume that in a real system, an acclimatizer would ensure equality for all bees.
     -- The territory allele indexes by the first value since the tables of different drones will have unequal references and won't stack up in the enum.
     local hash1 = (
-        (BooleanToInteger(genome.caveDwelling.primary)) |                  -- 1 bit
+        (booleanToInteger(genome.caveDwelling.primary)) |                  -- 1 bit
         (effectEnum:Get(genome.effect.primary) << 1) |                     -- 6 bits
         (genome.fertility.primary << 7) |                                  -- 3 bits
         (floweringEnum:Get(genome.flowering.primary) << 10) |              -- 4 bits
         (flowerProviderEnum:Get(genome.flowerProvider.primary) << 14) |    -- 4 bits
         (lifespanEnum:Get(genome.lifespan.primary) << 18) |                -- 4 bits
-        (BooleanToInteger(genome.nocturnal.primary) << 22) |               -- 1 bit
+        (booleanToInteger(genome.nocturnal.primary) << 22) |               -- 1 bit
         (speciesEnum:Get(genome.species.primary.uid) << 23) |              -- 9 bits
         (speedEnum:Get(genome.speed.primary) << 32) |                      -- 4 bits
         (territoryEnum:Get(genome.territory.primary[1]) << 36) |           -- 3 bits
-        (BooleanToInteger(genome.tolerantFlyer.primary) << 39)             -- 1 bit
+        (booleanToInteger(genome.tolerantFlyer.primary) << 39)             -- 1 bit
     )
     local hash2 = (
-        (BooleanToInteger(genome.caveDwelling.secondary)) |                -- 1 bit
+        (booleanToInteger(genome.caveDwelling.secondary)) |                -- 1 bit
         (effectEnum:Get(genome.effect.secondary) << 1) |                   -- 6 bits
         (genome.fertility.secondary << 7) |                                -- 3 bits
         (floweringEnum:Get(genome.flowering.secondary) << 10) |            -- 4 bits
         (flowerProviderEnum:Get(genome.flowerProvider.secondary) << 14) |  -- 4 bits
         (lifespanEnum:Get(genome.lifespan.secondary) << 18) |              -- 4 bits
-        (BooleanToInteger(genome.nocturnal.secondary) << 22) |             -- 1 bit
+        (booleanToInteger(genome.nocturnal.secondary) << 22) |             -- 1 bit
         (speciesEnum:Get(genome.species.secondary.uid) << 23) |            -- 9 bits
         (speedEnum:Get(genome.speed.secondary) << 32) |                    -- 4 bits
         (territoryEnum:Get(genome.territory.secondary[1]) << 36) |         -- 3 bits
-        (BooleanToInteger(genome.tolerantFlyer.secondary) << 39)           -- 1 bit
+        (booleanToInteger(genome.tolerantFlyer.secondary) << 39)           -- 1 bit
     )
 
     -- TODO: Implement a better way of combining these than a string.
@@ -69,12 +69,12 @@ end
 ---@param slotInChest integer
 ---@param hash string | nil
 ---@return AnalyzedBeeStack
-local function CreateBeeStack(individual, size, slotInChest, hash)
+local function createBeeStack(individual, size, slotInChest, hash)
     return {
         individual = individual,
         size = size,
         slotInChest = slotInChest,
-        __hash = ((hash ~= nil) and hash) or HashIndividual(individual)
+        __hash = ((hash ~= nil) and hash) or hashIndividual(individual)
     }
 end
 
@@ -105,7 +105,7 @@ local function AddIndividualToChest(individual, hash, droneChest)
         -- The size of the chest is fixed, so we can't insert a drone into a chest that has no room for it.
         Luaunit.assertNotIsNil(openSlot, "Garbage collection error: too many drones for the drone chest.")
         openSlot = UnwrapNull(openSlot)
-        droneChest[openSlot] = CreateBeeStack(individual, 1, openSlot, hash)
+        droneChest[openSlot] = createBeeStack(individual, 1, openSlot, hash)
     end
 end
 
@@ -129,7 +129,7 @@ end
 ---@param initialDroneStacks AnalyzedBeeStack[]
 ---@param seed integer | nil
 ---@return number
-local function RunConvergenceTest(matcher, endCondition, garbageCollector, maxIterations, apiary, initialPrincess, initialDroneStacks, seed)
+local function runConvergenceTest(matcher, endCondition, garbageCollector, maxIterations, apiary, initialPrincess, initialDroneStacks, seed)
     local convergences = 0
     local sumItersToConvergence = 0
     local numTrials = 1000
@@ -207,7 +207,7 @@ local function RunConvergenceTest(matcher, endCondition, garbageCollector, maxIt
             ---@diagnostic disable-next-line: missing-fields
             princess = {individual = offspringPrincess}
             for _, v in ipairs(offspringDrones) do
-                AddIndividualToChest(v, HashIndividual(v), droneStacks)
+                AddIndividualToChest(v, hashIndividual(v), droneStacks)
             end
 
             iteration = iteration + 1
@@ -231,13 +231,13 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 8, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 8, 2)
+            createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 8, 1),
+            createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 8, 2)
         }
         local maxFertility = math.max(initialDroneStacks[1].individual.active.fertility, initialDroneStacks[2].individual.active.fertility)
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 1, 1)
+        local initialPrincess = createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesWintry"], traitInfo), 1, 1)
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.MutatedAlleleMatcher(
                 1,
                 "species",
@@ -266,13 +266,13 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 8, 1),
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 8, 2)
+            createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 8, 1),
+            createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 8, 2)
         }
         local maxFertility = math.max(initialDroneStacks[1].individual.active.fertility, initialDroneStacks[2].individual.active.fertility)
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
+        local initialPrincess = createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesExotic"], traitInfo), 1, 1)
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.MutatedAlleleMatcher(
                 1,
                 "species",
@@ -334,12 +334,12 @@ TestConvergenceClosestMatchToTraits = {}
         local initialTemplateDroneTraits = Copy(targetProductionTraits)
         initialTemplateDroneTraits.species = {uid = "forestry.speciesCommon"}
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialTemplateDroneTraits), traitInfo), 16, 1),
-            CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 16, 2)
+            createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialTemplateDroneTraits), traitInfo), 16, 1),
+            createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 16, 2)
         }
-        local initialPrincessStack = CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
+        local initialPrincessStack = createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1),
             commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
@@ -392,12 +392,12 @@ TestConvergenceClosestMatchToTraits = {}
         local initialTemplateDroneTraits = Copy(targetProductionTraits)
         initialTemplateDroneTraits.species = {uid = "forestry.speciesForest"}
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialTemplateDroneTraits), traitInfo), 16, 1),
-            CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 16, 2)
+            createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialTemplateDroneTraits), traitInfo), 16, 1),
+            createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 16, 2)
         }
-        local initialPrincessStack = CreateBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
+        local initialPrincessStack = createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1),
             commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
@@ -417,13 +417,13 @@ TestConvergenceClosestMatchToTraits = {}
         local target = "extrabees.species.rock"
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
+            createBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
+        local initialPrincess = createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
         local maxFertility = initialPrincess.individual.active.fertility
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
@@ -444,13 +444,13 @@ TestConvergenceClosestMatchToTraits = {}
         local target = "extrabees.species.rock"
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
+            createBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 16, 1),
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
+        local initialPrincess = createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTropical"], traitInfo), 1, 1)
         local maxFertility = initialPrincess.individual.active.fertility
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
@@ -471,13 +471,13 @@ TestConvergenceClosestMatchToTraits = {}
         local target = "extrabees.species.rock"
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
-            CreateBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 8, 1),
+            createBeeStack(Util.CreateBee(defaultChromosomes["extrabees.species.rock"], traitInfo), 8, 1),
         }
-        local initialPrincess = CreateBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
+        local initialPrincess = createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesTricky"], traitInfo), 1, 1)
         local maxFertility = initialPrincess.individual.active.fertility
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
-        local successRatio = RunConvergenceTest(
+        local successRatio = runConvergenceTest(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
