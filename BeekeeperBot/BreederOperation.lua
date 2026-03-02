@@ -239,6 +239,7 @@ function BreedOperator:RefreshStorageCache()
             if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
+                stack.slotInChest = i
                 self.storageCache:LoadDrone(stack, chest)
             end
         end
