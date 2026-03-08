@@ -139,7 +139,7 @@ local AnalyzedBeeTraits = {}
 ---@field humidityTolerance string | nil  The humidity tolerance of this bee, or "NONE" if none.
 ---@field lifespan integer | nil
 ---@field nocturnal boolean | nil  Whether this bee can work at night.
----@field species BeeSpecies | nil  Information on the species of this bee.
+---@field species BeeSpecies | {uid: string} | nil  Information on the species of this bee.
 ---@field speed number | nil
 ---@field temperatureTolerance string | nil  The temperature tolerance of this bee, of "NONE" if none.
 ---@field territory integer[] | nil
