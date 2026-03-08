@@ -159,70 +159,6 @@ end
 --- Terminal handling:
 
 ---@param argv string[]
-function BeeServer:BreedCommandHandler(argv)
-    if argv[2] == nil then
-        Print("Error: expected a species name.")
-        return
-    end
-
-    -- If the provided name wasn't a uid, then attempt to resolve it from the species name.
-    local targetUid = ((self.beeGraph[argv[2]] ~= nil) and argv[2]) or nil
-    if targetUid == nil then
-        local species = argv[2]:lower()
-        if self.beeNameToUids[species] == nil then
-            Print(string.format("Unrecognized bee name '%s'.", species))
-            return nil
-        end
-
-        if #(self.beeNameToUids[species]) > 1 then
-            Print(string.format("Bee name '%s' corresponds to multiple species.\nPlease enter the number of the correct species in the list below:", species))
-            for i, uid in ipairs(self.beeNameToUids[species]) do
-                Print(string.format("[%u]: %s", i, uid))
-            end
-
-            local choiceString = self.term.read()
-            if (choiceString == false) or (choiceString == nil) then
-                return nil
-            end
-            local numericalChoice = tonumber(choiceString, 10)
-            if (numericalChoice == nil) or (self.beeNameToUids[species][numericalChoice] == nil) then
-                Print("Unrecognized input.")
-                return nil
-            end
-
-            targetUid = self.beeNameToUids[species][numericalChoice]
-        else
-            targetUid = self.beeNameToUids[species][1]
-        end
-    end
-
-    if TableContains(argv, "--raw") then
-        -- If this is a raw command, then we assume everything is set up for the bot, so it doesn't need parents or foundations.
-        local payload = {path = {{target = targetUid, parent1 = "", parent2 = ""}}, raw = true}
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, payload)
-        return
-    end
-
-    for _, leaf in ipairs(self.leafSpeciesList) do
-        if leaf == targetUid then
-            -- If we already have the species, then send this as a replicate command.
-            Print("Replicating " .. targetUid .. " from stored drones.")
-            local payload = {species = targetUid}
-            self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ReplicateCommand, payload)
-            return
-        end
-    end
-
-    local path = self:getBreedPath(targetUid, false)
-    if path == nil then
-        return
-    end
-
-    local payload = {path = path, raw = false}
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.BreedCommand, payload)
-end
-
----@param argv string[]
 function BeeServer:ContinueCommandHandler(argv)
     if not self.messagingPromptsPending["conditions"] then
         Print("Nothing to continue. Unrecognized context for this command.")
@@ -516,7 +452,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
 
     -- Register command line handlers
     obj.terminalHandlerTable = {
-        ["breed"] = BeeServer.BreedCommandHandler,
         ["continue"] = BeeServer.ContinueCommandHandler,
         ["import"] = BeeServer.ImportCommandHandler,
         ["shutdown"] = BeeServer.ShutdownCommandHandler,
