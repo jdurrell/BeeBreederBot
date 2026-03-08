@@ -332,7 +332,7 @@ function BeekeeperBot:makeTemplate(targetTraits)
             ---@type TraitBreedPathResponsePayload | nil
             local path = self.robotComms:GetBreedPathForTraitFromServer(trait, value)
             if path == nil then
-                self:outputError("Failed to get a valid breeding for the requested mutation.")
+                self:outputError("Failed to get a valid breeding path for the requested mutation.")
                 return false
             end
 
