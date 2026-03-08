@@ -298,14 +298,14 @@ function M.DroneStackAndPrincessOfTraitsFinisher(targetTraits, stackSize)
         end
 
         local princessSlot = nil
-        if AnalysisUtil.AllTraitsEqual(princessStack.individual, targetTraits) then
+        if AnalysisUtil.AllBeeTraitsEqual(princessStack.individual, targetTraits) then
             princessSlot = princessStack.slotInChest
         else
             return {}
         end
 
         for _, stack in ipairs(droneStackList) do
-            if (stack.individual ~= nil) and (stack.size >= stackSize) and AnalysisUtil.AllTraitsEqual(stack.individual, targetTraits) then
+            if (stack.individual ~= nil) and (stack.size >= stackSize) and AnalysisUtil.AllBeeTraitsEqual(stack.individual, targetTraits) then
                 return {princess = princessSlot, drones = stack.slotInChest}
             end
         end

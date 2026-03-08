@@ -14,7 +14,7 @@ end
 ---@param bee AnalyzedBeeIndividual
 ---@param targetTraits AnalyzedBeeTraits | PartialAnalyzedBeeTraits 
 ---@return boolean
-function M.AllTraitsEqual(bee, targetTraits)
+function M.AllBeeTraitsEqual(bee, targetTraits)
     for trait, value in pairs(targetTraits) do
         if (not M.TraitIsEqual(bee.active, trait, value)) or (not M.TraitIsEqual(bee.inactive, trait, value)) then
             return false
