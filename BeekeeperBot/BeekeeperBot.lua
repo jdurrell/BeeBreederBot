@@ -227,25 +227,63 @@ function BeekeeperBot:propagateTemplateHandler(data)
     Print(string.format("Finished propagating template to species %s.", data.traits.species.uid))
 end
 
+-- Breeds the commanded species based on the given path.
 ---@param breedPath BreedPathNode[]
 ---@return boolean
 function BeekeeperBot:breedSpeciesCommand(breedPath)
-    -- Breed the commanded species based on the given path.
     local numDronesReplicate = 4 + (2 * self.breeder.numApiaries)
+    self.breeder:RefreshStorageCache()
+
     for _, v in ipairs(breedPath) do
-        if v.parent1 ~= nil then
-            Print(string.format("Replicating %s.", v.parent1))
-            if not self:replicateSpecies(v.parent1, numDronesReplicate, 1, true, true) then
-                self:outputError(string.format("Error: Replicate species '%s' failed.", v.parent1))
-                return false
-            end
+        if ((v.parent1 == nil) and (v.parent2 ~= nil)) or ((v.parent1 ~= nil) and (v.parent2 == nil)) then
+            self:outputError("Cannot breed a species that has only one parent node.")
+            return false
         end
 
-        if v.parent2 ~= nil then
-            Print(string.format("Replicating %s.", v.parent2))
-            if not self:replicateSpecies(v.parent2, numDronesReplicate, 2, true, false) then
-                self:outputError(string.format("Error: Replicate species '%s' failed.", v.parent2))
+        local breedParents = (v.parent1 ~= nil)
+        if breedParents then
+            ---@diagnostic disable-next-line: missing-fields
+            local cacheEntry1 = self.breeder.storageCache:GetDroneEntry({species = {uid = v.parent1}})
+            ---@diagnostic disable-next-line: missing-fields
+            local cacheEntry2 = self.breeder.storageCache:GetDroneEntry({species = {uid = v.parent2}})
+
+            if (cacheEntry1 == nil) or (cacheEntry2 == nil) then
+                self:outputError(string.format("Did not find both parents in the breed cache.\nGot %s: %s.\nGot %s: %s",
+                    v.parent1, tostring(cacheEntry1 ~= nil), v.parent2, tostring(cacheEntry2 ~= nil)
+                ))
                 return false
+            end
+
+            local retrievableStacks = {}
+            local parent1Cached = (cacheEntry1.stackSize >= numDronesReplicate + 16)  -- Leave at least 16 in case we need them.
+            local parent2Cached = (cacheEntry2.stackSize >= numDronesReplicate + 16)  -- Leave at least 16 in case we need them.
+            if not parent1Cached then
+                Print(string.format("Replicating %s.", v.parent1))
+                if not self:replicateSpecies(v.parent1, numDronesReplicate, 1, true, not parent2Cached) then
+                    self:outputError(string.format("Error: Replicate species '%s' failed.", v.parent1))
+                    return false
+                end
+            else
+                retrievableStacks.insert({entry = cacheEntry1, amount = 16, holdoverSlot = 1})
+                Print(string.format("Skipping replicating %s because there is already enough of it.", v.parent1))
+            end
+            if not parent2Cached then
+                Print(string.format("Replicating %s.", v.parent2))
+                if not self:replicateSpecies(v.parent2, numDronesReplicate, 2, true, false) then
+                    self:outputError(string.format("Error: Replicate species '%s' failed.", v.parent2))
+                    return false
+                end
+            else
+                retrievableStacks.insert({entry = cacheEntry2, amount = 16, holdoverSlot = 2})
+                Print(string.format("Skipping replicating %s because there is already enough of it.", v.parent2))
+            end
+
+            if #retrievableStacks == 2 then
+                -- If both parents are already cached, then we still need to retrieve princesses.
+                self.breeder:RetrieveStockPrincessesFromChest(nil, {v.parent1, v.parent2})
+            end
+            if #retrievableStacks > 0 then
+                self.breeder:RetrieveDroneStacksToHoldovers(retrievableStacks)
             end
         end
 

@@ -24,6 +24,19 @@ function M.AllBeeTraitsEqual(bee, targetTraits)
     return true
 end
 
+---@param traitSet AnalyzedBeeTraits
+---@param targetTraits AnalyzedBeeTraits | PartialAnalyzedBeeTraits
+---@return boolean
+function M.HasAllTraits(traitSet, targetTraits)
+    for trait, value in pairs(targetTraits) do
+        if not M.TraitIsEqual(traitSet, trait, value) then
+            return false
+        end
+    end
+
+    return true
+end
+
 ---@param beeTraits AnalyzedBeeTraits
 ---@param trait string
 ---@param value any
