@@ -159,40 +159,31 @@ function BeekeeperBot:makeTemplate(targetTraits)
     end
 
     -- If we don't have all of the traits, then figure out how to breed them into the storage population.
-    local traitPaths = {}  ---@type {trait: string, path: BreedPathNode[]}[]
-    for trait, value in pairs(targetTraits) do
-        local traitExisting = false
-        for _, v  in ipairs(self.breeder.storageCache.cache) do
-            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
-                traitExisting = true
-                break
-            end
-        end
-
-        if not traitExisting then
-            -- If we don't have the trait already, then check with the server whether we are able to breed that trait.
-            ---@type TraitBreedPathResponsePayload | nil
-            local path = self.robotComms:GetBreedPathForTraitFromServer(trait, value)
-            if path == nil then
-                self:outputError("Failed to get a valid breeding path for the requested mutation.")
-                return false
-            end
-
-            table.insert(traitPaths, {trait = trait, path = path})
-        end
+    local traitsPresent = {}
+    for k, v in targetTraits do
+        -- TODO: Eventually, create an iterator for the cache so that we don't have to run through the whole thing several times.
+        traitsPresent[k] = (self.breeder.storageCache:GetDroneEntry({[k] = v}) ~= nil)
     end
 
     -- Now, actually breed those traits into the storage population, if necessary.
     local bredNew = false
-    for _, v in ipairs(traitPaths) do
-        local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
+    for k, v in pairs(targetTraits) do
+        if traitsPresent[k] then
+            -- We already had this trait or happened to discover this trait while breeding something else.
+            goto continue
+        end
         bredNew = true
 
-        Print(string.format("Breeding trait %s into the population via species '%s'.",
-            TraitsToString({[v.trait] = targetTraits[v.trait]}),
-            v.path[#(v.path)].target
-        ))
-        for _, pathNode in ipairs(v.path) do
+        -- We don't have the trait already. Check with the server whether we are able to breed that trait.
+        local path = self.robotComms:GetBreedPathForTraitFromServer(k, v)  ---@type TraitBreedPathResponsePayload | nil
+        if path == nil then
+            self:outputError("Failed to get a valid breeding path for the requested mutation.")
+            return false
+        end
+
+        Print(string.format("Breeding trait %s into the population via species '%s'.", TraitsToString({[k] = v}), path[#(path)].target))
+        local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
+        for _, pathNode in ipairs(path) do
             self.breeder:RefreshStorageCache()
 
             -- Obtain the parents.
@@ -228,7 +219,7 @@ function BeekeeperBot:makeTemplate(targetTraits)
             local finishedDroneSlot = self:breed(
                 MatchingAlgorithms.MutatedAlleleMatcher(
                     self.breeder.numApiaries,
-                    v.trait,
+                    v.trait,  -- TODO: We only want to do this if we are on the final node in the path. Otherwise, we should breed for species.
                     targetTraits[v.trait],
                     {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
                     breedInfoCacheElement,
@@ -250,15 +241,30 @@ function BeekeeperBot:makeTemplate(targetTraits)
 
             -- If we have enough of the target species now, then inform the server and store the drones at the new location.
             -- Technically, we only require the finished stack to have the desired trait, which doesn't require it to be the "target" species.
-            local species = UnwrapNull(self.breeder:GetStackInDroneSlot(finishedDroneSlot)).individual.active.species.uid
-            self.robotComms:ReportNewSpeciesToServer(species)
+            local droneStack = self.breeder:GetStackInDroneSlot(finishedDroneSlot)
+            if droneStack == nil then
+                self:outputError("Expected finished drone to be in the slot.")
+                return false
+            end
+            self.robotComms:ReportNewSpeciesToServer(droneStack.individual.active.species.uid)
+            for k2, v2 in pairs(targetTraits) do
+                -- It is technically possible that we got additional traits beyond what we were specifically aiming for.
+                -- If so, then update the cache so that trying to get it through another mutation can be skipped later.
+                if AnalysisUtil.TraitIsEqual(droneStack.individual.active, k2, v2) then
+                    traitsPresent[k2] = true
+                end
+            end
 
+            -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
             self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock(nil)
             self.breeder:BreakAndReturnFoundationsToInputChest()
         end
+
+        ::continue::
     end
+
     Print("All required traits now in population.")
 
     -- Refresh our view of the bees if necessary.
