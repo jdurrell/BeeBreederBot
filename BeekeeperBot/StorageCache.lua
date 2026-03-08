@@ -3,6 +3,7 @@
 local BeeAnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 
 -- Caches relevant information for drones in the storage row.
+-- TODO: If tight on robot memory, we could provide an implementation that stores this on the server.
 ---@class StorageRowCache
 ---@field ic any inventory controller library
 ---@field robot any robot library
