@@ -258,6 +258,14 @@ function BreedOperator:StoreDronesFromActiveChest(slots)
     self:returnToStorageColumnOriginFromChest(currentChest)
     self:returnToBreederStationFromStorageColumn()
 
+    -- If we ran into stack overflows above, we will still have leftover drones in our inventory.
+    -- Get rid of them here by unloading into the trash can.
+    self.robot.turnRight()
+    self.robot.turnRight()
+    self:unloadInventory()
+    self.robot.turnLeft()
+    self.robot.turnLeft()
+
     return self:storeDrones()
 end
 
