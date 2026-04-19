@@ -211,62 +211,22 @@ end
 
 -- Stores the drones from the given slot in the drone chest in the storage chest at the given point.
 -- Starts and ends at the default position in the breeder station.
+-- Cannot handle more than 16 slots at a time.
 ---@param slots integer[]
 ---@return boolean success
 function BreedOperator:StoreDronesFromActiveChest(slots)
-    -- First, get the stacks so that we can (later) figure out where to put them in storage.
+    -- Retrieve the stacks from the chest.
     self.robot.turnRight()
-    local slotStuff = {}
+    local droneTraits = {}
     for i, v in ipairs(slots) do
         local drone = self.ic.getStackInSlot(self.sides.front, v)  ---@type AnalyzedBeeStack
-        local entry = self.storageCache:GetDroneEntry(drone.individual.active)
-        if entry == nil then
-            -- Drone stack is new, so create a new slot for it.
-            entry = self.storageCache:AllocateSlot(drone)
-        end
-        table.insert(slotStuff, {robotSlot=i, entry=entry})
-    end
-    -- Sort by chest number because we can traverse the chests more quickly in order.
-    table.sort(slotStuff, function(entry1, entry2) return entry1.chestNumber <= entry2.chestNumber end)
-
-    -- Grab the drones from the chest.
-    for i, slot in ipairs(slots) do
+        table.insert(droneTraits, drone.individual.active)
         self.robot.select(i)
-        self.ic.suckFromSlot(self.sides.front, slot, 64)
+        self.ic.suckFromSlot(self.sides.front, v, 64)
     end
     self.robot.turnLeft()
 
-    -- Now, put the drones into the chests.
-    self:moveToStorageColumn()
-    local currentChest = 0
-    for i, v in ipairs(slotStuff) do
-        -- Move to the right chest if we aren't there already.
-        if v.entry.chestNumber > currentChest then
-            self.robot.turnLeft()
-            self:moveForwards(v.entry.chestNumber - currentChest)
-            currentChest = v.entry.chestNumber
-            self.robot.turnRight()
-        end
-
-        -- Drop the drones.
-        self.robot.select(v.robotSlot)
-        local numToDrop = math.min(64 - v.entry.stackSize, self.robot.count())
-        self.ic.dropIntoSlot(self.sides.front, v.entry.slot, numToDrop)
-        v.entry.stackSize = v.entry.stackSize + numToDrop
-    end
-
-    self:returnToStorageColumnOriginFromChest(currentChest)
-    self:returnToBreederStationFromStorageColumn()
-
-    -- If we ran into stack overflows above, we will still have leftover drones in our inventory.
-    -- Get rid of them here by unloading into the trash can.
-    self.robot.turnRight()
-    self.robot.turnRight()
-    self:unloadInventory()
-    self.robot.turnLeft()
-    self.robot.turnLeft()
-
-    return self:storeDrones()
+    return self:storeDrones(droneTraits)
 end
 
 -- Clears the storage cache, then loads it with all of the drones in the storage row.
@@ -278,11 +238,11 @@ function BreedOperator:RefreshStorageCache()
     local chest = 0
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
-            local stack = self.ic.getStackInSlot(self.sides.front, i)
+            local stack = self.ic.getStackInSlot(self.sides.front, i)  ---@type AnalyzedBeeStack
             if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
-                self.storageCache:LoadDrone(stack, chest, i)
+                self.storageCache:LoadDrone(stack.individual.active, stack.size, chest, i)
             end
         end
 
@@ -725,37 +685,46 @@ end
 
 -- Moves the drone stacks in the import chest to the drone store.
 -- Returns a set of the species imported.
----@return table<string, boolean> | nil
+---@return Set<string> | nil
 function BreedOperator:ImportDroneStacksFromInputsToStore()
     self:moveToInputChest()
 
-    -- TODO: Deal with the case where there are more than 16 princesses.
-    -- There are several items in this input chest. Only pick up the princesses.
+    -- TODO: Deal with the case where there are more than 16 drones.
+    -- There are several items in this input chest. Only pick up the drones.
     local numInternalSlotsTaken = 0
-    local species = {}
+    local species = {}  ---@type Set<string>
+    local traitSets = {}  ---@type AnalyzedBeeTraits[]
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
-        if (stack ~= nil) and (stack.size == 64) and (string.find(stack.label, "[D|d]rone") ~= nil) then
-            if (stack.individual.active.species.uid == stack.individual.inactive.species.uid) then
-                species[stack.individual.active.species.uid] = true
-            end
 
-            self.robot.select(numInternalSlotsTaken + 1)
-            self.ic.suckFromSlot(self.sides.front, i, 64)
+        -- Use a minimum stack size of 16 because this is generally what we require for breeding.
+        if (stack ~= nil) and (stack.size > 16) and (string.find(stack.label, "[D|d]rone") ~= nil) then
+            -- We have to put this check inside the above because it is not valid if we don't have a drone.
+            if (AnalysisUtil.AllTraitsPure(stack.individual)) then
+                if (stack.individual.active.species.uid == stack.individual.inactive.species.uid) then
+                    species[stack.individual.active.species.uid] = true
+                end
+                table.insert(traitSets, stack.individual.active)
 
-            numInternalSlotsTaken = numInternalSlotsTaken + 1
-            if numInternalSlotsTaken >= NUM_INTERNAL_SLOTS then
-                break
+                self.robot.select(numInternalSlotsTaken + 1)
+                self.ic.suckFromSlot(self.sides.front, i, 64)
+
+                numInternalSlotsTaken = numInternalSlotsTaken + 1
+                if numInternalSlotsTaken >= NUM_INTERNAL_SLOTS then
+                    break
+                end
             end
         end
     end
 
     self:returnToBreederStationFromInputChest()
 
-    if not self:storeDrones() then
+    if not self:storeDrones(traitSets) then
         return nil
     end
 
+    -- Doesn't like returning the table for some reason.
+    ---@cast species Set<string>
     return species
 end
 
@@ -870,49 +839,54 @@ function BreedOperator:GetDroneChestSize()
 end
 
 -- Stores the drones in the robot's inventory in the storage column.
+-- Since we can't query the items in the robot's inventory, we require that the traits are passed in.
+---@param traitSets AnalyzedBeeTraits[]
 ---@return boolean
-function BreedOperator:storeDrones()
-    -- Store the drones in the storage column.
+function BreedOperator:storeDrones(traitSets)
+    local storageSlots = {}  ---@type {robotSlot: integer, entry: StorageCacheEntry}
+    for i, v in ipairs(traitSets) do
+        local entry = self.storageCache:GetDroneEntry(v)
+        if entry == nil then
+            -- Drone stack is new, so create a new slot for it.
+            entry = self.storageCache:AllocateSlot(v)
+        end
+        table.insert(storageSlots, {robotSlot=i, entry=entry})
+    end
+    -- Sort by chest number because we can traverse the chests more quickly in order.
+    table.sort(storageSlots, function(entry1, entry2) return entry1.chestNumber <= entry2.chestNumber end)
+
+    -- Now, put the drones into the chests.
     self:moveToStorageColumn()
-
-    -- Place the drones into storage.
-    local chest = 0
-    local failed = false
-    for i = 1, NUM_INTERNAL_SLOTS do
-        self.robot.select(i)
-        if self.robot.count() == 0 then
-            goto continue
-        end
-
-        -- Find an empty slot in the storages.
-        local emptySlot = self:getEmptySlotInChest()
-        while emptySlot == -1 do
+    local currentChest = 0
+    for i, v in ipairs(storageSlots) do
+        -- Move to the right chest if we aren't there already.
+        if v.entry.chestNumber > currentChest then
             self.robot.turnLeft()
-            self:moveForwards(1)
+            self:moveForwards(v.entry.chestNumber - currentChest)
+            currentChest = v.entry.chestNumber
             self.robot.turnRight()
-            chest = chest + 1
-
-            emptySlot = self:getEmptySlotInChest()
         end
 
-        if emptySlot == nil then
-            failed = true
-            break
-        end
-
-        self.ic.dropIntoSlot(self.sides.front, emptySlot, 64)
-        ::continue::
+        -- Drop the drones.
+        self.robot.select(v.robotSlot)
+        local numToDrop = math.min(64 - v.entry.stackSize, self.robot.count())
+        self.ic.dropIntoSlot(self.sides.front, v.entry.slot, numToDrop)
+        v.entry.stackSize = v.entry.stackSize + numToDrop
     end
 
     -- Return to the breeder station.
-    self:returnToStorageColumnOriginFromChest(chest)
+    self:returnToStorageColumnOriginFromChest(currentChest)
     self:returnToBreederStationFromStorageColumn()
 
-    if failed then
-        Print("Failed to store drones in the storage column. More chests are required.")
-    end
+    -- If we ran into stack overflows above, we will still have leftover drones in our inventory.
+    -- Get rid of them here by unloading into the trash can.
+    self.robot.turnRight()
+    self.robot.turnRight()
+    self:unloadInventory()
+    self.robot.turnLeft()
+    self.robot.turnLeft()
 
-    return not failed
+    return true
 end
 
 -- Returns the index of an empty slot in the chest or `-1` if none exist.

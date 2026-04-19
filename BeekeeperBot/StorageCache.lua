@@ -31,18 +31,19 @@ function StorageRowCache:IsEmpty()
 end
 
 -- Adds the given drone to the cache. This must be called in sequential order.
----@param drone AnalyzedBeeStack
+---@param traits AnalyzedBeeTraits
+---@param amount integer
 ---@param chestNumber integer
 ---@param slot integer
 ---@param index integer | nil
 ---@return StorageCacheEntry
-function StorageRowCache:LoadDrone(drone, chestNumber, slot, index)
+function StorageRowCache:LoadDrone(traits, amount, chestNumber, slot, index)
     if index == nil then index = #self.cache + 1 end
 
     -- All of the drones in the storage row should be pure-bred, so we only need to store one set of traits.
     table.insert(self.cache, index, {
-        traits=drone.individual.active,
-        stackSize=drone.size,
+        traits=traits,
+        stackSize=amount,
         slot=slot,
         chestNumber=chestNumber,
     })
@@ -77,19 +78,21 @@ function StorageRowCache:GetDroneEntry(traits)
 end
 
 -- Allocates a new chest slot for a drone with the given traits.
----@param drone AnalyzedBeeStack
+---@param traits AnalyzedBeeTraits
 ---@return StorageCacheEntry
-function StorageRowCache:AllocateSlot(drone)
+function StorageRowCache:AllocateSlot(traits)
+    -- TODO: We need to have knowledge of a maximum number of chests here and return a failure if there are no open slots.
+
     -- For compaction purposes, always try to use the earliest slot.
     local nextChest = 1
     local nextSlot = 1
     for i, v in ipairs(self.cache) do
         if v.chestNumber == nextChest and v.slot ~= nextSlot then
             -- Gap within one chest.
-            return self:LoadDrone(drone, nextChest, nextSlot, i)
+            return self:LoadDrone(traits, 0, nextChest, nextSlot, i)
         elseif v.chestNumber ~= nextChest then
             -- Gap between chests.
-            return self:LoadDrone(drone, nextChest, nextSlot, i)
+            return self:LoadDrone(traits, 0, nextChest, nextSlot, i)
         end
 
         nextSlot = nextSlot + 1
@@ -100,5 +103,5 @@ function StorageRowCache:AllocateSlot(drone)
     end
 
     -- We didn't find any gaps, so just take the last one.
-    return self:LoadDrone(drone, nextChest, nextSlot)
+    return self:LoadDrone(traits, 0, nextChest, nextSlot)
 end
