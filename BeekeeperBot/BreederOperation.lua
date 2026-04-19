@@ -506,7 +506,7 @@ end
 ---@param holdoverChestSlots integer[]
 ---@param amounts integer[]
 ---@param droneChestSlots integer[]
-function BreedOperator:ImportHoldoverStacksToDroneChest(holdoverChestSlots, amounts, droneChestSlots)
+function BreedOperator:ImportHoldoverStacksToActiveChest(holdoverChestSlots, amounts, droneChestSlots)
     -- Move to the Holdover chest, located 1 block vertical from the robot's default position at the breeder station.
     self:moveUpwards(1)
     self.robot.turnRight()

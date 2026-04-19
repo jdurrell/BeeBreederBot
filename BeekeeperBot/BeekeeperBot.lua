@@ -205,7 +205,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             end
 
             -- Set up the breeding station.
-            self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {numSpeciesReplicate, numSpeciesReplicate}, {1, 2})
+            self.breeder:ImportHoldoverStacksToActiveChest({1, 2}, {numSpeciesReplicate, numSpeciesReplicate}, {1, 2})
             self.breeder:RetrieveStockPrincessesFromChest(nil, {})
             self:ensureSpecialConditionsMet(pathNode)
 
@@ -330,7 +330,7 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
 
         -- Now breed the desired traits into the working template.
         Print(string.format("Adding trait %s into the working template.", TraitsToString({[trait] = value})))
-        self.breeder:ImportHoldoverStacksToDroneChest({1, 2}, {numTraitReplicate, numTraitReplicate}, {1, 2})
+        self.breeder:ImportHoldoverStacksToActiveChest({1, 2}, {numTraitReplicate, numTraitReplicate}, {1, 2})
         local nextTraits = Copy(finishedTraits)
         nextTraits[trait] = value
         local finishedSlots = self:breed(
@@ -363,7 +363,7 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
 
     -- Final drone stack is in the holdover chest, but we only have 16. Breed it up to 64 to finish it off, then store it.
     Print("Working template finished. Breeding template up to full stack.")
-    self.breeder:ImportHoldoverStacksToDroneChest({1}, {16}, {1})
+    self.breeder:ImportHoldoverStacksToActiveChest({1}, {16}, {1})
     local finishedDrones = self:breed(
         MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
