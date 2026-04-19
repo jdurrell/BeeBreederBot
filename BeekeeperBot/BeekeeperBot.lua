@@ -193,7 +193,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
 
         Print(string.format("Breeding trait %s into the population via species '%s'.", TraitsToString({[k] = v}), path[#(path)].target))
         local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
-        for _, pathNode in ipairs(path) do
+        for i, pathNode in ipairs(path) do
             -- Obtain the parents.
             if not self:replicateIfNecessary({species = {uid = pathNode.parent1}}, numSpeciesReplicate, 1) then
                 self:outputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
@@ -222,12 +222,15 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             )
 
             -- Do the breeding.
+            -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
+            -- Otherwise, breed for species so that we can build up the tree to get the last node.
+            local mutationTrait = ((i == #pathNode) and v.trait) or "species"
             local breedInfoCacheElement = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:breed(
                 MatchingAlgorithms.MutatedAlleleMatcher(
                     self.breeder.numApiaries,
-                    v.trait,  -- TODO: We only want to do this if we are on the final node in the path. Otherwise, we should breed for species.
+                    mutationTrait,
                     targetTraits[v.trait],
                     {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
                     breedInfoCacheElement,
