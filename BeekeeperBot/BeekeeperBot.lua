@@ -143,8 +143,20 @@ function BeekeeperBot:makeTemplateHandler(data)
             return
         end
     else
-        if not self:makeTemplate(data.traits) then
-            self:outputError("Failed to make template.")
+        self.breeder:RefreshStorageCache()  -- TODO: Do we have enough memory for this?
+        if self.breeder.storageCache:IsEmpty() then
+            self:outputError("Failed to find any bees when searching for best initial trait match.")
+            return
+        end
+
+        if not self:breedTraitsIntoPopulation(data.traits) then
+            self:outputError("Failed to breed target traits from mutations.")
+            return
+        end
+        Print("All required traits now in population.")
+
+        if not self:breedTemplateFromEstablishedTraits(data.traits) then
+            self:outputError("Failed to breed template from established population traits.")
             return
         end
 
@@ -154,15 +166,10 @@ function BeekeeperBot:makeTemplateHandler(data)
     Print(string.format("Finished making template %s.", TraitsToString(data.traits)))
 end
 
+-- Breeds the given traits into the population via mutations, if they don't already exist.
 ---@param targetTraits PartialAnalyzedBeeTraits
 ---@return boolean
-function BeekeeperBot:makeTemplate(targetTraits)
-    self.breeder:RefreshStorageCache()  -- TODO: Do we have enough memory for this?
-    if self.breeder.storageCache:IsEmpty() then
-        self:outputError("Failed to find any bees when searching for best initial trait match.")
-        return false
-    end
-
+function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
     -- If we don't have all of the traits, then figure out how to breed them into the storage population.
     local traitsPresent = {}
     for k, v in targetTraits do
@@ -266,8 +273,13 @@ function BeekeeperBot:makeTemplate(targetTraits)
         ::continue::
     end
 
-    Print("All required traits now in population.")
+    return true
+end
 
+-- Breeds a template bee from traits that already exist in the population.
+---@param targetTraits PartialAnalyzedBeeTraits
+---@return boolean
+function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
     -- Look for existing bees that are the closest match to the target template since they will be the best starting point.
     local maxTraitEntry = nil ---@type StorageCacheEntry
     local maxMatchingTraits = -1
