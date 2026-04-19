@@ -131,12 +131,17 @@ function BeekeeperBot:makeTemplateHandler(data)
 
     if data.raw then
         -- If raw is specified, then the user is responsible for organizing everything in the proper chests.
-        self:breed(
+        local slots = self:breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(data.traits, self.breeder.numApiaries),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(data.traits, 64),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(data.traits),
             nil
         )
+
+        if (slots.drones == nil) and (slots.princess == nil) then
+            self:outputError("Failed to make template.")
+            return
+        end
     else
         if not self:makeTemplate(data.traits) then
             self:outputError("Failed to make template.")
