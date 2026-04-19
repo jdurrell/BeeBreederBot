@@ -102,7 +102,7 @@ end
 
 function BeekeeperBot:importPrincessesCommandHandler(data)
     if not self.breeder:ImportPrincessesFromInputsToStock() then
-        self.robotComms:ReportErrorToServer("Failed to import princesses")
+        self.robotComms:ReportErrorToServer("Failed to import princesses.")
     end
 end
 
@@ -166,13 +166,11 @@ function BeekeeperBot:makeTemplate(targetTraits)
     end
 
     -- Now, actually breed those traits into the storage population, if necessary.
-    local bredNew = false
     for k, v in pairs(targetTraits) do
         if traitsPresent[k] then
             -- We already had this trait or happened to discover this trait while breeding something else.
             goto continue
         end
-        bredNew = true
 
         -- We don't have the trait already. Check with the server whether we are able to breed that trait.
         local path = self.robotComms:GetBreedPathForTraitFromServer(k, v)  ---@type TraitBreedPathResponsePayload | nil
@@ -184,8 +182,6 @@ function BeekeeperBot:makeTemplate(targetTraits)
         Print(string.format("Breeding trait %s into the population via species '%s'.", TraitsToString({[k] = v}), path[#(path)].target))
         local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
         for _, pathNode in ipairs(path) do
-            self.breeder:RefreshStorageCache()
-
             -- Obtain the parents.
             if not self:replicateIfNecessary({species = {uid = pathNode.parent1}}, numSpeciesReplicate, 1) then
                 self:outputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
@@ -267,17 +263,8 @@ function BeekeeperBot:makeTemplate(targetTraits)
 
     Print("All required traits now in population.")
 
-    -- Refresh our view of the bees if necessary.
-    if bredNew then
-        self.breeder:RefreshStorageCache()
-    end
-    if self.breeder.storageCache:IsEmpty() then
-        self:outputError("Failed to find any bees when searching for best initial trait match.")
-        return false
-    end
-
     -- Look for existing bees that are the closest match to the target template since they will be the best starting point.
-    local maxTraitSet = self.breeder.storageCache.cache[1].traits
+    local maxTraitEntry = nil ---@type StorageCacheEntry
     local maxMatchingTraits = -1
     for _, v in ipairs(self.breeder.storageCache.cache) do
         local matchingTraits = 0
@@ -288,22 +275,22 @@ function BeekeeperBot:makeTemplate(targetTraits)
         end
 
         if matchingTraits > maxMatchingTraits then
-            maxTraitSet = v
+            maxTraitEntry = v
             maxMatchingTraits = matchingTraits
         end
     end
 
     local finishedTraits = {}
     for trait, value in pairs(targetTraits) do
-        if AnalysisUtil.TraitIsEqual(maxTraitSet, trait, value) then
+        if AnalysisUtil.TraitIsEqual(maxTraitEntry.traits, trait, value) then
             finishedTraits[trait] = value
         end
     end
 
     -- Get 16 drones that have the initial best starting traits.
-    Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitSet)))
+    Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitEntry.traits)))
     local numTraitReplicate = 8 + (4 * self.breeder.numApiaries)
-    if not self:replicateTemplate(maxTraitSet, numTraitReplicate, 1, true, false) then
+    if not self:replicateIfNecessary(maxTraitEntry.traits, numTraitReplicate, 1) then
         self:outputError("Failed to replicate starting template.")
         return false
     end
@@ -393,11 +380,11 @@ function BeekeeperBot:replicateIfNecessary(traits, amount, holdoverSlot)
 
     if cacheEntry.stackSize - amount >= 16 then
         Print(string.format("Drone stack size sufficient. Skipping replication of trait pattern %s", TraitsToString(traits)))
-        self.breeder:RetrieveDroneStacksToHoldovers({entry = cacheEntry, amount = amount, holdoverSlot = holdoverSlot})
+        self.breeder:RetrieveDroneStacksToHoldovers({entry=cacheEntry, amount=amount, holdoverSlot=holdoverSlot})
         return true
     end
 
-    return self:replicateTemplate(traits, amount, holdoverSlot, true, true)
+    return self:replicateTemplate(traits, amount, holdoverSlot, cacheEntry, true, true)
 end
 
 -- Replicates the given template from pure-bred drones and a pure-bred princess of that template.
@@ -406,10 +393,11 @@ end
 ---@param traits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@param amount integer
 ---@param holdoverDroneSlot integer
+---@param cacheEntry StorageCacheEntry
 ---@param retrievePrincessesFromStock boolean
 ---@param returnPrincessesToStock boolean
 ---@return boolean
-function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, retrievePrincessesFromStock, returnPrincessesToStock)
+function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, cacheEntry, retrievePrincessesFromStock, returnPrincessesToStock)
     -- We can't replicate more than a full stack at a time because we support holdoverSlot semantics.
     if amount > 64 then
         self:outputError("Invalid argument. Cannot replicate more than a full stack at a time.")
@@ -430,14 +418,7 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, retri
     end
 
     -- Retrieve the starter drones.
-    if not self.breeder:RetrieveDrones(traits, 1) then
-        self:outputError(string.format("Failed to retrieve drones for replicating template."))
-        if retrievePrincessesFromStock then
-            self.breeder:ReturnActivePrincessesToStock(nil)
-        end
-
-        return false
-    end
+    self.breeder:RetrieveDronesToActive({cacheEntry=cacheEntry, amount=amount, destinationChestSlot=1})
 
     local stack = self.breeder:GetStackInDroneSlot(1)
     if stack == nil then
@@ -453,7 +434,7 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, retri
         -- because we can't. Just output the drones we've got. There is already validation above for trying to specifically
         -- replicate that trait, so this isn't a mistake. Anyone using this doesn't care about the difference, then.
         if stack.size < amount then
-            self:outputError("Unable to output drones with non-replicatable fertility.")
+            self:outputError("Unable to output drones with non-replicateable fertility.")
             return false
         end
 
@@ -462,9 +443,10 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, retri
         return true
     end
 
-    -- Choose a higher than 1 fertility to replicate, if we need to.
+    -- Choose a higher-than-1 fertility to replicate, if we need to.
     local replicateTraits = Copy(traits)
-    replicateTraits.fertility = ((replicateTraits.fertility == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility)) or replicateTraits.fertility
+    replicateTraits.fertility = ((replicateTraits.fertility == nil) and math.max(stack.individual.active.fertility, stack.individual.inactive.fertility))
+        or replicateTraits.fertility
 
     local finishedSlots = {drones = nil, princess = nil}
     local exportRemaining = amount

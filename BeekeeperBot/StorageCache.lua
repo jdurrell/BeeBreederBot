@@ -2,6 +2,8 @@
 
 local BeeAnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 
+STORAGE_CHEST_NUM_SLOTS = 54  -- We happen to be using gold chests.
+
 -- Caches relevant information for drones in the storage row.
 -- TODO: If tight on robot memory, we could provide an implementation that stores this on the server.
 ---@class StorageRowCache
@@ -28,17 +30,24 @@ function StorageRowCache:IsEmpty()
     return #(self.cache) == 0
 end
 
--- Adds the given drone to the cache.
+-- Adds the given drone to the cache. This must be called in sequential order.
 ---@param drone AnalyzedBeeStack
 ---@param chestNumber integer
-function StorageRowCache:LoadDrone(drone, chestNumber)
+---@param slot integer
+---@param index integer | nil
+---@return StorageCacheEntry
+function StorageRowCache:LoadDrone(drone, chestNumber, slot, index)
+    if index == nil then index = #self.cache + 1 end
+
     -- All of the drones in the storage row should be pure-bred, so we only need to store one set of traits.
-    table.insert(self.cache, {
+    table.insert(self.cache, index, {
         traits=drone.individual.active,
         stackSize=drone.size,
-        slot=drone.slotInChest,
+        slot=slot,
         chestNumber=chestNumber,
     })
+
+    return self.cache[index]
 end
 
 -- Removes the drone in the given chest and slot from the cache.
@@ -65,4 +74,31 @@ function StorageRowCache:GetDroneEntry(traits)
     end
 
     return nil
+end
+
+-- Allocates a new chest slot for a drone with the given traits.
+---@param drone AnalyzedBeeStack
+---@return StorageCacheEntry
+function StorageRowCache:AllocateSlot(drone)
+    -- For compaction purposes, always try to use the earliest slot.
+    local nextChest = 1
+    local nextSlot = 1
+    for i, v in ipairs(self.cache) do
+        if v.chestNumber == nextChest and v.slot ~= nextSlot then
+            -- Gap within one chest.
+            return self:LoadDrone(drone, nextChest, nextSlot, i)
+        elseif v.chestNumber ~= nextChest then
+            -- Gap between chests.
+            return self:LoadDrone(drone, nextChest, nextSlot, i)
+        end
+
+        nextSlot = nextSlot + 1
+        if nextSlot > STORAGE_CHEST_NUM_SLOTS then
+            nextSlot = 1
+            nextChest = nextChest + 1
+        end
+    end
+
+    -- We didn't find any gaps, so just take the last one.
+    return self:LoadDrone(drone, nextChest, nextSlot)
 end

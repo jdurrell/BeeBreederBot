@@ -211,17 +211,52 @@ end
 
 -- Stores the drones from the given slot in the drone chest in the storage chest at the given point.
 -- Starts and ends at the default position in the breeder station.
----@param slots integer[]  Max size 16.
+---@param slots integer[]
 ---@return boolean success
 function BreedOperator:StoreDronesFromActiveChest(slots)
+    -- First, get the stacks so that we can (later) figure out where to put them in storage.
+    self.robot.turnRight()
+    local slotStuff = {}
+    for i, v in ipairs(slots) do
+        local drone = self.ic.getStackInSlot(self.sides.front, v)  ---@type AnalyzedBeeStack
+        local entry = self.storageCache:GetDroneEntry(drone.individual.active)
+        if entry == nil then
+            -- Drone stack is new, so create a new slot for it.
+            entry = self.storageCache:AllocateSlot(drone)
+        end
+        table.insert(slotStuff, {robotSlot=i, entry=entry})
+    end
+    -- Sort by chest number because we can traverse the chests more quickly in order.
+    table.sort(slotStuff, function(entry1, entry2) return entry1.chestNumber <= entry2.chestNumber end)
 
     -- Grab the drones from the chest.
-    self.robot.turnRight()
     for i, slot in ipairs(slots) do
         self.robot.select(i)
         self.ic.suckFromSlot(self.sides.front, slot, 64)
     end
     self.robot.turnLeft()
+
+    -- Now, put the drones into the chests.
+    self:moveToStorageColumn()
+    local currentChest = 0
+    for i, v in ipairs(slotStuff) do
+        -- Move to the right chest if we aren't there already.
+        if v.entry.chestNumber > currentChest then
+            self.robot.turnLeft()
+            self:moveForwards(v.entry.chestNumber - currentChest)
+            currentChest = v.entry.chestNumber
+            self.robot.turnRight()
+        end
+
+        -- Drop the drones.
+        self.robot.select(v.robotSlot)
+        local numToDrop = math.min(64 - v.entry.stackSize, self.robot.count())
+        self.ic.dropIntoSlot(self.sides.front, v.entry.slot, numToDrop)
+        v.entry.stackSize = v.entry.stackSize + numToDrop
+    end
+
+    self:returnToStorageColumnOriginFromChest(currentChest)
+    self:returnToBreederStationFromStorageColumn()
 
     return self:storeDrones()
 end
@@ -239,8 +274,7 @@ function BreedOperator:RefreshStorageCache()
             if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
-                stack.slotInChest = i
-                self.storageCache:LoadDrone(stack, chest)
+                self.storageCache:LoadDrone(stack, chest, i)
             end
         end
 
@@ -419,57 +453,22 @@ function BreedOperator:ReturnActivePrincessesToStock(amount)
     self:returnToBreederStationFromStorageColumn()
 end
 
--- Retrieves a stack of drones that matches all of the given traits.
----@param traits AnalyzedBeeTraits | PartialAnalyzedBeeTraits
----@param activeChestSlot integer | nil
----@return boolean success
-function BreedOperator:RetrieveDrones(traits, activeChestSlot)
-    activeChestSlot = ((activeChestSlot == nil) and 1) or activeChestSlot
+-- Retrieves the given drone stacks in the given amounts from the storage row and places them in the designated slots in the active chest.
+-- No duplicate destination chest slots are allowed.
+-- Starts and ends at the breeder station. Can handle at most 15 stacks at once.
+---@param droneStackRequests {cacheEntry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
+function BreedOperator:RetrieveDronesToActive(droneStackRequests)
+    self:retrieveDroneStacks(droneStackRequests)
 
-    self.robot.select(1)
-    self:moveToStorageColumn()
-
-    -- Go through the drone chests until we either find the drone or hit the end of the row.
-    local found = false
-    local chest = 0
-    while self.ic.getInventorySize(self.sides.front) ~= nil do
-        for i = 1, self.ic.getInventorySize(self.sides.front) do
-            ---@type AnalyzedBeeStack
-            local stack = self.ic.getStackInSlot(self.sides.front, i)
-            if ((stack ~= nil) and
-                (string.find(stack.label, "[D|d]rone") ~= nil) and
-                (stack.size >= 32) and
-                AnalysisUtil.AllBeeTraitsEqual(stack.individual, traits)
-            ) then
-                self.ic.suckFromSlot(self.sides.front, i, 64)
-                found = true
-
-                break
-            end
-        end
-
-        if not found then
-            self.robot.turnLeft()
-            self:moveForwards(1)
-            self.robot.turnRight()
-            chest = chest + 1
-        else
-            break
-        end
-    end
-
-    self:returnToStorageColumnOriginFromChest(chest)
-    self:returnToBreederStationFromStorageColumn()
-
-    -- Unload the drones if we got them or error out if not.
-    if found then
-        self.robot.turnRight()
-
-        while not self.ic.dropIntoSlot(self.sides.front, activeChestSlot, 64) do
+    -- Unload the drones into the active chest.
+    self.robot.turnRight()
+    for i, v in ipairs(droneStackRequests) do
+        self.robot.select(i)
+        while not self.ic.dropIntoSlot(self.sides.front, v.destinationChestSlot, 64) do
             -- If we fail to unload this stack into the active chest, then other drones must have
             -- been placed here by the piping system and taken this slot. Simply trash them.
-            self.robot.select(2)
-            self.ic.suckFromSlot(self.sides.front, 1, 64)
+            self.robot.select(NUM_INTERNAL_SLOTS)
+            self.ic.suckFromSlot(self.sides.front, v.destinationChestSlot, 64)
             self.robot.turnRight()
             self.robot.drop(64)
             self.robot.turnLeft()
@@ -483,29 +482,39 @@ function BreedOperator:RetrieveDrones(traits, activeChestSlot)
             self.robot.drop(64)
             self.robot.turnLeft()
         end
-
-        self.robot.turnLeft()
-    else
-        Print("Failed to find a full stack of drones with the requested traits.")
-        return false
     end
-
-    return true
+    self.robot.turnLeft()
 end
 
 -- Retrieves the specified amount of drones from the given chest and slot to a given slot in the holdover chest.
--- No duplicate holdover slots are allowed.
+-- No duplicate destination chest slots are allowed.
 -- Starts and ends at the breeder station. Can handle at most 15 stacks at once.
----@param droneStacks {entry: StorageCacheEntry, amount: integer, holdoverSlot: integer}[] Will be mutated by this function.
-function BreedOperator:RetrieveDroneStacksToHoldovers(droneStacks)
+---@param droneStackRequests {entry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}[] Will be mutated by this function.
+function BreedOperator:RetrieveDroneStacksToHoldovers(droneStackRequests)
+    self:retrieveDroneStacks(droneStackRequests)
+
+    -- Unload the drones into holdovers.
+    self:moveToHoldoverChest()
+    for i, v in ipairs(droneStackRequests) do
+        self.robot.select(i)
+        self.ic.dropIntoSlot(self.sides.front, v.destinationChestSlot, v.amount)
+    end
+    self:returnToBreederStationFromHoldoverChest()
+end
+
+-- Obtains the drones corresponding to the given cache entry in the given amounts, then returns to the breeder station.
+-- Upon return, the drones will be held in the robot's internal inventory in the order corresponding to the list.
+-- NOTE: Both the list and the internal cache entries will be mutated by this operation.
+---@param droneStackRequests {cacheEntry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
+function BreedOperator:retrieveDroneStacks(droneStackRequests)
     -- Sort the input by chest number so that we only have to do one scan.
-    table.sort(droneStacks, function (stack1, stack2) return stack1.entry.chestNumber <= stack2.entry.chestNumber end)
+    table.sort(droneStackRequests, function (stack1, stack2) return stack1.entry.chestNumber <= stack2.entry.chestNumber end)
 
     self:moveToStorageColumn()
 
     -- Grab the drones.
     local currentChest = 0
-    for i, v in ipairs(droneStacks) do
+    for i, v in ipairs(droneStackRequests) do
         -- Move to the right chest, if we aren't there already.
         if v.entry.chestNumber > currentChest then
             self.robot.turnLeft()
@@ -517,18 +526,11 @@ function BreedOperator:RetrieveDroneStacksToHoldovers(droneStacks)
         -- Grab the drones.
         self.robot.select(i)
         self.ic.suckFromSlot(self.sides.front, v.entry.slot, v.amount)
+        v.entry.stackSize = v.entry.stackSize - v.amount
     end
 
     self:returnToStorageColumnOriginFromChest(currentChest)
     self:returnToBreederStationFromStorageColumn()
-
-    -- Unload the drones into holdovers.
-    self:moveToHoldoverChest()
-    for i, v in ipairs(droneStacks) do
-        self.robot.select(i)
-        self.ic.dropIntoSlot(self.sides.front, v.holdoverSlot, v.amount)
-    end
-    self:returnToBreederStationFromHoldoverChest()
 end
 
 -- Retrieves the first two stacks from the holdover chest and places them in the analyzed drone chest.
