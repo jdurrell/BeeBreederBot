@@ -2,6 +2,7 @@
 local M = {}
 
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
+require("Shared.FieldDebug")
 
 -- Calculates the chance that an arbitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
 -- This function only requires a TraitInfoSpecies instead of a TraitInfoFull. Although other traits can be dominant or recessive, we
@@ -41,6 +42,7 @@ function M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, m
             probabilitySum = probabilitySum + mathFunc(v.primary, v.secondary, v2.primary, v2.secondary)
         end
     end
+
     probabilitySum = probabilitySum / (#princessPossibilities * #dronePossibilities)
 
     return probabilitySum
@@ -52,9 +54,9 @@ end
 ---@param princessSecondary string
 ---@param dronePrimary string
 ---@param droneSecondary string
----@param cacheElement BreedInfoCacheElement
+---@param breedInfoCache BreedInfoCache
 ---@return number
-function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princessPrimary, princessSecondary, dronePrimary, droneSecondary, cacheElement)
+function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princessPrimary, princessSecondary, dronePrimary, droneSecondary, breedInfoCache)
     -- Mutations can only happen between a primary species of one bee and the secondary of the other.
     -- Simply checking the item name (primary species) is insufficient because mutation isn't chosen between primaries.
     local A = princessPrimary
@@ -73,8 +75,8 @@ function M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, princessPri
     -- mutations. However, the server has already calculated for us (stored in `breedChanceAD` and `breedChanceBC`) the probability that this
     -- set of parents mutates into the target species and the probability that this set of parents mutates into a non-target species. Therefore,
     -- we don't need to worry about that layer here.
-    local breedChanceAD = cacheElement[A][D]
-    local breedChanceBC = cacheElement[B][C]
+    local breedChanceAD = breedInfoCache[A][D]
+    local breedChanceBC = breedInfoCache[B][C]
 
     -- Each mutation attempt can result in three disjoint events: (1) the mutation fails, (2) the mutation results in the target, (3) the
     -- mutation results in a species other than the target.
@@ -169,12 +171,12 @@ end
 ---@param target string
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
----@param cacheElement BreedInfoCacheElement
+---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
 ---@return number
-function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, cacheElement, traitInfo)
+function M.CalculateChanceAtLeastOneOffspringIsPureBredTarget(target, princess, drone, breedInfoCache, traitInfo)
     return M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, function (A, B, C, D)
-        local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, A, B, C, D, cacheElement)
+        local probPureBredTarget = M.CalculateChanceArbitraryOffspringIsPureBredTarget(target, A, B, C, D, breedInfoCache)
 
         -- The probability of succeeding on at least one offspring drone is equal to the probability of *not* failing on every offspring.
         -- The chance of getting subsequent drones as pure-bred is not independent from the trait combinations, so we push that calculation
@@ -187,14 +189,14 @@ end
 ---@param drone AnalyzedBeeIndividual
 ---@param targetTrait string
 ---@param targetValue any
----@param cacheElement BreedInfoCacheElement
+---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
 ---@return number
-function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(princess, drone, targetTrait, targetValue, cacheElement, traitInfo)
+function M.CalculateExpectedNumberOfTargetAllelesPerOffspring(princess, drone, targetTrait, targetValue, breedInfoCache, traitInfo)
     return M.SpeciesPrimarySecondaryInferenceWrapper(princess, drone, traitInfo, function(A, B, C, D)
         -- Handle possibility of mutation failing, producing a target, or producing a non-target.
-        local breedChanceAD = cacheElement[A][D]
-        local breedChanceBC = cacheElement[B][C]
+        local breedChanceAD = breedInfoCache[A][D]
+        local breedChanceBC = breedInfoCache[B][C]
 
         local probMutIsTarget = (0.5 * breedChanceAD.targetMutChance) + (0.5 * breedChanceBC.targetMutChance)
         local probMutIsNonTarget = (0.5 * breedChanceAD.nonTargetMutChance) + (0.5 * breedChanceBC.nonTargetMutChance)

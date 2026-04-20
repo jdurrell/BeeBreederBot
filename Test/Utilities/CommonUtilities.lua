@@ -154,7 +154,7 @@ end
 -- Returns a breeding information cache element preloaded with all possible combinations for the given target.
 ---@param target string
 ---@param graph SpeciesGraph
----@return BreedInfoCacheElement
+---@return BreedInfoCache
 function M.BreedCacheTargetLoad(target, graph)
     local cache = {}
 
@@ -177,7 +177,7 @@ function M.BreedCacheTargetLoad(target, graph)
 end
 
 ---@param graph SpeciesGraph
----@return table<string, BreedInfoCacheElement>
+---@return table<string, BreedInfoCache>
 function M.BreedCachePreloadAll(graph)
     local cache = {}
 

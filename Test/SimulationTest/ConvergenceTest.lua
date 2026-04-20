@@ -228,7 +228,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "forestry.speciesCommon"
-        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local breedInfoCache = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesForest"], traitInfo), 8, 1),
@@ -243,7 +243,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
                 "species",
                 {uid = target},
                 {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
-                breedInfoCacheElement,
+                breedInfoCache,
                 traitInfo
             ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
@@ -263,7 +263,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
         local traitInfo = Res.BeeGraphActual.GetTraitInfo()
         local defaultChromosomes = Res.BeeGraphActual.GetDefaultChromosomes()
         local target = "computronics.speciesScummy"
-        local breedInfoCacheElement = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
+        local breedInfoCache = Util.BreedCacheTargetLoad(target, Res.BeeGraphActual.GetGraph())
         local apiary = Apiary:Create(rawMutationInfo, traitInfo, defaultChromosomes)
         local initialDroneStacks = {
             createBeeStack(Util.CreateBee(defaultChromosomes["forestry.speciesAgrarian"], traitInfo), 8, 1),
@@ -278,7 +278,7 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
                 "species",
                 {uid = target},
                 {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
-                breedInfoCacheElement,
+                breedInfoCache,
                 traitInfo
             ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),

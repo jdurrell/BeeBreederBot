@@ -228,21 +228,22 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
             -- Otherwise, breed for species so that we can build up the tree to get the last node.
             local mutationTrait = ((i == #pathNode) and v.trait) or "species"
-            local breedInfoCacheElement = {}
+            local mutationValue = ((i == #pathNode) and targetTraits[v.trait]) or {species={uid=pathNode.target}}
+            local breedInfoCache = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:breed(
                 MatchingAlgorithms.MutatedAlleleMatcher(
                     self.breeder.numApiaries,
                     mutationTrait,
-                    targetTraits[v.trait],
+                    mutationValue,
                     {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
-                    breedInfoCacheElement,
+                    breedInfoCache,
                     traitInfoCache
                 ),
                 MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target, maxFertilityPreExisting, 64),
                 GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
                 function (princessStack, droneStackList)
-                    self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCacheElement)
+                    self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
                     self:populateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
                 end
             ).drones
@@ -575,13 +576,13 @@ function BeekeeperBot:breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
     return slots
 end
 
---- Populates `cacheElement` with any required information to allow for breeding calculations between the
+--- Populates `cache` with any required information to allow for breeding calculations between the
 --- given princess and any drone in `droneStackList`.
 ---@param princessStack AnalyzedBeeStack
 ---@param droneStackList AnalyzedBeeStack[]
 ---@param target string
----@param cacheElement BreedInfoCacheElement  The cache to be populated.
-function BeekeeperBot:populateBreedInfoCache(princessStack, droneStackList, target, cacheElement)
+---@param cache BreedInfoCache  The cache to be populated.
+function BeekeeperBot:populateBreedInfoCache(princessStack, droneStackList, target, cache)
     for _, droneStack in ipairs(droneStackList) do
         local mutCombos = {
             {princessStack.individual.active.species.uid, droneStack.individual.active.species.uid},
@@ -590,10 +591,10 @@ function BeekeeperBot:populateBreedInfoCache(princessStack, droneStackList, targ
             {princessStack.individual.inactive.species.uid, droneStack.individual.inactive.species.uid}
         }
         for _, combo in ipairs(mutCombos) do
-            cacheElement[combo[1]] = ((cacheElement[combo[1]] == nil) and {}) or cacheElement[combo[1]]
-            cacheElement[combo[2]] = ((cacheElement[combo[2]] == nil) and {}) or cacheElement[combo[2]]
+            cache[combo[1]] = ((cache[combo[1]] == nil) and {}) or cache[combo[1]]
+            cache[combo[2]] = ((cache[combo[2]] == nil) and {}) or cache[combo[2]]
 
-            if (cacheElement[combo[1]][combo[2]] == nil) or (cacheElement[combo[1]][combo[2]] == nil) then
+            if (cache[combo[1]][combo[2]] == nil) or (cache[combo[2]][combo[1]] == nil) then
                 local breedInfo = self.robotComms:GetBreedInfoFromServer(combo[1], combo[2], target)
                 if breedInfo == nil then
                     self:outputError("Unexpected error when retrieving target's breed info from server.")
@@ -601,8 +602,8 @@ function BeekeeperBot:populateBreedInfoCache(princessStack, droneStackList, targ
                 end
                 breedInfo = UnwrapNull(breedInfo)
 
-                cacheElement[combo[1]][combo[2]] = breedInfo
-                cacheElement[combo[2]][combo[1]] = breedInfo
+                cache[combo[1]][combo[2]] = breedInfo
+                cache[combo[2]][combo[1]] = breedInfo
             end
         end
     end

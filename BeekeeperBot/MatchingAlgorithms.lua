@@ -2,6 +2,7 @@
 local M = {}
 local MatchingMath = require("BeekeeperBot.MatchingMath")
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
+require("Shared.FieldDebug")
 
 ---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): integer, number | nil
 ---@alias StackFinisher fun(princessStack: AnalyzedBeeStack | nil, droneStackList: AnalyzedBeeStack[] | nil): {princess: integer | nil, drones: integer | nil}
@@ -14,10 +15,10 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@param mutationTrait string
 ---@param mutationValue any
 ---@param preferredTraits PartialAnalyzedBeeTraits
----@param cacheElement BreedInfoCacheElement
+---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
 ---@return Matcher
-function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, cacheElement, traitInfo)
+function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, breedInfoCache, traitInfo)
     preferredTraits[mutationTrait] = mutationValue
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
@@ -50,7 +51,7 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 local droneBee = droneStack.individual
 
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    princessBee, droneStack.individual, mutationTrait, mutationValue, cacheElement, traitInfo
+                    princessBee, droneBee, mutationTrait, mutationValue, breedInfoCache, traitInfo
                 ) * 1e3) * 1e6
 
                 if score == 0 then

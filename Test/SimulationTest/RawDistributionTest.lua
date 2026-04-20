@@ -98,14 +98,14 @@ local function runArbitraryOffspringAccuracyTest(target, queenSpecies1, queenSpe
     math.randomseed(((seed ~= nil) and seed) or 456)
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), resourceProvider.GetTraitInfo())
     local graph = resourceProvider.GetGraph()
-    local cacheElement = Util.BreedCacheTargetLoad(target, graph)
+    local breedInfoCache = Util.BreedCacheTargetLoad(target, graph)
     local queen = Util.CreateBee(Util.CreateGenome(queenSpecies1, queenSpecies2))
     local drone = Util.CreateBee(Util.CreateGenome(droneSpecies1, droneSpecies2))
     local expectedProbability = MatchingMath.CalculateChanceArbitraryOffspringIsPureBredTarget(
         target,
         queen.__genome.species.primary.uid, queen.__genome.species.secondary.uid,
         drone.__genome.species.primary.uid, drone.__genome.species.secondary.uid,
-        cacheElement
+        breedInfoCache
     )
     local sampleFunction = function ()
         local _, drones = apiary:GenerateDescendants(queen, drone)
@@ -158,12 +158,12 @@ local function runAtLeastOneOffspringAccuracyTest(target, queenSpeciesActive, qu
     local traitInfo = resourceProvider.GetTraitInfo()
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), traitInfo)
     local graph = resourceProvider.GetGraph()
-    local cacheElement = Util.BreedCacheTargetLoad(target, graph)
+    local breedInfoCache = Util.BreedCacheTargetLoad(target, graph)
     local expectedProbability = MatchingMath.CalculateChanceAtLeastOneOffspringIsPureBredTarget(
         target,
         Util.CreateBee(Util.CreateGenome(queenSpeciesActive, queenSpeciesInactive, queenFertility)),
         Util.CreateBee(Util.CreateGenome(droneSpeciesActive, droneSpeciesInactive)),
-        cacheElement,
+        breedInfoCache,
         traitInfo
     )
     local sampleFunction = function ()
@@ -304,13 +304,13 @@ local function RunExpectedTargetAllelesTest(target, queenSpeciesActive, queenSpe
     local traitInfo = resourceProvider.GetTraitInfo()
     local apiary = Apiary:Create(resourceProvider.GetRawMutationInfo(), traitInfo)
     local graph = resourceProvider.GetGraph()
-    local cacheElement = Util.BreedCacheTargetLoad(target, graph)
+    local breedInfoCache = Util.BreedCacheTargetLoad(target, graph)
     local expectedAlleles = MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
         Util.CreateBee(Util.CreateGenome(queenSpeciesActive, queenSpeciesInactive)),
         Util.CreateBee(Util.CreateGenome(droneSpeciesActive, droneSpeciesInactive)),
         "species",
         {uid = target},
-        cacheElement,
+        breedInfoCache,
         traitInfo
     )
 
