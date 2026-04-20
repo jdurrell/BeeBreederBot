@@ -105,3 +105,5 @@ function StorageRowCache:AllocateSlot(traits)
     -- We didn't find any gaps, so just take the last one.
     return self:LoadDrone(traits, 0, nextChest, nextSlot)
 end
+
+return StorageRowCache
