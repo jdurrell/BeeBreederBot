@@ -45,11 +45,11 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
     obj.event = eventLib
 
     if not TableContains({"UP_5", "DOWN_5", "BOTH_5"}, config.defaultHumidityTolerance) then
-        Print(string.format("Invalid `defaultHumidityTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'."))
+        Print(string.format("Invalid `defaultHumidityTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'.", config.defaultHumidityTolerance))
         obj:shutdown(1)
     end
     if not TableContains({"UP_5", "DOWN_5", "BOTH_5"}, config.defaultTemperatureTolerance) then
-        Print(string.format("Invalid `defaultTemperatureTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'."))
+        Print(string.format("Invalid `defaultTemperatureTolerance` supplied: %s. Must be 'UP_5', 'DOWN_5',' or 'BOTH_5'.", config.defaultTemperatureTolerance))
         obj:shutdown(1)
     end
     obj.config = config
