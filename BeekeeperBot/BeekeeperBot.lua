@@ -172,7 +172,7 @@ end
 function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
     -- If we don't have all of the traits, then figure out how to breed them into the storage population.
     local traitsPresent = {}
-    for k, v in targetTraits do
+    for k, v in pairs(targetTraits) do
         -- TODO: Eventually, create an iterator for the cache so that we don't have to run through the whole thing several times.
         traitsPresent[k] = (self.breeder.storageCache:GetDroneEntry({[k] = v}) ~= nil)
     end
