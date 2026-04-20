@@ -16,7 +16,11 @@ local StorageRowCache = {}
 -- Creates and returns a new StorageRowCache.
 ---@return StorageRowCache
 function StorageRowCache:Create()
-    return {};
+    local obj = {}
+    setmetatable(obj, self)
+    self.__index = self
+
+    return obj;
 end
 
 -- Clears the cache.
