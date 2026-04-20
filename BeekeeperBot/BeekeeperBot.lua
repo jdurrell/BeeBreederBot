@@ -130,6 +130,8 @@ function BeekeeperBot:makeTemplateHandler(data)
     data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
 
     if data.raw then
+        Print("Processing raw breed request...")
+
         -- If raw is specified, then the user is responsible for organizing everything in the proper chests.
         local slots = self:breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(data.traits, self.breeder.numApiaries),
@@ -143,6 +145,7 @@ function BeekeeperBot:makeTemplateHandler(data)
             return
         end
     else
+        Print("Processing breed request...")
         self.breeder:RefreshStorageCache()  -- TODO: Do we have enough memory for this?
         if self.breeder.storageCache:IsEmpty() then
             self:outputError("Failed to find any bees when searching for best initial trait match.")
@@ -394,13 +397,13 @@ function BeekeeperBot:replicateIfNecessary(traits, amount, holdoverSlot)
     local cacheEntry = self.breeder.storageCache:GetDroneEntry(traits)
     if cacheEntry == nil then
         -- We should have already confirmed that the drone is in the cache by this point.
-        self:outputError("Replicator failed to find cache entry for drone.")
+        self:outputError(string.format("Replicator failed to find cache entry for drone with traits %s.", TraitsToString(traits)))
         return false
     end
 
     if cacheEntry.stackSize - amount >= 16 then
         Print(string.format("Drone stack size sufficient. Skipping replication of trait pattern %s", TraitsToString(traits)))
-        self.breeder:RetrieveDroneStacksToHoldovers({entry=cacheEntry, amount=amount, holdoverSlot=holdoverSlot})
+        self.breeder:RetrieveDroneStacksToHoldovers({{entry=cacheEntry, amount=amount, destinationChestSlot=holdoverSlot}})
         return true
     end
 
@@ -438,7 +441,7 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, cache
     end
 
     -- Retrieve the starter drones.
-    self.breeder:RetrieveDronesToActive({cacheEntry=cacheEntry, amount=amount, destinationChestSlot=1})
+    self.breeder:RetrieveDronesToActive({{cacheEntry=cacheEntry, amount=amount, destinationChestSlot=1}})
 
     local stack = self.breeder:GetStackInDroneSlot(1)
     if stack == nil then
