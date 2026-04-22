@@ -2,7 +2,6 @@
 local M = {}
 local MatchingMath = require("BeekeeperBot.MatchingMath")
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
-require("Shared.FieldDebug")
 
 ---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): integer, number | nil
 ---@alias StackFinisher fun(princessStack: AnalyzedBeeStack | nil, droneStackList: AnalyzedBeeStack[] | nil): {princess: integer | nil, drones: integer | nil}

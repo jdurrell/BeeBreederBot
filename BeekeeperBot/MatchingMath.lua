@@ -2,7 +2,6 @@
 local M = {}
 
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
-require("Shared.FieldDebug")
 
 -- Calculates the chance that an arbitrary offspring produced by the given princess and drone will be a pure-bred of the target species.
 -- This function only requires a TraitInfoSpecies instead of a TraitInfoFull. Although other traits can be dominant or recessive, we
