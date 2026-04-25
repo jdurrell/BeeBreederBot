@@ -86,10 +86,11 @@ end
 
 ---@param trait string
 ---@param value any
+---@param existingSpecies string[]
 ---@return TraitBreedPathResponsePayload | nil
-function RobotComms:GetBreedPathForTraitFromServer(trait, value)
+function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies)
     ::restart::
-    local payload = {trait = trait, value = value}
+    local payload = {trait = trait, value = value, existingSpecies = existingSpecies}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, payload)
 
     local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
@@ -142,26 +143,6 @@ end
 function RobotComms:ReportErrorToServer(errorMessage)
     local payload = {errorMessage = errorMessage}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PrintErrorRequest, payload)
-end
-
--- Reports to the server that this species has been fully bred, and returns the location where it should be stored.
----@param species string
----@return boolean
-function RobotComms:ReportNewSpeciesToServer(species)
-    ::restart::
-    -- Report the update to the server.
-    local payload = {species = species}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.SpeciesFoundRequest, payload)
-
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.SpeciesFoundResponse)
-    if response == nil then
-        goto restart
-    end
-    if not self:validateExpectedMessage(CommLayer.MessageCode.SpeciesFoundResponse, response, false) then
-        return false
-    end
-
-    return true
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.

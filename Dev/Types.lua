@@ -163,7 +163,6 @@ local BeekeeperBotConfig = {}
 
 ---@class BeeServerConfig
 ---@field botAddr string
----@field logFilepath string
 ---@field port integer
 local BeeServerConfig = {}
 
@@ -185,13 +184,12 @@ local CodedMessage = {}
 ---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
 ---@alias PingRequestPayload {transactionId: integer}
 ---@alias PingResponsePayload {transactionId: integer}
----@alias SpeciesFoundRequestPayload {species: string}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
----@alias TraitBreedPathRequestPayload {trait: string, value: any}
+---@alias TraitBreedPathRequestPayload {trait: string, value: any, existingSpecies: string[]}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 
 ---@class Set<T>: table<T, boolean>

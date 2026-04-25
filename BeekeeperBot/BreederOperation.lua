@@ -685,14 +685,13 @@ end
 
 -- Moves the drone stacks in the import chest to the drone store.
 -- Returns a set of the species imported.
----@return Set<string> | nil
+---@return boolean
 function BreedOperator:ImportDroneStacksFromInputsToStore()
     self:moveToInputChest()
 
-    -- TODO: Deal with the case where there are more than 16 drones.
+    -- TODO: Deal with the case where there are more than 16 stacks of drones.
     -- There are several items in this input chest. Only pick up the drones.
     local numInternalSlotsTaken = 0
-    local species = {}  ---@type Set<string>
     local traitSets = {}  ---@type AnalyzedBeeTraits[]
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         local stack = self.ic.getStackInSlot(self.sides.front, i)
@@ -701,9 +700,6 @@ function BreedOperator:ImportDroneStacksFromInputsToStore()
         if (stack ~= nil) and (stack.size > 16) and (string.find(stack.label, "[D|d]rone") ~= nil) then
             -- We have to put this check inside the above because it is not valid if we don't have a drone.
             if (AnalysisUtil.AllTraitsPure(stack.individual)) then
-                if (stack.individual.active.species.uid == stack.individual.inactive.species.uid) then
-                    species[stack.individual.active.species.uid] = true
-                end
                 table.insert(traitSets, stack.individual.active)
 
                 self.robot.select(numInternalSlotsTaken + 1)
@@ -720,12 +716,10 @@ function BreedOperator:ImportDroneStacksFromInputsToStore()
     self:returnToBreederStationFromInputChest()
 
     if not self:storeDrones(traitSets) then
-        return nil
+        return false
     end
 
-    -- Doesn't like returning the table for some reason.
-    ---@cast species Set<string>
-    return species
+    return true
 end
 
 ---@param block string

@@ -81,6 +81,18 @@ function StorageRowCache:GetDroneEntry(traits)
     return nil
 end
 
+---@return string[]
+function StorageRowCache:GetAllSpecies()
+    local species = {} ---@type string[]
+    for i, v in ipairs(self.cache) do
+        if not TableContains(species, v.traits.species.uid) then
+            table.insert(species, v.traits.species.uid)
+        end
+    end
+
+    return species
+end
+
 -- Allocates a new chest slot for a drone with the given traits.
 ---@param traits AnalyzedBeeTraits
 ---@return StorageCacheEntry

@@ -107,14 +107,8 @@ function BeekeeperBot:importPrincessesCommandHandler(data)
 end
 
 function BeekeeperBot:importDroneStacksHandler(data)
-    local speciesSet = self.breeder:ImportDroneStacksFromInputsToStore()
-
-    if speciesSet == nil then
+    if not self.breeder:ImportDroneStacksFromInputsToStore() then
         self:outputError("Failed to import drones.")
-    else
-        for spec, _ in pairs(speciesSet) do
-            self.robotComms:ReportNewSpeciesToServer(spec)
-        end
     end
 end
 
@@ -187,8 +181,8 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             goto continue
         end
 
-        -- We don't have the trait already. Check with the server whether we are able to breed that trait.
-        local path = self.robotComms:GetBreedPathForTraitFromServer(k, v)  ---@type TraitBreedPathResponsePayload | nil
+          ---@type TraitBreedPathResponsePayload | nil
+        local path = self.robotComms:GetBreedPathForTraitFromServer(k, v, self.breeder.storageCache:GetAllSpecies())
         if path == nil then
             self:outputError("Failed to get a valid breeding path for the requested mutation.")
             return false
@@ -261,7 +255,6 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 self:outputError("Expected finished drone to be in the slot.")
                 return false
             end
-            self.robotComms:ReportNewSpeciesToServer(droneStack.individual.active.species.uid)
             for k2, v2 in pairs(targetTraits) do
                 -- It is technically possible that we got additional traits beyond what we were specifically aiming for.
                 -- If so, then update the cache so that trying to get it through another mutation can be skipped later.

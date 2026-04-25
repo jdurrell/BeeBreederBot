@@ -117,7 +117,7 @@ function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
 
         -- We can skip tracing the path if this is a leaf node, but not if this is the target
         -- (because we might need to rebreed it from other existing species to get a new trait).
-        if (leafSpecies[name] == nil) or (name == found) then
+        if (not TableContains(leafSpecies, name)) or (name == found) then
             for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
                 if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
                     bfsQueueRetrace:Push(parent, nil)

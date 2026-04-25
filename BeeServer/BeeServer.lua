@@ -7,7 +7,6 @@ require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
-local Logger = require("BeeServer.Logger")
 local MutationMath = require("BeeServer.MutationMath")
 local MutationTraits = require("BeeServer.SpeciesMutationTraits")
 local TraitInfo = require("BeeServer.SpeciesDominance")
@@ -22,7 +21,6 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field messagingPromptsPending table<string, boolean>
 ---@field messagingThreadHandle ThreadHandle
 ---@field messageHandlerTable table<integer, function>
----@field leafSpeciesList string[]
 ---@field logFilepath string
 ---@field terminalHandlerTable table<string, function>
 local BeeServer = {}
@@ -105,23 +103,6 @@ function BeeServer:PromptConditionsHandler(addr, data)
 end
 
 ---@param addr string
----@param data SpeciesFoundRequestPayload
-function BeeServer:SpeciesFoundHandler(addr, data)
-    if data.species == nil then
-        return
-    end
-
-    -- Update the species that was found by the robot in our internal state and on disk.
-    if not TableContains(self.leafSpeciesList, data.species) then
-        table.insert(self.leafSpeciesList, data.species)
-        Logger.LogSpeciesToDisk(self.logFilepath, data.species)
-    end
-
-    -- Respond back to the robot acknowledging that we have recorded the new find.
-    self.comm:SendMessage(addr, CommLayer.MessageCode.SpeciesFoundResponse)
-end
-
----@param addr string
 ---@param data TraitBreedPathRequestPayload
 function BeeServer:TraitBreedPathHandler(addr, data)
     if (data.trait == nil) or (data.value == nil) then
@@ -148,7 +129,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         return
     end
 
-    local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, self.leafSpeciesList, validTargets)
+    local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, data.existingSpecies, validTargets)
     if path == nil then
         Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
             data.trait, TraitToString(data.trait, data.value)
@@ -382,7 +363,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.event = eventLib
     obj.term = termLib
     obj.botAddr = config.botAddr
-    obj.logFilepath = config.logFilepath
     obj.conditionsPending = false
     obj.messagingPromptsPending = {}
 
@@ -402,7 +382,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
-        [CommLayer.MessageCode.SpeciesFoundRequest] = BeeServer.SpeciesFoundHandler,
         [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
         [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
     }
@@ -432,13 +411,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
     obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
     Print("Imported bee graph.")
-
-    -- Read our local logfile to figure out which species we already have.
-    Print("Reading species logfile from " .. config.logFilepath .. "...")
-    obj.leafSpeciesList = Logger.ReadSpeciesLogFromDisk(config.logFilepath)
-    if #(obj.leafSpeciesList) == 0 then
-        Print("No initial species were found.")
-    end
 
     -- Set up the terminal handler thread.
     obj.messagingThreadHandle = threadLib.create(function ()

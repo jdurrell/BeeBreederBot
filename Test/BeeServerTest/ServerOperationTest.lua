@@ -13,7 +13,6 @@ local Util = require("Test.Utilities.CommonUtilities")
 
 local BeeServer = require("BeeServer.BeeServer")
 local CommLayer = require("Shared.CommLayer")
-local Logger = require("BeeServer.Logger")
 
 
 ---@param receiverExpected thread
@@ -53,13 +52,12 @@ local function runThreadAndVerifyResponse(thread, expectedResponse)
     Luaunit.assertEquals(actualResponse, expectedResponse)
 end
 
----@param logfile string
 ---@param port integer
-local function createServerInstance(logfile, port)
+local function createServerInstance(port)
     local server = nil  ---@type BeeServer
     local parentThread = Coroutine.running()
     local thread = Coroutine.create(function ()
-        local config = {port = port, logFilepath = logfile, botAddr = parentThread}
+        local config = {port = port, botAddr = parentThread}
         server = BeeServer:Create(Component, Event, Serialization, Term, Thread, config)
         Luaunit.assertNotIsNil(server)
         Coroutine.yield("startup success")
@@ -95,12 +93,11 @@ local function verifyModemStateAfterServerShutdown(serverThread)
     end
 end
 
----@param logfile string
 ---@param port integer
 ---@return thread, BeeServer
-local function startServerAndVerifyStartup(logfile, port)
+local function startServerAndVerifyStartup(port)
     -- Start the server and verify that it started correctly.
-    local serverThread, server = createServerInstance(logfile, port)
+    local serverThread, server = createServerInstance(port)
     Luaunit.assertNotIsNil(server)
     Luaunit.assertEquals(Coroutine.status(serverThread), "suspended")
     local response = runThreadAndVerifyRan(serverThread)
@@ -140,14 +137,12 @@ TestBeeServerStandalone = {}
     end
 
     function TestBeeServerStandalone:TestLaunchAndShutdown()
-        local logFilepath = Util.CreateLogfileSeed(nil, nil)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverThread, server = startServerAndVerifyStartup(CommLayer.DefaultComPort)
         stopServerAndVerifyShutdown(server, serverThread)
     end
 
     function TestBeeServerStandalone:TestLaunchIdleShutdown()
-        local logFilepath = Util.CreateLogfileSeed(nil, nil)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverThread, server = startServerAndVerifyStartup(CommLayer.DefaultComPort)
 
         -- Let the server idle for a while, then shut it down.
         for i = 1, 10 do
@@ -163,31 +158,10 @@ TestBeeServerStandalone = {}
         stopServerAndVerifyShutdown(server, serverThread)
     end
 
-    function TestBeeServerStandalone:TestLaunchWithLogAndShutdown()
-        local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", nil)
-        Component.tile_for_apiculture_0_name.__Initialize(Res.BeeGraphMundaneIntoCommon)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-
-        -- Verify that the server read the log correctly.
-        Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
-        stopServerAndVerifyShutdown(server, serverThread)
-    end
-
-    function TestBeeServerStandalone:TestLaunchWithEmptyLogAndShutdown()
-        local logFilepath = Util.CreateLogfileSeed(nil, nil)
-        Component.tile_for_apiculture_0_name.__Initialize(Res.BeeGraphMundaneIntoCommon)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-
-        -- Verify that the server didn't fail on an empty log.
-        Luaunit.assertItemsEquals(server.leafSpeciesList, {})
-        stopServerAndVerifyShutdown(server, serverThread)
-    end
-
     function TestBeeServerStandalone:TestPing()
         local thisThread = Coroutine.running()
 
-        local logFilepath = Util.CreateLogfileSeed(nil, nil)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverThread, server = startServerAndVerifyStartup(CommLayer.DefaultComPort)
         local serverMessagingThread = server.messagingThreadHandle.__thread
         runThreadAndVerifyResponse(serverThread, "term_pull")
 
@@ -202,11 +176,11 @@ TestBeeServerStandalone = {}
     end
 
     function TestBeeServerStandalone:TestBreedInfo()
+        -- TODO: Do we need to add species to this?
         local thisThread = Coroutine.running()
         ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
 
-        local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", nil)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
+        local serverThread, server = startServerAndVerifyStartup(CommLayer.DefaultComPort)
         local serverMessagingThread = server.messagingThreadHandle.__thread
 
         runThreadAndVerifyResponse(serverThread, "term_pull")
@@ -216,48 +190,6 @@ TestBeeServerStandalone = {}
         Luaunit.assertEquals(response, {targetMutChance = 0.08, nonTargetMutChance = 0})
 
         runThreadAndVerifyResponse(serverMessagingThread, "event_pull")
-        runThreadAndVerifyResponse(serverThread, "term_pull")
-        stopServerAndVerifyShutdown(server, serverThread)
-        Modem.close(CommLayer.DefaultComPort)
-    end
-
-    function TestBeeServerStandalone:TestSpeciesFoundNewSpecies()
-        local thisThread = Coroutine.running()
-        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
-
-        local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local serverMessagingThread = server.messagingThreadHandle.__thread
-
-        runThreadAndVerifyResponse(serverMessagingThread, "event_pull")
-        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species = "forestry.speciesIndustrious"})
-        runThreadAndVerifyResponse(serverMessagingThread, "modem_send")
-        verifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
-
-        Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
-        Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical", "forestry.speciesIndustrious"})
-
-        runThreadAndVerifyResponse(serverThread, "term_pull")
-        stopServerAndVerifyShutdown(server, serverThread)
-        Modem.close(CommLayer.DefaultComPort)
-    end
-
-    function TestBeeServerStandalone:TestSpeciesFoundExistingSpecies()
-        local thisThread = Coroutine.running()
-        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
-
-        local logFilepath = Util.CreateLogfileSeed("BasicLog_uids.log", Util.DEFAULT_LOG_PATH)
-        local serverThread, server = startServerAndVerifyStartup(logFilepath, CommLayer.DefaultComPort)
-        local serverMessagingThread = server.messagingThreadHandle.__thread
-
-        runThreadAndVerifyResponse(serverMessagingThread, "event_pull")
-        Modem.__sendNoYield(serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundRequest, {species="forestry.speciesForest"})
-        runThreadAndVerifyResponse(serverMessagingThread, "modem_send")
-        verifyModemResponse(thisThread, serverMessagingThread, CommLayer.DefaultComPort, CommLayer.MessageCode.SpeciesFoundResponse)
-
-        Luaunit.assertItemsEquals(server.leafSpeciesList, {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
-        Luaunit.assertItemsEquals(Logger.ReadSpeciesLogFromDisk(Util.DEFAULT_LOG_PATH), {"forestry.speciesForest", "forestry.speciesMeadows", "forestry.speciesTropical"})
-
         runThreadAndVerifyResponse(serverThread, "term_pull")
         stopServerAndVerifyShutdown(server, serverThread)
         Modem.close(CommLayer.DefaultComPort)
