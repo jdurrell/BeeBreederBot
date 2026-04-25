@@ -194,15 +194,15 @@ function BeeServer:ContinueCommandHandler(argv)
 end
 
 function BeeServer:ImportCommandHandler(argv)
-    if (argv[2] == nil) then
+    if (argv[1] == nil) then
         Print("Unrecognized command. Usage: import <princesses | drones>")
         return
     end
 
-    if argv[2] == "princesses" then
+    if argv[1] == "princesses" then
         self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportPrincessesCommand)
         Print("Importing princesses...")
-    elseif argv[2] == "drones" then
+    elseif argv[1] == "drones" then
         self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportDroneStacksCommand)
         Print("Importing drones...")
     else
@@ -228,9 +228,6 @@ function BeeServer:TemplateCommandHandler(argv)
         ["tolerantFlyer"] = "boolean"
     }
     local payload = {traits = {}, raw = TableContains(argv, "--raw")}  ---@type MakeTemplatePayload
-
-    -- Remove the orginal command.
-    table.remove(argv, 1)
 
     local parameterArgs = {}
     for i, v in ipairs(argv) do
@@ -323,10 +320,12 @@ function BeeServer:pollForTerminalInputAndHandle()
     end
 
     if self.terminalHandlerTable[argv[1]] == nil then
-        Print("Unrecognized command.")
-    else
-        self.terminalHandlerTable[argv[1]](self, argv)
+        Print(string.format("Unrecognized command: '%s'", argv[1]))
     end
+    local command = argv[1]
+    table.remove(argv, 1)
+
+    self.terminalHandlerTable[command](self, argv)
 end
 
 -- Shuts down the server.
