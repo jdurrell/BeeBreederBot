@@ -242,29 +242,47 @@ TestGraphParse = {}
 TestGraphQuery = {}
     function TestGraphQuery:TestLeafNode()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
-        for _, spec in ipairs(Res.MundaneBees) do
-            local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, spec, false)
-            Luaunit.assertEquals(path, {{target=spec, parent1=nil, parent2=nil}})
-        end
+        local path = GraphQuery.QueryBestBreedingPath(graph, Res.MundaneBees, {["Forest"]=true})
+        Luaunit.assertIsNil(path)
     end
 
     function TestGraphQuery:TestNoExist()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
-        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, "shouldntexist", false)
+        local path = GraphQuery.QueryBestBreedingPath(graph, Res.MundaneBees, {["shouldntexist"]=true})
         Luaunit.assertIsNil(path)
     end
 
     function TestGraphQuery:TestBasic()
         local graph = Res.BeeGraphMundaneIntoCommon.GetGraph()
         local target = "Common"
-        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, target, false)
+        local path = GraphQuery.QueryBestBreedingPath(graph, Res.MundaneBees, {[target]=true})
         Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
     end
 
     function TestGraphQuery:TestMultistep()
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
         local target = "Cultivated"
-        local path = GraphQuery.QueryBreedingPath(graph, Res.MundaneBees, target, false)
+        local path = GraphQuery.QueryBestBreedingPath(graph, Res.MundaneBees, {[target]=true})
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
+    end
+
+    function TestGraphQuery:TestExistingRebreed()
+        local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
+        local target = "Common"
+        local leafSpecies = Copy(Res.MundaneBees)
+        table.insert(leafSpecies, target)
+        local path = GraphQuery.QueryBestBreedingPath(graph, leafSpecies, {[target]=true})
+        Luaunit.assertEquals(#path, 1)
+        Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
+    end
+
+    function TestGraphQuery:TestExistingRebreedWithGap()
+        local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
+        local target = "Cultivated"
+        local leafSpecies = Copy(Res.MundaneBees)
+        table.insert(leafSpecies, target)
+        local path = GraphQuery.QueryBestBreedingPath(graph, leafSpecies, {[target]=true})
+        Luaunit.assertEquals(#path, 2)
         Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
     end
 
@@ -272,7 +290,22 @@ TestGraphQuery = {}
         local graph = Res.BeeGraphActual.GetGraph()
         local target = "gregtech.bee.speciesIron"
         local leafNodes = {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
-        local path = GraphQuery.QueryBreedingPath(graph, leafNodes, target, false)
+        local path = GraphQuery.QueryBestBreedingPath(graph, leafNodes, {[target]=true})
+        Luaunit.assertNotIsNil(path)
+        Util.AssertPathIsValidInGraph(graph, leafNodes, path, target)
+    end
+
+    function TestGraphQuery:TestBestTarget()
+        local graph = Res.BeeGraphActual.GetGraph()
+        local targets = {["gregtech.bee.speciesIron"]=true, ["gregtech.bee.speciesTitanium"]=true}
+        local leafNodes = {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        local path = GraphQuery.QueryBestBreedingPath(graph, leafNodes, targets)
+
+        Luaunit.assertNotIsNil(path)
+        Luaunit.assertIsTrue(#path >= 1)
+        path = UnwrapNull(path)
+        local target = path[#path].target
+        Luaunit.assertEquals(target, "gregtech.bee.speciesIron")
         Luaunit.assertNotIsNil(path)
         Util.AssertPathIsValidInGraph(graph, leafNodes, path, target)
     end

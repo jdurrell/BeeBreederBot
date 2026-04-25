@@ -44,19 +44,15 @@ local M = {}
 
 ---@param graph SpeciesGraph
 ---@param leafSpecies string[]
----@param target string
----@param forceRebreed boolean
+---@param validTargets Set<string>
 ---@return BreedPathNode[] | nil
-function M.QueryBreedingPath(graph, leafSpecies, target, forceRebreed)
+function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
     for _, spec in ipairs(leafSpecies) do
-        -- If we can just re-use the drones we've already bred, then it should be the only thing in the breed path.
-        if (not forceRebreed) and (spec == target) then
-            return {{target = target, parent1 = nil, parent2 = nil}}
+        if validTargets[spec] == nil then
+            bfsQueueSearch:Push(spec, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
         end
-
-        bfsQueueSearch:Push(spec, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
     end
 
     if #(bfsQueueSearch.queue) == 0 then
@@ -65,14 +61,14 @@ function M.QueryBreedingPath(graph, leafSpecies, target, forceRebreed)
         return nil
     end
 
-    local found = false
+    local found = ""
     while #(bfsQueueSearch.queue) > 0 do
         local qNode = bfsQueueSearch:Pop()
         if qNode == nil then
-            Print("Failed to find path to species " .. target .. " in graph from given leaf nodes.")
+            Print("Error: Failed to find path to any target species in graph from given leaf nodes.")
             return nil
-        elseif qNode == target then
-            found = true
+        elseif validTargets[qNode] then
+            found = qNode
             break
         end
 
@@ -98,8 +94,8 @@ function M.QueryBreedingPath(graph, leafSpecies, target, forceRebreed)
         end
     end
 
-    if not found then
-        Print("Failed to find the target in the graph.")
+    if found == "" then
+        Print("Error: Failed to find the target in the graph.")
         return nil
     end
 
@@ -107,23 +103,25 @@ function M.QueryBreedingPath(graph, leafSpecies, target, forceRebreed)
     local path = {}
 
     -- Retrace the path to return it out.
-    -- In theory, we could have built the path as we did the search, but we are memory-limited,
-    -- so we trade off some time to limit the information stored and rebuild the path later.
     local bfsQueueRetrace = BFSQueue:Create()
-    bfsQueueRetrace:Push(target, nil)
+    bfsQueueRetrace:Push(found, nil)
     while #(bfsQueueRetrace.queue) > 0 do
         local name = bfsQueueRetrace:Pop()
-        if bfsQueueSearch.pathlookup[name][1] ~= nil or bfsQueueSearch.pathlookup[name][2] then
+        if bfsQueueSearch.pathlookup[name][1] ~= nil or bfsQueueSearch.pathlookup[name][2] ~= nil then
             table.insert(path, {
-                target = name,
-                parent1 = bfsQueueSearch.pathlookup[name][1],
-                parent2 = bfsQueueSearch.pathlookup[name][2]
+                target=name,
+                parent1=bfsQueueSearch.pathlookup[name][1],
+                parent2=bfsQueueSearch.pathlookup[name][2],
             })
         end
 
-        for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
-            if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
-                bfsQueueRetrace:Push(parent, nil)
+        -- We can skip tracing the path if this is a leaf node, but not if this is the target
+        -- (because we might need to rebreed it from other existing species to get a new trait).
+        if (leafSpecies[name] == nil) or (name == found) then
+            for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
+                if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
+                    bfsQueueRetrace:Push(parent, nil)
+                end
             end
         end
     end

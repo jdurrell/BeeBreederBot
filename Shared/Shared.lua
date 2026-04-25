@@ -92,6 +92,18 @@ function Copy(original)
     return deepcopy(original, nil)
 end
 
+---@param trait string
+---@param value any
+function TraitToString(trait, value)
+    if trait == "species" then
+        return value.uid
+    elseif trait == "speed" then
+        return string.format("%.1f", value)
+    elseif trait == "territory" then
+        return string.format("[ %u, %u, %u]", value[1], value[2], value[3])
+    end
+end
+
 ---@param traits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@return string
 function TraitsToString(traits)
@@ -126,7 +138,7 @@ function TraitsToString(traits)
         str = str .. string.format("nocturnal: '%s', ", tostring(traits.nocturnal))
     end
     if traits.speed ~= nil then
-        str = str .. string.format("speed: %.2f, ", traits.speed)
+        str = str .. string.format("speed: %.1f, ", traits.speed)
     end
     if traits.territory ~= nil then
         -- During testing, we sometimes only set one of these values, so we have backups here to prevent crashing.

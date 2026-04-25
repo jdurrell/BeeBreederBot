@@ -100,7 +100,13 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value)
         return nil
     end
 
-    return UnwrapNull(response).payload
+    -- An empty breed path is an error.
+    local responsePayload = UnwrapNull(response).payload ---@type TraitBreedPathResponsePayload
+    if #responsePayload == 0 then
+        return nil
+    end
+
+    return responsePayload
 end
 
 ---@return any

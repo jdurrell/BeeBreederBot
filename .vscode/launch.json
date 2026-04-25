@@ -23,6 +23,13 @@
             "program": "${workspaceFolder}/Test/BeeBreederBotTest.lua",
             "arg": ["--pattern", "<put-test-here>"],
             "stopOnEntry": false
+        },
+        {
+            "type": "lua",
+            "request": "launch",
+            "name": "Debug Current File",
+            "program": "${file}",
+            "stopOnEntry": false
         }
     ]
 }

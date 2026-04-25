@@ -9,6 +9,7 @@ local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
 local Logger = require("BeeServer.Logger")
 local MutationMath = require("BeeServer.MutationMath")
+local MutationTraits = require("BeeServer.SpeciesMutationTraits")
 local TraitInfo = require("BeeServer.SpeciesDominance")
 
 ---@class BeeServer
@@ -128,11 +129,53 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         return
     end
 
-    -- TODO: Figure this out from a list of default chromosomes, and don't force the player to figure this out manually.
-    --       There may be some portability and memory to that, though.
-    self.messagingPromptsPending["traitbreedpath"] = true
-    Print(string.format("Trait %s is not found in the bee storage.", TraitsToString({[data.trait] = data.value})))
-    Print("Enter a species to breed with the desired trait mutation:")
+    local indexableValue = data.value
+    local validTargets = {}  ---@type string[]
+    if data.trait == "species" then
+        validTargets = {data.value.uid}
+    elseif data.trait == "territory" then
+        indexableValue = data.value[1]
+    elseif data.trait == "speed" then
+        indexableValue = math.floor(data.value * 10 + 0.5) / 10
+    end
+    validTargets = MutationTraits[data.trait][indexableValue]
+
+    if #validTargets == 0 then
+        Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
+            data.trait, TraitToString(data.trait, data.value)
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        return
+    end
+
+    local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, self.leafSpeciesList, validTargets)
+    if path == nil then
+        Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
+            data.trait, TraitToString(data.trait, data.value)
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        return
+    end
+
+    Print(string.format("Trait '%s: %s' not found in breeding path: breeding it through:",
+        data.trait, TraitToString(data.trait, data.value)
+    ))
+    for _, v in ipairs(path) do
+        Print(string.format("  %s + %s = %s", v.parent1, v.parent2, v.target))
+    end
+
+    local printedFoundations = false
+    for _, v in ipairs(path) do
+        if v.foundation then
+            if not printedFoundations then
+                printedFoundations = true
+                Print(string.format("\nPlease gather the following foundations:"))
+            end
+            Print(string.format("  %s", v.foundation))
+        end
+    end
+
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, path)
 end
 
 ---@param addr string
@@ -269,28 +312,6 @@ function BeeServer:TemplateCommandHandler(argv)
 end
 
 ---@param argv string[]
-function BeeServer:TraitBreedPathCommandHandler(argv)
-    if self.messagingPromptsPending["traitbreedpath"] then
-        local species = argv[1]
-        if (species == nil) or self.beeGraph[species] == nil then
-            return
-        elseif species == "cancel" then
-            -- Give the user a way to break out of this, if they need to.
-            self.messagingPromptsPending["traitbreedpath"] = false
-            return
-        end
-
-        local path = self:getBreedPath(species, true)
-        if path == nil then
-            Print(string.format("No path found for species '%s'.", species))
-            return
-        end
-
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.TraitBreedPathResponse, path)
-    end
-end
-
----@param argv string[]
 function BeeServer:ShutdownCommandHandler(argv)
     -- This may or may not cause the robot to actually shut down, but it will prevent it from continuing to start apiaries.
     -- When using this command, expect to have to reset the system manually.
@@ -320,74 +341,11 @@ function BeeServer:pollForTerminalInputAndHandle()
         return
     end
 
-    if self.messagingPromptsPending["traitbreedpath"] then
-        self:TraitBreedPathCommandHandler(argv)
-    elseif self.terminalHandlerTable[argv[1]] == nil then
+    if self.terminalHandlerTable[argv[1]] == nil then
         Print("Unrecognized command.")
     else
         self.terminalHandlerTable[argv[1]](self, argv)
     end
-end
-
-
----------------------
---- Other instance functions.
-
----@param targetUid string
----@param forceRebreed boolean
----@return BreedPathNode[] | nil
-function BeeServer:getBreedPath(targetUid, forceRebreed)
-    local path = GraphQuery.QueryBreedingPath(self.beeGraph, self.leafSpeciesList, targetUid, forceRebreed)
-    if path == nil then
-        Print(string.format("Error: Could not find breeding path for species '%s'.", targetUid, targetUid))
-        return nil
-    end
-
-    -- We computed a valid path for this species. Send it to the robot and print it out for the user.
-    Print(string.format("Will breed %s bees. Full breeding order:", targetUid))
-    local printstr = ""
-    for _, node in ipairs(path) do
-        if printstr == "" then
-            printstr = node.target
-        else
-            printstr = string.format("%s, %s", printstr, node.target)
-        end
-    end
-    Print(printstr)
-
-    Sleep(0.5)
-    Print("")
-    Print("Required foundation blocks:")
-    printstr = ""
-    for _, node in ipairs(path) do
-        local conditions = nil  ---@type string[] | nil
-        for _, mut in ipairs(self.beeGraph[node.target].parentMutations) do
-            if (
-                ((mut.parents[1] == node.parent1) and (mut.parents[2] == node.parent2)) or
-                ((mut.parents[1] == node.parent2) and (mut.parents[2] == node.parent1))
-            ) then
-                conditions = mut.specialConditions
-                break
-            end
-        end
-        if (conditions ~= nil) and (#conditions > 0) then
-            for _, condition in ipairs(conditions) do
-                local foundation = condition:find(" as a foundation")
-                if foundation ~= nil then
-                    local foundationStr = condition:gsub("Requires ", ""):gsub(" as a foundation.", "")
-                    if printstr == "" then
-                        printstr = foundationStr
-                    else
-                        printstr = string.format("%s, %s", printstr, foundationStr)
-                    end
-                    node.foundation = foundationStr
-                end
-            end
-        end
-    end
-    Print(printstr)
-
-    return path
 end
 
 -- Shuts down the server.
@@ -425,7 +383,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.term = termLib
     obj.botAddr = config.botAddr
     obj.logFilepath = config.logFilepath
-    obj.breedPath = nil
     obj.conditionsPending = false
     obj.messagingPromptsPending = {}
 
