@@ -112,7 +112,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
 
     local validTargets = {}  ---@type string[]
     if data.trait == "species" then
-        validTargets = {data.value.uid}
+        validTargets = {[data.value.uid] = true}
     else
         local indexableValue = data.value
         if data.trait == "territory" then
@@ -123,7 +123,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         validTargets = MutationTraits[data.trait][indexableValue]
     end
 
-    if #validTargets == 0 then
+    if validTargets == nil then
         Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
             data.trait, TraitToString(data.trait, data.value)
         ))
@@ -140,7 +140,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         return
     end
 
-    Print(string.format("Trait '%s: %s' not found in breeding path: breeding it through:",
+    Print(string.format("Trait '%s: %s' not found in breeding path. Breeding it through:",
         data.trait, TraitToString(data.trait, data.value)
     ))
     for _, v in ipairs(path) do
