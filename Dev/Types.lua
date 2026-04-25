@@ -189,7 +189,7 @@ local CodedMessage = {}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
----@alias TraitBreedPathRequestPayload {trait: string, value: any, existingSpecies: string[]}
+---@alias TraitBreedPathRequestPayload {trait: string, value: any, existingSpecies: Set<string>}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 
 ---@class Set<T>: table<T, boolean>

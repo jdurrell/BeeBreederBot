@@ -6,7 +6,7 @@ local MutationMath = require("BeeServer.MutationMath")
 local M = {}
 
 ---@param graph SpeciesGraph
----@param leafNodes string[]
+---@param leafNodes Set<string>
 ---@param path BreedPathNode[] | nil
 ---@param target string
 function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
@@ -53,8 +53,8 @@ function M.AssertPathIsValidInGraph(graph, leafNodes, path, target)
             Luaunit.assertNotIsNil(parentMutation)
 
             -- Assert that both of the parents appeared before this in the path or are leaf nodes.
-            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent1) or TableContains(leafNodes, pathNode.parent1))
-            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent2) or TableContains(leafNodes, pathNode.parent2))
+            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent1) or leafNodes[pathNode.parent1])
+            Luaunit.assertIsTrue(TableContains(speciesInPath, pathNode.parent2) or leafNodes[pathNode.parent2])
         end
 
         table.insert(speciesInPath, pathNode.target)
@@ -212,6 +212,18 @@ function M.CreateBee(genome, traitInfo)
         inactive = inactive,
         __genome = genome
     }
+end
+
+---@generic T
+---@param list T[]
+---@return Set<T>
+function M.ListToSet(list)
+    local set = {}
+    for _, v in ipairs(list) do
+        set[v] = true
+    end
+
+    return set
 end
 
 ---@return boolean

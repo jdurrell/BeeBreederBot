@@ -270,7 +270,7 @@ TestGraphQuery = {}
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
         local target = "Common"
         local leafSpecies = Copy(Res.MundaneBees)
-        table.insert(leafSpecies, target)
+        leafSpecies[target] = true
         local path = GraphQuery.QueryBestBreedingPath(graph, leafSpecies, {[target]=true})
         Luaunit.assertEquals(#path, 1)
         Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
@@ -280,7 +280,7 @@ TestGraphQuery = {}
         local graph = Res.BeeGraphMundaneIntoCommonIntoCultivated.GetGraph()
         local target = "Cultivated"
         local leafSpecies = Copy(Res.MundaneBees)
-        table.insert(leafSpecies, target)
+        leafSpecies[target] = true
         local path = GraphQuery.QueryBestBreedingPath(graph, leafSpecies, {[target]=true})
         Luaunit.assertEquals(#path, 2)
         Util.AssertPathIsValidInGraph(graph, Res.MundaneBees, path, target)
@@ -289,7 +289,9 @@ TestGraphQuery = {}
     function TestGraphQuery:TestComplex()
         local graph = Res.BeeGraphActual.GetGraph()
         local target = "gregtech.bee.speciesIron"
-        local leafNodes = {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        local leafNodes = Util.ListToSet(
+            {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        )
         local path = GraphQuery.QueryBestBreedingPath(graph, leafNodes, {[target]=true})
         Luaunit.assertNotIsNil(path)
         Util.AssertPathIsValidInGraph(graph, leafNodes, path, target)
@@ -298,7 +300,9 @@ TestGraphQuery = {}
     function TestGraphQuery:TestBestTarget()
         local graph = Res.BeeGraphActual.GetGraph()
         local targets = {["gregtech.bee.speciesIron"]=true, ["gregtech.bee.speciesTitanium"]=true}
-        local leafNodes = {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        local leafNodes = Util.ListToSet(
+            {"forestry.speciesForest", "forestry.speciesMarshy", "forestry.speciesMeadows", "forestry.speciesModest", "forestry.speciesTropical", "forestry.speciesWintry"}
+        )
         local path = GraphQuery.QueryBestBreedingPath(graph, leafNodes, targets)
 
         Luaunit.assertNotIsNil(path)

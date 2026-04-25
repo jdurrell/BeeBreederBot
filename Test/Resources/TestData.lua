@@ -4,10 +4,12 @@
 
 -- TODO: Don't use this library to generate the graph since we want to be able to test it independently (even though it's mostly a simple library).
 GraphParse = require("BeeServer.GraphParse")
+Util = require("Test.Utilities.CommonUtilities")
 
 local Res = {
     MathMargin = 0.0000001,
-    MundaneBees = {"Forest", "Marshy", "Meadows", "Modest", "Tropical", "Wintry"}
+    MundaneBeesList = {"Forest", "Marshy", "Meadows", "Modest", "Tropical", "Wintry"},
+    MundaneBees = Util.ListToSet({"Forest", "Marshy", "Meadows", "Modest", "Tropical", "Wintry"})
 }
 
     ---@param rawMutationInfo ForestryMutation[]
@@ -46,9 +48,14 @@ local Res = {
         ---@return ForestryMutation[]
         function Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo()
             local mutations = {}
-            for i=1, #Res.MundaneBees do
-                for j=(i+1), #Res.MundaneBees do
-                    table.insert(mutations, {allele1=Res.MundaneBees[i], allele2=Res.MundaneBees[j], result="Common", chance=Res.BeeGraphMundaneIntoCommon.MutationChanceIndividual * 100})
+            for i=1, #Res.MundaneBeesList do
+                for j=(i+1), #Res.MundaneBeesList do
+                    table.insert(mutations, {
+                        allele1=Res.MundaneBeesList[i],
+                        allele2=Res.MundaneBeesList[j],
+                        result="Common",
+                        chance=Res.BeeGraphMundaneIntoCommon.MutationChanceIndividual * 100
+                    })
                 end
             end
 
@@ -70,7 +77,7 @@ local Res = {
         ---@return ForestryMutation[]
         function Res.BeeGraphMundaneIntoCommonIntoCultivated.GetRawMutationInfo()
             local mutations = Res.BeeGraphMundaneIntoCommon.GetRawMutationInfo()
-            for _, bee in ipairs(Res.MundaneBees) do
+            for bee, _ in pairs(Res.MundaneBees) do
                 table.insert(mutations, {allele1=bee, allele2="Common", result="Cultivated", chance=12.0})
             end
 

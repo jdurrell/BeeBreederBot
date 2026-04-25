@@ -86,7 +86,7 @@ end
 
 ---@param trait string
 ---@param value any
----@param existingSpecies string[]
+---@param existingSpecies Set<string>
 ---@return TraitBreedPathResponsePayload | nil
 function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies)
     ::restart::

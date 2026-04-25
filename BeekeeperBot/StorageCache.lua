@@ -81,13 +81,11 @@ function StorageRowCache:GetDroneEntry(traits)
     return nil
 end
 
----@return string[]
+---@return Set<string>
 function StorageRowCache:GetAllSpecies()
-    local species = {} ---@type string[]
+    local species = {} ---@type Set<string>
     for i, v in ipairs(self.cache) do
-        if not TableContains(species, v.traits.species.uid) then
-            table.insert(species, v.traits.species.uid)
-        end
+        species[v.traits.species.uid] = true
     end
 
     return species

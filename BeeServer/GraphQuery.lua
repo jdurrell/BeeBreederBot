@@ -43,15 +43,15 @@ end
 local M = {}
 
 ---@param graph SpeciesGraph
----@param leafSpecies string[]
+---@param leafSpecies Set<string>
 ---@param validTargets Set<string>
 ---@return BreedPathNode[] | nil
 function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
     -- Start from the leaves (i.e. species already found) and build up the path from there.
     local bfsQueueSearch = BFSQueue:Create()
-    for _, spec in ipairs(leafSpecies) do
-        if validTargets[spec] == nil then
-            bfsQueueSearch:Push(spec, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
+    for leaf, _ in pairs(leafSpecies) do
+        if validTargets[leaf] == nil then
+            bfsQueueSearch:Push(leaf, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
         end
     end
 
@@ -117,7 +117,7 @@ function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
 
         -- We can skip tracing the path if this is a leaf node, but not if this is the target
         -- (because we might need to rebreed it from other existing species to get a new trait).
-        if (not TableContains(leafSpecies, name)) or (name == found) then
+        if (leafSpecies[name] == nil) or (name == found) then
             for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
                 if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
                     bfsQueueRetrace:Push(parent, nil)
