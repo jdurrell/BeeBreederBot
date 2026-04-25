@@ -18,10 +18,10 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field beeNameToUids table<string, string[]>
 ---@field botAddr string
 ---@field comm CommLayer
+---@field lastTemplatePayload MakeTemplatePayload
 ---@field messagingPromptsPending table<string, boolean>
 ---@field messagingThreadHandle ThreadHandle
 ---@field messageHandlerTable table<integer, function>
----@field logFilepath string
 ---@field terminalHandlerTable table<string, function>
 local BeeServer = {}
 
@@ -286,7 +286,19 @@ function BeeServer:TemplateCommandHandler(argv)
     end
 
     Print(string.format("Making internal template: %s.", TraitsToString(payload.traits)))
+    self.lastTemplatePayload = payload
     self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, payload)
+end
+
+---@param argv string[]
+function BeeServer:RetryCommandHandler(argv)
+    if self.lastTemplatePayload == nil then
+        Print("Error: No previous template attemt to retry.")
+        return
+    end
+
+    Print(string.format("Making internal template: %s.", TraitsToString(self.lastTemplatePayload.traits)))
+    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, self.lastTemplatePayload)
 end
 
 ---@param argv string[]
@@ -389,6 +401,7 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.terminalHandlerTable = {
         ["continue"] = BeeServer.ContinueCommandHandler,
         ["import"] = BeeServer.ImportCommandHandler,
+        ["retry"] = BeeServer.RetryCommandHandler,
         ["shutdown"] = BeeServer.ShutdownCommandHandler,
         ["template"] = BeeServer.TemplateCommandHandler
     }
