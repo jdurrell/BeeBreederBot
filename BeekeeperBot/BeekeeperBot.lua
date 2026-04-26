@@ -222,7 +222,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
             -- Otherwise, breed for species so that we can build up the tree to get the last node.
             local mutationTrait = ((i == #pathNode) and v.trait) or "species"
-            local mutationValue = ((i == #pathNode) and targetTraits[v.trait]) or {species={uid=pathNode.target}}
+            local mutationValue = ((i == #pathNode) and targetTraits[v.trait]) or {uid=pathNode.target}
             local breedInfoCache = {}
             local traitInfoCache = {species = {}}
             local finishedDroneSlot = self:breed(
