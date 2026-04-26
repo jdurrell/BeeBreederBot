@@ -159,6 +159,7 @@ local BeeSpecies = {}
 ---@field defaultTemperatureTolerance string
 ---@field port integer
 ---@field serverAddr string
+---@field verbose boolean
 local BeekeeperBotConfig = {}
 
 ---@class BeeServerConfig

@@ -26,7 +26,14 @@ elseif sides == nil then
     return
 end
 
-local config = {port = 34000, apiaries = 1, serverAddr = "", defaultHumidityTolerance = "BOTH_5", defaultTemperatureTolerance = "BOTH_5"}
+local config = {
+    port=34000,
+    apiaries=1,
+    serverAddr="",
+    defaultHumidityTolerance="BOTH_5",
+    defaultTemperatureTolerance="BOTH_5",
+    verbose=false
+}
 
 if not ConfigService.LoadConfig("./bot.cfg", config, false) then
     Print("Failed to read configuration.")

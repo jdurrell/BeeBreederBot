@@ -2,7 +2,7 @@
 local M = {}
 
 ---@param path string
----@param config table<string, number | string>
+---@param config table<string, boolean | number | string>
 ---@param debug boolean
 ---@return boolean
 function M.LoadConfig(path, config, debug)
@@ -33,7 +33,15 @@ function M.LoadConfig(path, config, debug)
             return false
         end
 
-        if type(config[fields[1]]) == "number" then
+        if type(config[fields[1]]) == "boolean" then
+            if fields[2] == "true" then
+                config[fields[1]] = true
+            elseif fields[2] == "false" then
+                config[fields[1]] = false
+            else
+                Print(string.format("Unrecognized boolean option '%s'.", fields[2]))
+            end
+        elseif type(config[fields[1]]) == "number" then
             config[fields[1]] = tonumber(fields[2])
         else
             config[fields[1]] = fields[2]

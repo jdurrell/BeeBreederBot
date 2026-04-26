@@ -128,7 +128,7 @@ function BeekeeperBot:makeTemplateHandler(data)
 
         -- If raw is specified, then the user is responsible for organizing everything in the proper chests.
         local slots = self:breed(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(data.traits, self.breeder.numApiaries),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(data.traits, self.breeder.numApiaries, self.config.verbose),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(data.traits, 64),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(data.traits),
             nil
@@ -232,7 +232,8 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                     mutationValue,
                     {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
                     breedInfoCache,
-                    traitInfoCache
+                    traitInfoCache,
+                    self.config.verbose
                 ),
                 MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target, maxFertilityPreExisting, 64),
                 GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
@@ -334,7 +335,7 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
         local nextTraits = Copy(finishedTraits)
         nextTraits[trait] = value
         local finishedSlots = self:breed(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(nextTraits, self.breeder.numApiaries),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(nextTraits, self.breeder.numApiaries, self.config.verbose),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(nextTraits, 16),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(nextTraits),
             nil
@@ -365,7 +366,7 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
     Print("Working template finished. Breeding template up to full stack.")
     self.breeder:ImportHoldoverStacksToActiveChest({1}, {16}, {1})
     local finishedDrones = self:breed(
-        MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries),
+        MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries, self.config.verbose),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
         GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetTraits),
         nil
@@ -472,7 +473,7 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, cache
         -- Do the breeding. We start by breeding first in case we grabbed a stack that wasn't full to begin with.
         -- If the stack was already full, then Breed() will return immediately.
         finishedSlots = self:breed(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(replicateTraits, self.breeder.numApiaries),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(replicateTraits, self.breeder.numApiaries, self.config.verbose),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(replicateTraits, 64),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(replicateTraits),
             nil

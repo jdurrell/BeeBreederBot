@@ -244,7 +244,8 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
                 {uid = target},
                 {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
                 breedInfoCache,
-                traitInfo
+                traitInfo,
+                false
             ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
@@ -279,7 +280,8 @@ TestConvergenceHighFertilityAndMutatedAllele = {}
                 {uid = target},
                 {fertility = maxFertility, humidityTolerance = "BOTH_5", temperatureTolerance = "BOTH_5"},
                 breedInfoCache,
-                traitInfo
+                traitInfo,
+                false
             ),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
@@ -340,7 +342,7 @@ TestConvergenceClosestMatchToTraits = {}
         local initialPrincessStack = createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
 
         local successRatio = runConvergenceTest(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1, false),
             commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
             300,
@@ -398,7 +400,7 @@ TestConvergenceClosestMatchToTraits = {}
         local initialPrincessStack = createBeeStack(Util.CreateBee(Util.CreatePureGenome(initialOtherSpeciesTraits), traitInfo), 1, 1)
 
         local successRatio = runConvergenceTest(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetProductionTraits, 1, false),
             commonEndCondition(MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetProductionTraits, 64)),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetProductionTraits),
             300,
@@ -424,7 +426,7 @@ TestConvergenceClosestMatchToTraits = {}
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
         local successRatio = runConvergenceTest(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1, false),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -451,7 +453,7 @@ TestConvergenceClosestMatchToTraits = {}
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
         local successRatio = runConvergenceTest(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1, false),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,
@@ -478,7 +480,7 @@ TestConvergenceClosestMatchToTraits = {}
         local targetTraits = {species = {uid = initialDroneStacks[1].individual.active.species.uid}, fertility = maxFertility}
 
         local successRatio = runConvergenceTest(
-            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1),
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, 1, false),
             commonEndCondition(MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(target, maxFertility, 64)),
             GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(target),
             300,

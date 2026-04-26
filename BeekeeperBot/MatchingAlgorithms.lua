@@ -16,8 +16,9 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 ---@param preferredTraits PartialAnalyzedBeeTraits
 ---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
+---@param verbose boolean
 ---@return Matcher
-function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, breedInfoCache, traitInfo)
+function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, breedInfoCache, traitInfo, verbose)
     preferredTraits[mutationTrait] = mutationValue
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
@@ -49,12 +50,28 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
             function (droneStack)
                 local droneBee = droneStack.individual
 
+                -- The qualities we care about (in order):
+                -- * (A): Number of traits with at least one preferred allele (across princess and drone)
+                -- * (B): Number of traits with at least two preferred alleles (across princess and drone)
+                -- * (C): Expected number of target alleles per offspring
+                -- * (D): Total number of alleles that match preferred traits.
+                -- * (E): Stack size (as long as the stack is pure-bred)
+                -- * (F): Likeness to the princess.
+                -- 
+                -- Each of these make up certain base-10 digits in the score, ordered in place value by priority:
+                --   AA BB CCCC DD EE FF
+
+                -- Distinguish from other drones by three decimal points.
+                -- Maximum number of target alleles is 2, so this takes 4 decimal points in the score.
                 local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
                     princessBee, droneBee, mutationTrait, mutationValue, breedInfoCache, traitInfo
                 ) * 1e3) * 1e6
 
                 if score == 0 then
                     -- Don't choose a drone that has no chance of producing the desired mutation trait.
+                    if verbose then
+                        Print("No change of producing target. Skipping.")
+                    end
                     return 0
                 end
 
@@ -114,6 +131,7 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
 
                 -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
                 -- getting as many traits with a target allele as possible.
+                -- There are 13 traits, so we need two decimal points per value.
                 score = score + (numTraitsAtLeastOneAllele * 1e12)
                 score = score + (numTraitsAtLeastTwoAlleles * 1e10)
 
@@ -145,7 +163,8 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
 
                 return score
             end,
-            nil
+            nil,
+            verbose
         )
     end
 end
@@ -154,8 +173,9 @@ end
 -- in the two parents.
 ---@param targetTraits PartialAnalyzedBeeTraits | AnalyzedBeeTraits
 ---@param numPrincesses integer
+---@param verbose boolean
 ---@return Matcher
-function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses)
+function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses, verbose)
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
     return function (princessStack, droneStackList)
@@ -215,7 +235,8 @@ function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses)
 
                 return score
             end,
-            nil
+            nil,
+            verbose
         )
     end
 end
@@ -225,7 +246,9 @@ end
 ---@param droneStackList AnalyzedBeeStack[]
 ---@param scoreFunc ScoreFunction
 ---@param maxPossibleScore number | nil
-function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
+---@param verbose boolean
+---@return integer slotInChest, integer maxScore
+function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore, verbose)
     local maxDroneStack
     local maxScore = -1
     for _, droneStack in ipairs(droneStackList) do
@@ -236,11 +259,16 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
         end
 
         local score = scoreFunc(droneStack)
+        if verbose then
+            Print(string.format("%u (max: %d)", score, maxScore))
+        end
         if score > maxScore then
             maxDroneStack = droneStack
             maxScore = score
             if maxScore == maxPossibleScore then
-                Print(string.format("Terminating early for max score on slot %u.", droneStack.slotInChest))
+                if verbose then
+                    Print(string.format("Terminating early for max score on slot %u.", droneStack.slotInChest))
+                end
                 break
             end
         end
@@ -249,7 +277,7 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore)
     end
 
     if maxDroneStack == nil then
-        return -1
+        return -1, -1
     end
 
     return maxDroneStack.slotInChest, maxScore

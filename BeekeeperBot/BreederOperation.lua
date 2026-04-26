@@ -84,7 +84,7 @@ end
 function BreedOperator:GetDronesInChest()
     self.robot.turnRight()
 
-    -- Scan the attached inventory to collect all drones and count how many are pure bred of our target.
+    -- Scan the attached inventory to collect all drones.
     local drones = {}
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         ---@type AnalyzedBeeStack
