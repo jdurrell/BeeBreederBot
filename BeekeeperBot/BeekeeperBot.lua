@@ -516,37 +516,36 @@ function BeekeeperBot:breed(matchingAlgorithm, finishedSlotAlgorithm, garbageCol
 
     self.breeder:ToggleWorldAccelerator()
     for iteration = 1, (300 * self.breeder.numApiaries) do
-        local droneStackList
-        local princessStackList = {}
+        local princessStackList = {}  ---@type AnalyzedBeeStack[]
         while #princessStackList == 0 do
             princessStackList = self.breeder:GetPrincessesInChest()
-            droneStackList = self.breeder:GetDronesInChest()
-
-            slots = finishedSlotAlgorithm(princessStackList[1], droneStackList)
-            if (slots.princess ~= nil) or (slots.drones ~= nil) then
-                -- Convergence succeeded. Break out.
-                -- Even after we've finished breeding, the world accelerator still speeds up remaining queens.
-                -- Wait until they've finished before turning it off.
-                while #(self.breeder:GetPrincessesInChest()) < self.breeder.numApiaries do
-                    Sleep(5)
-                end
-                self.breeder:ToggleWorldAccelerator()
-
-                Print(string.format("Finished stacks: princess = %s, drones = %s.", tostring(slots.princess), tostring(slots.drones)))
-                return slots
-            end
-
-            local numEmptySlots = (inventorySize - #droneStackList)
-            if numEmptySlots < 4 then  -- 4 is the highest naturally occurring fertility. TODO: Consider whether this should truly leave 8 slots.
-                -- If there are not many open slots in the drone chest, then eliminate some of them to make room for newer generations.
-                local slotsToRemove = garbageCollectionAlgorithm(droneStackList, 4 - numEmptySlots)
-                self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
-            end
-
             if #princessStackList == 0 then
                 -- Poll once every 5 seconds so that we aren't spamming. TODO: Make this configurable.
                 Sleep(5)
             end
+        end
+
+        local droneStackList = self.breeder:GetDronesInChest()
+
+        slots = finishedSlotAlgorithm(princessStackList[1], droneStackList)
+        if (slots.princess ~= nil) or (slots.drones ~= nil) then
+            -- Convergence succeeded. Break out.
+            -- Even after we've finished breeding, the world accelerator still speeds up remaining queens.
+            -- Wait until they've finished before turning it off.
+            while #(self.breeder:GetPrincessesInChest()) < self.breeder.numApiaries do
+                Sleep(5)
+            end
+            self.breeder:ToggleWorldAccelerator()
+
+            Print(string.format("Finished stacks: princess = %s, drones = %s.", tostring(slots.princess), tostring(slots.drones)))
+            return slots
+        end
+
+        local numEmptySlots = (inventorySize - #droneStackList)
+        if numEmptySlots < 4 then  -- 4 is the highest naturally occurring fertility. TODO: Consider whether this should truly leave 8 slots.
+            -- If there are not many open slots in the drone chest, then eliminate some of them to make room for newer generations.
+            local slotsToRemove = garbageCollectionAlgorithm(droneStackList, 4 - numEmptySlots)
+            self.breeder:TrashSlotsFromDroneChest(slotsToRemove)
         end
 
         -- Not finished, but haven't failed. Continue breeding.
