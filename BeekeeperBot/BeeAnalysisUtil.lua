@@ -2,7 +2,7 @@ local M = {}
 
 ---@param bee AnalyzedBeeIndividual
 ---@param trait string
----@param value any
+---@param value TraitValue
 ---@return integer
 function M.NumberOfMatchingAlleles(bee, trait, value)
     return (
@@ -39,7 +39,7 @@ end
 
 ---@param beeTraits AnalyzedBeeTraits
 ---@param trait string
----@param value any
+---@param value TraitValue
 function M.TraitIsEqual(beeTraits, trait, value)
     -- "Species" and "Territory" traits are tables, so compare them one level deeper.
     -- TODO: This would look nicer as a "deep equal" that could be used for all of them,

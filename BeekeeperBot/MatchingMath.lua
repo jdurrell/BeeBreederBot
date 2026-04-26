@@ -187,7 +187,7 @@ end
 ---@param princess AnalyzedBeeIndividual
 ---@param drone AnalyzedBeeIndividual
 ---@param targetTrait string
----@param targetValue any
+---@param targetValue TraitValue
 ---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
 ---@return number

@@ -93,7 +93,7 @@ function Copy(original)
 end
 
 ---@param trait string
----@param value any
+---@param value TraitValue
 function TraitToString(trait, value)
     if trait == "species" then
         return value.uid

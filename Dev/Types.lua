@@ -146,6 +146,8 @@ local AnalyzedBeeTraits = {}
 ---@field tolerantFlyer boolean | nil  Whether this bee can work in the rain.
 local PartialAnalyzedBeeTraits = {}
 
+---@alias TraitValue BeeSpecies | {uid: string} | boolean | string | integer[]
+
 ---@class BeeSpecies
 ---@field humidity string  The humidity required by this species for its jubilant state.
 ---@field name string  The "common" name of this species.
@@ -190,7 +192,7 @@ local CodedMessage = {}
 ---@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
----@alias TraitBreedPathRequestPayload {trait: string, value: any, existingSpecies: Set<string>}
+---@alias TraitBreedPathRequestPayload {trait: string, value: TraitValue, existingSpecies: Set<string>}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 
 ---@class Set<T>: table<T, boolean>

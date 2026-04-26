@@ -85,7 +85,7 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
 end
 
 ---@param trait string
----@param value any
+---@param value TraitValue
 ---@param existingSpecies Set<string>
 ---@return TraitBreedPathResponsePayload | nil
 function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies)

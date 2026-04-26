@@ -12,7 +12,7 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- cave-dwelling, and rain-tolerance. It will also prioritize traits that are generally beneficial, like production speed.
 ---@param numPrincesses integer
 ---@param mutationTrait string
----@param mutationValue any
+---@param mutationValue TraitValue
 ---@param preferredTraits PartialAnalyzedBeeTraits
 ---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
