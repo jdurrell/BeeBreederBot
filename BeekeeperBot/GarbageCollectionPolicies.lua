@@ -13,6 +13,11 @@ function M.ClearDronesByFertilityPurityStackSizeCollector(target)
             droneStackList,
             minDronesToClear,
             function (droneStack)
+                -- Avoid garbage-collecting the starter drone stacks so that we don't forever lose the traits from the population.
+                if (droneStack.slotInChest == 1) or (droneStack.slotInChest == 2) then
+                    return 1 << 20
+                end
+
                 local numTargetAlleles = (
                     (((droneStack.individual.active.species.uid == target) and 1) or 0) +
                     (((droneStack.individual.inactive.species.uid == target) and 1) or 0)
@@ -20,7 +25,7 @@ function M.ClearDronesByFertilityPurityStackSizeCollector(target)
                 return (numTargetAlleles << 6) + droneStack.size
             end,
             function (droneStack)
-                return ((droneStack.individual.active.fertility < 2) or (droneStack.individual.inactive.fertility < 2))
+                return ((droneStack.individual.active.fertility < 2) and (droneStack.individual.inactive.fertility < 2))
             end
         )
     end
@@ -64,7 +69,7 @@ function M.ClearDronesByFurthestAlleleMatchingCollector(targetTraits)
             function (droneStack)
                 return (
                     (droneStack.individual ~= nil) and
-                    ((droneStack.individual.active.fertility < 2) or (droneStack.individual.inactive.fertility < 2)) and
+                    ((droneStack.individual.active.fertility < 2) and (droneStack.individual.inactive.fertility < 2)) and
                     ((targetTraits.fertility == nil) or targetTraits.fertility > 1)
                 )
             end
