@@ -730,8 +730,9 @@ function BreedOperator:PlaceFoundations(block)
     self.robot.select(1)
     local hasStack = false
     for i = 1, self.ic.getInventorySize(self.sides.front) do
+        -- TODO: Allow foundation blocks to be spread out over multiple stacks.
         local stack = self.ic.getStackInSlot(self.sides.front, i)
-        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) and (stack.size >= self.numApiaries) then  -- TODO: Allow foundation blocks to be spread out over multiple stacks.
+        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) and (stack.size >= self.numApiaries) then
             self.ic.suckFromSlot(self.sides.front, i, self.numApiaries)
             hasStack = true
             break
@@ -851,7 +852,7 @@ function BreedOperator:storeDrones(traitSets)
 
     -- Now, put the drones into the chests.
     self:moveToStorageColumn()
-    local currentChest = 0
+    local currentChest = 1
     for i, v in ipairs(storageSlots) do
         -- Move to the right chest if we aren't there already.
         if v.entry.chestNumber > currentChest then
@@ -938,7 +939,7 @@ function BreedOperator:returnToStorageColumnOriginFromStockPrincessChest()
 end
 
 function BreedOperator:returnToStorageColumnOriginFromChest(dist)
-    if dist > 0 then
+    if dist > 1 then
         self.robot.turnRight()
         self:moveForwards(dist)
         self.robot.turnLeft()
