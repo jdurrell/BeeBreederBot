@@ -278,7 +278,9 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             self.breeder:StoreDronesFromActiveChest(stacksToReturn)
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock(nil)
-            self.breeder:BreakAndReturnFoundationsToInputChest()
+            if (self:canHandleFoundation(pathNode.foundation)) then
+                self.breeder:BreakAndReturnFoundationsToInputChest()
+            end
         end
 
         ::continue::
@@ -682,7 +684,7 @@ end
 ---@param node BreedPathNode
 ---@return "foundations placed" | "no foundations" | nil
 function BeekeeperBot:ensureSpecialConditionsMet(node)
-    local placingFoundations = self:mustPlaceFoundation(node.foundation)
+    local placingFoundations = self:canHandleFoundation(node.foundation)
 
     -- Encase this in a loop in case the user doesn't provide the foundations correctly.
     local promptedOnce = false
@@ -710,7 +712,7 @@ end
 
 ---@param foundation string | nil
 ---@return boolean
-function BeekeeperBot:mustPlaceFoundation(foundation)
+function BeekeeperBot:canHandleFoundation(foundation)
     if foundation == nil then
         return false
     end
