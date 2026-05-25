@@ -4,8 +4,8 @@
 
 ---@class SpeciesNode
 ---@field speciesName string  The uid of this species.
----@field parentMutations {parents: string[], chance: number, specialConditions: string[]}[]  All parent mutations that can result in this species.
----@field childMutations table<string, {parent: string, chance: number, specialConditions: string[]}[]>  Mapping of results to other parents that combo to yield that result.
+---@field parentMutations {parents: string[], chance: number, conditions: string[]}[]  All parent mutations that can result in this species.
+---@field childMutations table<string, {parent: string, chance: number, conditions: string[]}[]>  Mapping of results to other parents that combo to yield that result.
 local Speciesnode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>

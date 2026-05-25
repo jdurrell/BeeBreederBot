@@ -19,8 +19,8 @@ local M = {}
 ---@param allele1 string
 ---@param allele2 string
 ---@param chance number
----@param specialConditions string[] | nil
-function M.AddMutationToGraph(graph, allele1, allele2, result, chance, specialConditions)
+---@param conditions string[] | nil
+function M.AddMutationToGraph(graph, allele1, allele2, result, chance, conditions)
     -- Do setup for graph nodes if they don't already exist.
     if graph[allele1] == nil then
         createNodeInGraph(graph, allele1)
@@ -41,10 +41,10 @@ function M.AddMutationToGraph(graph, allele1, allele2, result, chance, specialCo
     end
 
     -- Actually add the mutation to the graph.
-    -- TODO: `chance` and `specialConditions` don't really need to be stored here since they can be looked up separately to save memory.
-    table.insert(graph[result].parentMutations, {parents = {allele1, allele2}, chance = chance, specialConditions = specialConditions})
-    table.insert(graph[allele1].childMutations[result], {parent = allele2, chance = chance, specialConditions = specialConditions})
-    table.insert(graph[allele2].childMutations[result], {parent = allele1, chance = chance, specialConditions = specialConditions})
+    -- TODO: `chance` and `conditions` don't really need to be stored here since they can be looked up separately to save memory.
+    table.insert(graph[result].parentMutations, {parents = {allele1, allele2}, chance = chance, conditions = conditions})
+    table.insert(graph[allele1].childMutations[result], {parent = allele2, chance = chance, conditions = conditions})
+    table.insert(graph[allele2].childMutations[result], {parent = allele1, chance = chance, conditions = conditions})
 end
 
 ---@param beehouseComponent ApicultureTile
@@ -56,7 +56,14 @@ function M.ImportBeeGraph(beehouseComponent)
     for _, species in ipairs(beehouseComponent.listAllSpecies()) do
         for _, mutation in ipairs(beehouseComponent.getBeeParents(species.uid)) do
             -- OpenComputers/Forestry specify the chance in percentage, so divide by 100 to get the decimal probability.
-            M.AddMutationToGraph(graph, mutation.allele1.uid, mutation.allele2.uid, species.uid, mutation.chance / 100.0, mutation.specialConditions)
+            M.AddMutationToGraph(
+                graph,
+                mutation.allele1.uid,
+                mutation.allele2.uid,
+                species.uid,
+                mutation.chance / 100.0,
+                mutation.specialConditions
+            )
         end
     end
 

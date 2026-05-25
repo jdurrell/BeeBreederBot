@@ -78,7 +78,7 @@ function BeeServer:PromptConditionsHandler(addr, data)
             ((mut.parents[1] == data.parent2) and (mut.parents[2] == data.parent1))
         ) then
             conditions = {}
-            for _, condition  in ipairs(mut.specialConditions) do
+            for _, condition  in ipairs(mut.conditions) do
                 -- TODO: Distinguish between foundation blocks that can be placed by the bot and other foundations that can't be.
                 local isAFoundation = condition:find("foundation") == nil
                 if (not isAFoundation) or (data.promptFoundation) then

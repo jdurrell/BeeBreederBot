@@ -54,7 +54,12 @@ function M.getBeeParents(uid)
     local parentMutations = {}
     for _, mut in ipairs(mutations) do
         if mut.result == uid then
-            table.insert(parentMutations, {allele1 = {uid = mut.allele1}, allele2 = {uid = mut.allele2}, chance = mut.chance, specialConditions = mut.specialConditions})
+            table.insert(parentMutations, {
+                allele1 = {uid = mut.allele1},
+                allele2 = {uid = mut.allele2},
+                chance = mut.chance,
+                specialConditions = mut.specialConditions
+            })
         end
     end
 
