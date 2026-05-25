@@ -235,7 +235,7 @@ function BreedOperator:RefreshStorageCache()
     self:moveToStorageColumn()
 
     -- Collect the drone stacks.
-    local chest = 0
+    local chest = 1
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
             local stack = self.ic.getStackInSlot(self.sides.front, i)  ---@type AnalyzedBeeStack
@@ -481,7 +481,7 @@ function BreedOperator:retrieveDroneStacks(droneStackRequests)
     self:moveToStorageColumn()
 
     -- Grab the drones.
-    local currentChest = 0
+    local currentChest = 1
     for i, v in ipairs(droneStackRequests) do
         -- Move to the right chest, if we aren't there already.
         if v.entry.chestNumber > currentChest then
