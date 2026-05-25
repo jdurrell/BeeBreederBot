@@ -153,7 +153,7 @@ function BeekeeperBot:makeTemplateHandler(data)
         Print("All required traits now in population.")
 
         -- No need to do a template breed if the above was enough.
-        if self.breeder.storageCache:GetDroneEntry(data.traits) ~= nil then
+        if self.breeder.storageCache:GetDroneEntry(data.traits) == nil then
             if not self:breedTemplateFromEstablishedTraits(data.traits) then
                 self:outputError("Failed to breed template from established population traits.")
                 return
