@@ -424,7 +424,7 @@ end
 -- Retrieves the given drone stacks in the given amounts from the storage row and places them in the designated slots in the active chest.
 -- No duplicate destination chest slots are allowed.
 -- Starts and ends at the breeder station. Can handle at most 15 stacks at once.
----@param droneStackRequests {cacheEntry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
+---@param droneStackRequests {entry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
 function BreedOperator:RetrieveDronesToActive(droneStackRequests)
     self:retrieveDroneStacks(droneStackRequests)
 
@@ -473,7 +473,7 @@ end
 -- Obtains the drones corresponding to the given cache entry in the given amounts, then returns to the breeder station.
 -- Upon return, the drones will be held in the robot's internal inventory in the order corresponding to the list.
 -- NOTE: Both the list and the internal cache entries will be mutated by this operation.
----@param droneStackRequests {cacheEntry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
+---@param droneStackRequests {entry: StorageCacheEntry, amount: integer, destinationChestSlot: integer}
 function BreedOperator:retrieveDroneStacks(droneStackRequests)
     -- Sort the input by chest number so that we only have to do one scan.
     table.sort(droneStackRequests, function (stack1, stack2) return stack1.entry.chestNumber <= stack2.entry.chestNumber end)

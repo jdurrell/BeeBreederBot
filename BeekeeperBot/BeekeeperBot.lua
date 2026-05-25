@@ -320,9 +320,9 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
         end
     end
 
-    -- Get 16 drones that have the initial best starting traits.
+    -- Get drones that have the initial best starting traits.
     Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitEntry.traits)))
-    local numTraitReplicate = 8 + (4 * self.breeder.numApiaries)
+    local numTraitReplicate = 4 + (2 * self.breeder.numApiaries)
     if not self:replicateIfNecessary(maxTraitEntry.traits, numTraitReplicate, 1) then
         self:outputError("Failed to replicate starting template.")
         return false
@@ -469,7 +469,7 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, cache
     end
 
     -- Retrieve the starter drones.
-    self.breeder:RetrieveDronesToActive({{cacheEntry=cacheEntry, amount=amount, destinationChestSlot=1}})
+    self.breeder:RetrieveDronesToActive({{entry=cacheEntry, amount=amount, destinationChestSlot=1}})
 
     local stack = self.breeder:GetStackInDroneSlot(1)
     if stack == nil then
