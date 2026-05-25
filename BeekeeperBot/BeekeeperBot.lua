@@ -152,9 +152,12 @@ function BeekeeperBot:makeTemplateHandler(data)
         end
         Print("All required traits now in population.")
 
-        if not self:breedTemplateFromEstablishedTraits(data.traits) then
-            self:outputError("Failed to breed template from established population traits.")
-            return
+        -- No need to do a template breed if the above was enough.
+        if self.breeder.storageCache:GetDroneEntry(data.traits) ~= nil then
+            if not self:breedTemplateFromEstablishedTraits(data.traits) then
+                self:outputError("Failed to breed template from established population traits.")
+                return
+            end
         end
 
         self.breeder:TrashSlotsFromDroneChest(nil)
@@ -338,7 +341,6 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
         end
 
         -- Get 16 drones that have the requested trait.
-        self.breeder:RefreshStorageCache()
         Print(string.format("Replicating stack with trait %s.", TraitsToString({[trait] = value})))
         if not self:replicateIfNecessary({[trait] = value}, numTraitReplicate, 2) then
             self:outputError("Failed to replicate template of new trait.")
