@@ -938,10 +938,11 @@ function BreedOperator:returnToStorageColumnOriginFromStockPrincessChest()
     self.robot.turnRight()
 end
 
-function BreedOperator:returnToStorageColumnOriginFromChest(dist)
-    if dist > 1 then
+---@param chestNum integer
+function BreedOperator:returnToStorageColumnOriginFromChest(chestNum)
+    if chestNum > 1 then
         self.robot.turnRight()
-        self:moveForwards(dist)
+        self:moveForwards(chestNum - 1)
         self.robot.turnLeft()
     end
 end
