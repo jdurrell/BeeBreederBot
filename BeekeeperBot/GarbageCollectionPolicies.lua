@@ -14,6 +14,7 @@ function M.ClearDronesByFertilityPurityStackSizeCollector(target)
             minDronesToClear,
             function (droneStack)
                 -- Avoid garbage-collecting the starter drone stacks so that we don't forever lose the traits from the population.
+                -- This also lets us re-collect and re-use these drones for later breeds after this breed is done.
                 if (droneStack.slotInChest == 1) or (droneStack.slotInChest == 2) then
                     return 1 << 20
                 end
@@ -40,6 +41,7 @@ function M.ClearDronesByFurthestAlleleMatchingCollector(targetTraits)
             minDronesToClear,
             function (droneStack)
                 -- Avoid garbage-collecting the starter drone stacks so that we don't forever lose the traits from the population.
+                -- This also lets us re-collect and re-use these drones for later breeds after this breed is done.
                 if (droneStack.slotInChest == 1) or (droneStack.slotInChest == 2) then
                     return 1 << 20
                 end

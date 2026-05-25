@@ -207,16 +207,18 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             self:ensureSpecialConditionsMet(pathNode)
 
             -- We will certainly want to breed high fertility into the drones of the target species.
-            local stack1 = self.breeder:GetStackInDroneSlot(1)
-            local stack2 = self.breeder:GetStackInDroneSlot(2)
-            if (stack1 == nil) or (stack2 == nil) then
-                self:outputError("Drones were removed from chest between holdover import and conditions completion.")
-                return false
+            local starterDrones = {}
+            local maxFertilityPreExisting = -1
+            for j = 1, 2 do
+                local stack = self.breeder:GetStackInDroneSlot(j)
+                if stack == nil then
+                    self:outputError("Drones were removed from chest between holdover import and conditions completion.")
+                    return false
+                end
+                local starterTraits = stack.individual.active
+                table.insert(starterDrones, starterTraits)
+                maxFertilityPreExisting = math.max(maxFertilityPreExisting, starterTraits.fertility)
             end
-            local maxFertilityPreExisting = math.max(
-                stack1.individual.active.fertility,
-                stack2.individual.active.fertility
-            )
 
             -- Do the breeding.
             -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
@@ -249,7 +251,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 return false
             end
 
-            -- If we have enough of the target species now, then inform the server and store the drones at the new location.
+            -- If we have enough of the target species now, then store the drones at the new location.
             -- Technically, we only require the finished stack to have the desired trait, which doesn't require it to be the "target" species.
             local droneStack = self.breeder:GetStackInDroneSlot(finishedDroneSlot)
             if droneStack == nil then
@@ -265,7 +267,15 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             end
 
             -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
-            self.breeder:StoreDronesFromActiveChest({finishedDroneSlot})
+            local stacksToReturn = {finishedDroneSlot}
+            for j = 1, 2 do
+                local stackAfter = self.breeder:GetStackInDroneSlot(j)
+                if (stackAfter ~= nil) and AnalysisUtil.AllBeeTraitsEqual(stackAfter.individual, starterDrones[i]) then
+                    table.insert(stacksToReturn, stackAfter)
+                end
+            end
+
+            self.breeder:StoreDronesFromActiveChest(stacksToReturn)
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock(nil)
             self.breeder:BreakAndReturnFoundationsToInputChest()
@@ -314,6 +324,10 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
     end
 
     -- Add traits into the starting template one at a time.
+    local HOLDOVER_SLOT_WORKING_TEMPLATE = 1
+    local HOLDOVER_SLOT_GRAFTING_BEES = 2
+    local ACTIVE_SLOT_WORKING_TEMPLATE = 1
+    local ACTIVE_SLOT_GRAFTING_BEES = 2
     for trait, value in pairs(targetTraits) do
         if finishedTraits[trait] ~= nil then
             -- We only need to breed in traits that we haven't finished with yet.
@@ -331,7 +345,17 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
 
         -- Now breed the desired traits into the working template.
         Print(string.format("Adding trait %s into the working template.", TraitsToString({[trait] = value})))
-        self.breeder:ImportHoldoverStacksToActiveChest({1, 2}, {numTraitReplicate, numTraitReplicate}, {1, 2})
+        self.breeder:ImportHoldoverStacksToActiveChest(
+            {HOLDOVER_SLOT_WORKING_TEMPLATE, HOLDOVER_SLOT_GRAFTING_BEES},
+            {numTraitReplicate, numTraitReplicate},
+            {ACTIVE_SLOT_WORKING_TEMPLATE, ACTIVE_SLOT_GRAFTING_BEES}
+        )
+        local starterStackBefore = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_GRAFTING_BEES)
+        if starterStackBefore == nil then
+            self:outputError("Drones were removed from chest between holdover import and breeding start.")
+            return false
+        end
+
         local nextTraits = Copy(finishedTraits)
         nextTraits[trait] = value
         local finishedSlots = self:breed(
@@ -357,14 +381,19 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
             end
         end
 
-        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {16}, {1})
+        -- Cleanup. Export the new drones to holdovers and return the starter drones (if any still remain) to the storage row.
+        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {16}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
+        local starterStackAfter = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_GRAFTING_BEES)
+        if (starterStackAfter ~= nil) and (AnalysisUtil.AllBeeTraitsEqual(starterStackAfter.individual, starterStackBefore.individual.active)) then
+            self.breeder:StoreDronesFromActiveChest({ACTIVE_SLOT_GRAFTING_BEES})
+        end
 
         ::continue::
     end
 
     -- Final drone stack is in the holdover chest, but we only have 16. Breed it up to 64 to finish it off, then store it.
     Print("Working template finished. Breeding template up to full stack.")
-    self.breeder:ImportHoldoverStacksToActiveChest({1}, {16}, {1})
+    self.breeder:ImportHoldoverStacksToActiveChest({HOLDOVER_SLOT_WORKING_TEMPLATE}, {16}, {ACTIVE_SLOT_WORKING_TEMPLATE})
     local finishedDrones = self:breed(
         MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries, self.config.verbose),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
