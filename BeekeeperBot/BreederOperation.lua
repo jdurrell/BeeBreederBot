@@ -960,14 +960,10 @@ function BreedOperator:moveToInputChest()
     self:moveUpwards(1)
     self:moveBackwards(2)
     self.robot.turnLeft()
-    self:moveForwards(1)
-    self.robot.turnLeft()
 end
 
 function BreedOperator:returnToBreederStationFromInputChest()
-    self.robot.turnLeft()
-    self:moveForwards(1)
-    self.robot.turnLeft()
+    self.robot.turnRight()
     self:moveForwards(2)
     self:moveDownwards(1)
 end
@@ -977,14 +973,10 @@ function BreedOperator:moveToOutputChest()
     self:moveUpwards(1)
     self:moveBackwards(2)
     self.robot.turnRight()
-    self:moveForwards(1)
-    self.robot.turnRight()
 end
 
 function BreedOperator:returnToBreederStationFromOutputChest()
-    self.robot.turnRight()
-    self:moveForwards(1)
-    self.robot.turnRight()
+    self.robot.turnLeft()
     self:moveForwards(2)
     self:moveDownwards(1)
 end
