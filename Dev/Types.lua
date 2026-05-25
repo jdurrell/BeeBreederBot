@@ -146,7 +146,7 @@ local AnalyzedBeeTraits = {}
 ---@field tolerantFlyer boolean | nil  Whether this bee can work in the rain.
 local PartialAnalyzedBeeTraits = {}
 
----@alias TraitValue BeeSpecies | {uid: string} | boolean | string | integer[]
+---@alias TraitValue BeeSpecies | {uid: string} | boolean | string | integer
 
 ---@class BeeSpecies
 ---@field humidity string  The humidity required by this species for its jubilant state.
