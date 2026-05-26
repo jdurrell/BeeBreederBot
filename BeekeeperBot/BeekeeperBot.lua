@@ -342,7 +342,7 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
 
         -- Get 16 drones that have the requested trait.
         Print(string.format("Replicating stack with trait %s.", TraitsToString({[trait] = value})))
-        if not self:replicateIfNecessary({[trait] = value}, numTraitReplicate, 2) then
+        if not self:replicateIfNecessary({[trait] = value}, numTraitReplicate, HOLDOVER_SLOT_GRAFTING_BEES) then
             self:outputError("Failed to replicate template of new trait.")
             return false
         end
@@ -354,9 +354,18 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
             {numTraitReplicate, numTraitReplicate},
             {ACTIVE_SLOT_WORKING_TEMPLATE, ACTIVE_SLOT_GRAFTING_BEES}
         )
+        local currentWorkingTemplate = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
         local starterStackBefore = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_GRAFTING_BEES)
-        if starterStackBefore == nil then
+        if (currentWorkingTemplate == nil) or (starterStackBefore == nil) then
             self:outputError("Drones were removed from chest between holdover import and breeding start.")
+            return false
+        end
+
+        if not self.breeder:RetrieveStockPrincessesFromChest(nil, {
+            currentWorkingTemplate.individual.active.species.uid,
+            starterStackBefore.individual.active.species.uid,
+        }) then
+            self:outputError("Failed to retrieve princesses from stock chest.")
             return false
         end
 
