@@ -396,10 +396,20 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
 
         -- Cleanup. Export the new drones to holdovers and return the starter drones (if any still remain) to the storage row.
         self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {16}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
+        local slotsToReturn = {}
+        local workingTemplateAfter = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
+        if ((workingTemplateAfter ~= nil) and
+            AnalysisUtil.AllTraitsPure(workingTemplateAfter.individual) and
+            (self.breeder.storageCache:GetDroneEntry(workingTemplateAfter.individual.active) ~= nil)
+        ) then
+            -- "Working template" might actually just be some drones directly from the storage, especially if this is the first iteration.
+            table.insert(slotsToReturn, ACTIVE_SLOT_WORKING_TEMPLATE)
+        end
         local starterStackAfter = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_GRAFTING_BEES)
         if (starterStackAfter ~= nil) and (AnalysisUtil.AllBeeTraitsEqual(starterStackAfter.individual, starterStackBefore.individual.active)) then
-            self.breeder:StoreDronesFromActiveChest({ACTIVE_SLOT_GRAFTING_BEES})
+            table.insert(slotsToReturn, ACTIVE_SLOT_GRAFTING_BEES)
         end
+        self.breeder:StoreDronesFromActiveChest(slotsToReturn)
 
         ::continue::
     end
