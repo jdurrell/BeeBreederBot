@@ -239,7 +239,7 @@ function BreedOperator:RefreshStorageCache()
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
             local stack = self.ic.getStackInSlot(self.sides.front, i)  ---@type AnalyzedBeeStack
-            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) and (stack.size >= 32) then
+            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
                 self.storageCache:LoadDrone(stack.individual.active, stack.size, chest, i)
