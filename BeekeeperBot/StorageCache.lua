@@ -2,7 +2,7 @@
 
 local BeeAnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 
-STORAGE_CHEST_NUM_SLOTS = 54  -- We happen to be using gold chests.
+STORAGE_CHEST_NUM_SLOTS = 54  -- We happen to be using iron chests.
 
 -- Caches relevant information for drones in the storage row.
 -- TODO: If tight on robot memory, we could provide an implementation that stores this on the server.
@@ -101,12 +101,12 @@ function StorageRowCache:AllocateSlot(traits)
     local nextChest = 1
     local nextSlot = 1
     for i, v in ipairs(self.cache) do
-        if v.chestNumber == nextChest and v.slot ~= nextSlot then
+        if (v.chestNumber == nextChest) and (v.slot ~= nextSlot) then
             -- Gap within one chest.
             return self:LoadDrone(traits, 0, nextChest, nextSlot, i)
         elseif v.chestNumber ~= nextChest then
             -- Gap between chests.
-            return self:LoadDrone(traits, 0, nextChest, nextSlot, i)
+            return self:LoadDrone(traits, 0, nextChest, 1, i)
         end
 
         nextSlot = nextSlot + 1

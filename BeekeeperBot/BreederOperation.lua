@@ -864,7 +864,6 @@ function BreedOperator:storeDrones(traitSets)
 
         -- Drop the drones.
         self.robot.select(v.robotSlot)
-
         local numToDrop = math.min(64 - v.entry.stackSize, self.robot.count())
         self.ic.dropIntoSlot(self.sides.front, v.entry.slot, numToDrop)
         v.entry.stackSize = v.entry.stackSize + numToDrop
