@@ -848,7 +848,7 @@ function BreedOperator:storeDrones(traitSets)
         table.insert(storageSlots, {robotSlot=i, entry=entry})
     end
     -- Sort by chest number because we can traverse the chests more quickly in order.
-    table.sort(storageSlots, function(entry1, entry2) return entry1.chestNumber <= entry2.chestNumber end)
+    table.sort(storageSlots, function(slotEntry1, slotEntry2) return slotEntry1.entry.chestNumber <= slotEntry2.entry.chestNumber end)
 
     -- Now, put the drones into the chests.
     self:moveToStorageColumn()
