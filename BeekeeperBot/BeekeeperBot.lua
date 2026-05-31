@@ -11,6 +11,7 @@ local BreederOperation = require("BeekeeperBot.BreederOperation")
 local CommLayer = require("Shared.CommLayer")
 local GarbageCollectionPolicies = require("BeekeeperBot.GarbageCollectionPolicies")
 local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
+local MutationConditionSet = require("Shared.MutationConditionSet")
 local RobotComms = require("BeekeeperBot.RobotComms")
 
 ---@class BeekeeperBot
@@ -281,7 +282,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             self.breeder:StoreDronesFromActiveChest(stacksToReturn)
             self.breeder:TrashSlotsFromDroneChest(nil)
             self.breeder:ReturnActivePrincessesToStock(nil)
-            if (self:canHandleFoundation(pathNode.foundation)) then
+            if (MutationConditionSet.FoundationIsPlaceableBlock(pathNode.conditions)) then
                 self.breeder:BreakAndReturnFoundationsToInputChest()
             end
         end
@@ -703,16 +704,18 @@ function BeekeeperBot:populateTraitInfoCache(princessStack, droneStackList, trai
 end
 
 ---@param node BreedPathNode
----@return "foundations placed" | "no foundations" | nil
 function BeekeeperBot:ensureSpecialConditionsMet(node)
-    local placingFoundations = self:canHandleFoundation(node.foundation)
+    if (MutationConditionSet.IsTrivialConditions(node.conditions)) then
+        return
+    end
 
     -- Encase this in a loop in case the user doesn't provide the foundations correctly.
+    local placingFoundations = MutationConditionSet.FoundationIsPlaceableBlock(node.conditions)
     local promptedOnce = false
     while true do
         local shouldPlaceFoundation = placingFoundations
         if shouldPlaceFoundation then
-            local retval = self.breeder:PlaceFoundations(node.foundation)
+            local retval = self.breeder:PlaceFoundations(node.conditions.foundation)
             shouldPlaceFoundation = (retval == "no foundation")
         end
 
@@ -720,34 +723,9 @@ function BeekeeperBot:ensureSpecialConditionsMet(node)
             break
         end
 
-        self.robotComms:WaitForConditionsAcknowledged(node.target, node.parent1, node.parent2, shouldPlaceFoundation)
+        self.robotComms:WaitForConditionsAcknowledged(node)
         promptedOnce = true
     end
-
-    if placingFoundations then
-        return "foundations placed"
-    else
-        return "no foundations"
-    end
-end
-
----@param foundation string | nil
----@return boolean
-function BeekeeperBot:canHandleFoundation(foundation)
-    if foundation == nil then
-        return false
-    end
-
-    return (
-        (foundation ~= "α Centauri Bb Surface Block")  -- TODO: Verify whether this name will match correctly. It might not need to be manual.
-        (foundation ~= "Aura node") and
-        (foundation ~= "Ender Goo") and
-        (foundation ~= "IC2 Coolant") and
-        (foundation ~= "IC2 Hot Coolant") and
-        (foundation ~= "Lava") and
-        (foundation ~= "Short Mead") and
-        (foundation ~= "Water")
-    )
 end
 
 ---@param errMsg string

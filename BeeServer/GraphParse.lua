@@ -2,6 +2,8 @@
 -- and translating it into a more usable form for querying the breeding graph.
 -- TODO: Consider using numeric IDs instead of string names for indexing to reduce memory usage.
 
+local MutationConditionSet = require("Shared.MutationConditionSet")
+
 ---@param graph SpeciesGraph
 ---@param species string
 local function createNodeInGraph(graph, species)
@@ -42,9 +44,10 @@ function M.AddMutationToGraph(graph, allele1, allele2, result, chance, condition
 
     -- Actually add the mutation to the graph.
     -- TODO: `chance` and `conditions` don't really need to be stored here since they can be looked up separately to save memory.
-    table.insert(graph[result].parentMutations, {parents = {allele1, allele2}, chance = chance, conditions = conditions})
-    table.insert(graph[allele1].childMutations[result], {parent = allele2, chance = chance, conditions = conditions})
-    table.insert(graph[allele2].childMutations[result], {parent = allele1, chance = chance, conditions = conditions})
+    local conditionSet = MutationConditionSet.ParseFromForestry(conditions)
+    table.insert(graph[result].parentMutations, {parents = {allele1, allele2}, chance = chance, conditions = conditionSet})
+    table.insert(graph[allele1].childMutations[result], {parent = allele2, chance = chance, conditions = conditionSet})
+    table.insert(graph[allele2].childMutations[result], {parent = allele1, chance = chance, conditions = conditionSet})
 end
 
 ---@param beehouseComponent ApicultureTile

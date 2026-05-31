@@ -7,6 +7,7 @@ require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 local GraphParse = require("BeeServer.GraphParse")
 local GraphQuery = require("BeeServer.GraphQuery")
+local MutationConditionsSet = require("Shared.MutationConditionSet")
 local MutationMath = require("BeeServer.MutationMath")
 local MutationTraits = require("BeeServer.SpeciesMutationTraits")
 local TraitInfo = require("BeeServer.SpeciesDominance")
@@ -67,37 +68,30 @@ end
 ---@param addr string
 ---@param data PromptConditionsPayload
 function BeeServer:PromptConditionsHandler(addr, data)
-    if self.messagingPromptsPending["conditions"] or (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) or (self.beeGraph[data.target] == nil) then
+    if (
+        self.messagingPromptsPending["conditions"] or
+        (data == nil) or
+        (data.pathNode.parent1 == nil) or
+        (data.pathNode.parent2 == nil) or
+        (data.pathNode.target == nil) or
+        (data.pathNode.conditions == nil))
+    then
         return
     end
 
-    local conditions = nil
-    for _, mut in ipairs(self.beeGraph[data.target].parentMutations) do
-        if (
-            ((mut.parents[1] == data.parent1) and (mut.parents[2] == data.parent2)) or
-            ((mut.parents[1] == data.parent2) and (mut.parents[2] == data.parent1))
-        ) then
-            conditions = {}
-            for _, condition  in ipairs(mut.conditions) do
-                -- TODO: Distinguish between foundation blocks that can be placed by the bot and other foundations that can't be.
-                local isAFoundation = condition:find("foundation") == nil
-                if (not isAFoundation) or (data.promptFoundation) then
-                    table.insert(conditions, condition)
-                end
-            end
-        end
-    end
-
-    if (conditions == nil) or (#conditions == 0) then
+    local pathNode = data.pathNode
+    if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
         -- If there are no conditions, then immediately tell the robot it can continue.
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.", data.target, data.parent1, data.parent2))
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
     else
         self.messagingPromptsPending["conditions"] = true
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:", data.target, data.parent1, data.parent2))
-        for _, condition in ipairs(conditions) do
-            Print(condition)
-        end
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
+        MutationConditionsSet.PrintConditions(pathNode.conditions)
         Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
     end
 end
@@ -140,21 +134,28 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         return
     end
 
+    -- Sleep after printing things because OpenComputers' screen is really small.
+    -- This gives the player some time to actually look at it.
+    -- TODO: Switch this to something that requires scrolling to the end and back up.
     Print(string.format("Trait '%s: %s' not found in breeding path. Breeding it through:",
         data.trait, TraitToString(data.trait, data.value)
     ))
     for _, v in ipairs(path) do
         Print(string.format("  %s + %s = %s", v.parent1, v.parent2, v.target))
+        Sleep(0.5)
     end
+    Sleep(2)
 
     local printedFoundations = false
     for _, v in ipairs(path) do
-        if v.foundation then
+        if (v.conditions ~= nil) and MutationConditionsSet.FoundationIsPlaceableBlock(v.conditions) then
             if not printedFoundations then
                 printedFoundations = true
                 Print(string.format("\nPlease gather the following foundations:"))
+                Sleep(0.5)
             end
-            Print(string.format("  %s", v.foundation))
+            Print(string.format("  %s", v.conditions.foundation))
+            Sleep(0.5)
         end
     end
 

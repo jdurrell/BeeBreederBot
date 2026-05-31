@@ -113,7 +113,7 @@ end
 ---@return any
 function RobotComms:GetCommandFromServer()
     ::restart::
-    local request, _ = self.comm:GetIncoming(60, nil, self.serverAddr)
+    local request, _ = self.comm:GetIncoming(nil, nil, self.serverAddr)
     if request == nil then
         goto restart
     end
@@ -146,16 +146,13 @@ function RobotComms:ReportErrorToServer(errorMessage)
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.
----@param target string
----@param parent1 string
----@param parent2 string
----@param needsFoundation boolean
-function RobotComms:WaitForConditionsAcknowledged(target, parent1, parent2, needsFoundation)
+---@param breedPathNode BreedPathNode
+function RobotComms:WaitForConditionsAcknowledged(breedPathNode)
     ::restart::
-    local payload = {target = target, parent1 = parent1, parent2 = parent2, promptFoundation = needsFoundation}
+    local payload = {pathNode=breedPathNode}
     self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(600, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
+    local response, _ = self.comm:GetIncoming(nil, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
     if response == nil then
         self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PingRequest)
         goto restart

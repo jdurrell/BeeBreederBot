@@ -1,8 +1,10 @@
 -- This program handles querying the tree for the bee breeding path.
 
+local MutationConditionSet = require("Shared.MutationConditionSet")
+
 ---@class BFSQueue
 ---@field count integer
----@field pathlookup table<string, string[]>  Table to lookup the path later.
+---@field pathlookup table<string, {parents: string[] | nil, conditions: MutationConditionSet}>  Table to lookup the path later.
 ---@field queue string[]                      Queue of species for the BFS search.
 ---@field seen table<string, integer>
 local BFSQueue = {}
@@ -24,14 +26,17 @@ end
 -- Push an item onto the BFS queue.
 ---@param name string
 ---@param parents string[] | nil
-function BFSQueue:Push(name, parents)
+---@param conditions MutationConditionSet
+function BFSQueue:Push(name, parents, conditions)
     table.insert(self.queue, name)
     if self.seen[name] == nil then
         self.seen[name] = self.count
         self.count = self.count + 1
     end
 
-    self.pathlookup[name] = parents
+    self.pathlookup[name] = {}
+    self.pathlookup[name].parents = parents
+    self.pathlookup[name].conditions = conditions
 end
 
 -- Pop the next item off the BFS queue.
@@ -51,7 +56,8 @@ function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
     local bfsQueueSearch = BFSQueue:Create()
     for leaf, _ in pairs(leafSpecies) do
         if validTargets[leaf] == nil then
-            bfsQueueSearch:Push(leaf, {nil, nil})  -- nil marks that this is a leaf node for re-traversal later.
+            -- nil marks that this is a leaf node for re-traversal later.
+            bfsQueueSearch:Push(leaf, {nil, nil}, {})
         end
     end
 
@@ -76,19 +82,19 @@ function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
         for result, otherParents in pairs(bNode.childMutations) do
             if bfsQueueSearch.seen[result] == nil then
                 local oCount = 999999  -- Large number to be greater than any count.
-                local minParent = nil
+                local minNode = nil
 
                 -- Get earliest parent that has already been found *and* can create this mutation.
                 for _, otherParent in ipairs(otherParents) do
                     if (bfsQueueSearch.seen[otherParent.parent] ~= nil) and (bfsQueueSearch.seen[otherParent.parent] < oCount) then
                         oCount = bfsQueueSearch.seen[otherParent.parent]
-                        minParent = otherParent.parent
+                        minNode = otherParent
                     end
                 end
 
                 -- If another parent was already found, then push this mutation onto the queue.
-                if minParent ~= nil then
-                    bfsQueueSearch:Push(result, {qNode, minParent})
+                if minNode ~= nil then
+                    bfsQueueSearch:Push(result, {qNode, minNode.parent}, minNode.conditions)
                 end
             end
         end
@@ -104,23 +110,25 @@ function M.QueryBestBreedingPath(graph, leafSpecies, validTargets)
 
     -- Retrace the path to return it out.
     local bfsQueueRetrace = BFSQueue:Create()
-    bfsQueueRetrace:Push(found, nil)
+    bfsQueueRetrace:Push(found, nil, {})
     while #(bfsQueueRetrace.queue) > 0 do
         local name = bfsQueueRetrace:Pop()
-        if bfsQueueSearch.pathlookup[name][1] ~= nil or bfsQueueSearch.pathlookup[name][2] ~= nil then
+        local node = bfsQueueSearch.pathlookup[name]
+        if (node.parents[1] ~= nil) or (node.parents[2] ~= nil) then
             table.insert(path, {
                 target=name,
-                parent1=bfsQueueSearch.pathlookup[name][1],
-                parent2=bfsQueueSearch.pathlookup[name][2],
+                parent1=node.parents[1],
+                parent2=node.parents[2],
+                conditions=node.conditions
             })
         end
 
         -- We can skip tracing the path if this is a leaf node, but not if this is the target
         -- (because we might need to rebreed it from other existing species to get a new trait).
         if (leafSpecies[name] == nil) or (name == found) then
-            for _, parent in pairs(bfsQueueSearch.pathlookup[name]) do
+            for _, parent in pairs(node.parents) do
                 if (parent ~= nil) and (bfsQueueRetrace.seen[parent] == nil) then
-                    bfsQueueRetrace:Push(parent, nil)
+                    bfsQueueRetrace:Push(parent, nil, node.conditions)
                 end
             end
         end

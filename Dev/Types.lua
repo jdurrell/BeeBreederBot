@@ -4,9 +4,11 @@
 
 ---@class SpeciesNode
 ---@field speciesName string  The uid of this species.
----@field parentMutations {parents: string[], chance: number, conditions: string[]}[]  All parent mutations that can result in this species.
----@field childMutations table<string, {parent: string, chance: number, conditions: string[]}[]>  Mapping of results to other parents that combo to yield that result.
-local Speciesnode = {}
+-- All parent mutations that can result in this species.
+---@field parentMutations {parents: string[], chance: number, conditions: MutationConditionSet}[]
+-- Mapping of results to other parents that combo to yield that result.
+---@field childMutations table<string, {parent: string, chance: number, conditions: MutationConditionSet}[]>
+local SpeciesNode = {}
 
 ---@alias SpeciesGraph table<string, SpeciesNode>
 ---@alias BreedInfo table<string, table<string, number>>
@@ -15,7 +17,7 @@ local Speciesnode = {}
 ---@field target string
 ---@field parent1 string
 ---@field parent2 string
----@field foundation string | nil
+---@field conditions MutationConditionSet | nil
 local BreedPathNode = {}
 
 ---@class ForestryMutation
@@ -189,7 +191,7 @@ local CodedMessage = {}
 ---@alias PingResponsePayload {transactionId: integer}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
----@alias PromptConditionsPayload {target: string, parent1: string, parent2: string, promptFoundation: boolean}
+---@alias PromptConditionsPayload {pathNode: BreedPathNode}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
 ---@alias TraitBreedPathRequestPayload {trait: string, value: TraitValue, existingSpecies: Set<string>}
