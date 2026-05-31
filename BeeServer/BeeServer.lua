@@ -26,161 +26,94 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field terminalHandlerTable table<string, function>
 local BeeServer = {}
 
-
 ---------------------
---- Modem handling:
+--- Main entry points.
 
----@param addr string
----@param data BreedInfoRequestPayload
-function BeeServer:BreedInfoHandler(addr, data)
-    if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) then
-        return
+-- Creates a BeeServer and does initial setup (importing the bee graph, etc.).
+-- Requires system libraries as an input.
+---@param componentLib Component
+---@param eventLib Event
+---@param serialLib Serialization
+---@param termLib Term
+---@param threadLib any
+---@param config BeeServerConfig
+---@return BeeServer
+function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib, config)
+    local obj = {}
+    setmetatable(obj, self)
+    self.__index = self
+
+    -- Store away system libraries.
+    -- Do this in the constructor instead of statically so that we can inject our
+    -- own system libraries for testing.
+    obj.event = eventLib
+    obj.term = termLib
+    obj.botAddr = config.botAddr
+    obj.conditionsPending = false
+    obj.messagingPromptsPending = {}
+
+    obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
+    if obj.comm == nil then
+        Print("Failed to open communication layer.")
+        obj:shutdown(1)
     end
 
-    local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
-    local payload = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
-end
+    -- Register request handlers.
+    obj.messageHandlerTable = {
+        [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
+        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
+        [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
+        [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
+        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
+    }
 
--- Handles requests for dynamically changing addresses.
----@param addr string
----@param data PingRequestPayload
-function BeeServer:PingHandler(addr, data)
-    -- TODO: If we ever want to support multiple bots, then we will need each bot to have a uid so that
-    --       the server can keep track of which is which.
-    self.botAddr = addr
+    -- Register command line handlers
+    obj.terminalHandlerTable = {
+        ["continue"] = BeeServer.ContinueCommandHandler,
+        ["import"] = BeeServer.ImportCommandHandler,
+        ["retry"] = BeeServer.RetryCommandHandler,
+        ["shutdown"] = BeeServer.ShutdownCommandHandler,
+        ["template"] = BeeServer.TemplateCommandHandler
+    }
 
-    -- Just respond with our own ping, echoing back the transaction id.
-    local payload = {transactionId = data.transactionId}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
-end
-
----@param addr string
----@param data PrintErrorPayload
-function BeeServer:PrintErrorHandler(addr, data)
-    if data.errorMessage == nil then
-        Print("Robot error: unknown.")
+    -- Obtain the full bee graph from the attached adapter and apiary.
+    -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
+    --       We need more generous matching here to determine the correct component.
+    Print("Importing bee graph...")
+    local apicultureComponent
+    if TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
+        apicultureComponent = componentLib.tile_for_apiculture_0_name
+    elseif TableContains(componentLib.list(), "tile_for_apiculture_2_name") then
+        apicultureComponent = componentLib.tile_for_apiculture_2_name
     else
-        Print(string.format("Robot error: %s", data.errorMessage))
+        Print("Couldn't find attached apiculture tile in the component library.")
+        Print("tile_for_apiculture_0_name, tile_for_apiculture_2_name not found.")
+        obj:shutdown(1)
     end
-end
+    obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
+    obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
+    Print("Imported bee graph.")
 
----@param addr string
----@param data PromptConditionsPayload
-function BeeServer:PromptConditionsHandler(addr, data)
-    if (
-        self.messagingPromptsPending["conditions"] or
-        (data == nil) or
-        (data.pathNode.parent1 == nil) or
-        (data.pathNode.parent2 == nil) or
-        (data.pathNode.target == nil) or
-        (data.pathNode.conditions == nil))
-    then
-        return
-    end
-
-    local pathNode = data.pathNode
-    if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
-        -- If there are no conditions, then immediately tell the robot it can continue.
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
-            pathNode.target, pathNode.parent1, pathNode.parent2
-        ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
-    else
-        self.messagingPromptsPending["conditions"] = true
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
-            pathNode.target, pathNode.parent1, pathNode.parent2
-        ))
-        MutationConditionsSet.PrintConditions(pathNode.conditions)
-        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
-    end
-end
-
----@param addr string
----@param data TraitBreedPathRequestPayload
-function BeeServer:TraitBreedPathHandler(addr, data)
-    if (data.trait == nil) or (data.value == nil) then
-        Print("Got unexpected TraitBreedPathRequestPayload format.")
-        return
-    end
-
-    local validTargets = {}  ---@type string[]
-    if data.trait == "species" then
-        validTargets = {[data.value.uid] = true}
-    else
-        local indexableValue = data.value
-        if data.trait == "territory" then
-            indexableValue = data.value[1]
-        elseif data.trait == "speed" then
-            indexableValue = math.floor(data.value * 10 + 0.5) / 10
+    -- Set up the terminal handler thread.
+    obj.messagingThreadHandle = threadLib.create(function ()
+        while true do
+            BeeServer.PollForMessageAndHandle(obj, nil)
         end
-        validTargets = MutationTraits[data.trait][indexableValue]
-    end
+    end)
+    Print("Comms online.")
 
-    if validTargets == nil then
-        Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
-            data.trait, TraitToString(data.trait, data.value)
-        ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
-        return
-    end
-
-    local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, data.existingSpecies, validTargets)
-    if path == nil then
-        Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
-            data.trait, TraitToString(data.trait, data.value)
-        ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
-        return
-    end
-
-    -- Sleep after printing things because OpenComputers' screen is really small.
-    -- This gives the player some time to actually look at it.
-    -- TODO: Switch this to something that requires scrolling to the end and back up.
-    Print(string.format("Trait '%s: %s' not found in breeding path. Breeding it through:",
-        data.trait, TraitToString(data.trait, data.value)
-    ))
-    for _, v in ipairs(path) do
-        Print(string.format("  %s + %s = %s", v.parent1, v.parent2, v.target))
-        Sleep(0.5)
-    end
-    Sleep(2)
-
-    local printedFoundations = false
-    for _, v in ipairs(path) do
-        if (v.conditions ~= nil) and MutationConditionsSet.FoundationIsPlaceableBlock(v.conditions) then
-            if not printedFoundations then
-                printedFoundations = true
-                Print(string.format("\nPlease gather the following foundations:"))
-                Sleep(0.5)
-            end
-            Print(string.format("  %s", v.conditions.foundation))
-            Sleep(0.5)
-        end
-    end
-
-    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, path)
+    return obj
 end
 
----@param addr string
----@param data TraitInfoRequestPayload
-function BeeServer:TraitInfoHandler(addr, data)
-    local payload = {dominant = TraitInfo[data.species]}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, payload)
-end
+-- Runs the main BeeServer operation loop.
+function BeeServer:RunServer()
+    Print("Startup Success!")
 
----@param timeout number | nil
-function BeeServer:PollForMessageAndHandle(timeout)
-    local response, addr = self.comm:GetIncoming(timeout, nil, self.botAddr)
-    if response ~= nil then
-        if self.messageHandlerTable[response.code] == nil then
-            Print("Received unidentified code " .. tostring(response.code))
-        else
-            self.messageHandlerTable[response.code](self, UnwrapNull(addr), response.payload)
-        end
+    while true do
+        self:pollForTerminalInputAndHandle()
     end
 end
-
 
 ---------------------
 --- Terminal handling:
@@ -353,98 +286,158 @@ function BeeServer:shutdown(code)
     ExitProgram(code)
 end
 
-
 ---------------------
---- Main entry points.
+--- Modem handling:
 
--- Creates a BeeServer and does initial setup (importing the bee graph, etc.).
--- Requires system libraries as an input.
----@param componentLib Component
----@param eventLib Event
----@param serialLib Serialization
----@param termLib Term
----@param threadLib any
----@param config BeeServerConfig
----@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib, config)
-    local obj = {}
-    setmetatable(obj, self)
-    self.__index = self
-
-    -- Store away system libraries.
-    -- Do this in the constructor instead of statically so that we can inject our
-    -- own system libraries for testing.
-    obj.event = eventLib
-    obj.term = termLib
-    obj.botAddr = config.botAddr
-    obj.conditionsPending = false
-    obj.messagingPromptsPending = {}
-
-    obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
-    if obj.comm == nil then
-        Print("Failed to open communication layer.")
-
-        -- TODO: Verify whether it is valid to call obj:shutdown() here.
-        --       In theory, it should be fine since we already set the metatable,
-        --       but that should be verified.
-        obj:shutdown(1)
-    end
-
-    -- Register request handlers.
-    obj.messageHandlerTable = {
-        [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
-        [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
-        [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
-        [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
-        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
-    }
-
-    -- Register command line handlers
-    obj.terminalHandlerTable = {
-        ["continue"] = BeeServer.ContinueCommandHandler,
-        ["import"] = BeeServer.ImportCommandHandler,
-        ["retry"] = BeeServer.RetryCommandHandler,
-        ["shutdown"] = BeeServer.ShutdownCommandHandler,
-        ["template"] = BeeServer.TemplateCommandHandler
-    }
-
-    -- Obtain the full bee graph from the attached adapter and apiary.
-    -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
-    --       We need more generous matching here to determine the correct component.
-    Print("Importing bee graph...")
-    local apicultureComponent
-    if TableContains(componentLib.list(), "tile_for_apiculture_0_name") then
-        apicultureComponent = componentLib.tile_for_apiculture_0_name
-    elseif TableContains(componentLib.list(), "tile_for_apiculture_2_name") then
-        apicultureComponent = componentLib.tile_for_apiculture_2_name
-    else
-        Print("Couldn't find attached apiculture tile in the component library.")
-        Print("tile_for_apiculture_0_name, tile_for_apiculture_2_name not found.")
-        obj:shutdown(1)
-    end
-    obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
-    obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
-    Print("Imported bee graph.")
-
-    -- Set up the terminal handler thread.
-    obj.messagingThreadHandle = threadLib.create(function ()
-        while true do
-            BeeServer.PollForMessageAndHandle(obj, nil)
+---@param timeout number | nil
+function BeeServer:PollForMessageAndHandle(timeout)
+    local response, addr = self.comm:GetIncoming(timeout, nil, self.botAddr)
+    if response ~= nil then
+        if self.messageHandlerTable[response.code] == nil then
+            Print("Received unidentified code " .. tostring(response.code))
+        else
+            self.messageHandlerTable[response.code](self, UnwrapNull(addr), response.payload)
         end
-    end)
-    Print("Comms online.")
-
-    return obj
+    end
 end
 
--- Runs the main BeeServer operation loop.
-function BeeServer:RunServer()
-    Print("Startup Success!")
-
-    while true do
-        self:pollForTerminalInputAndHandle()
+---@param addr string
+---@param data BreedInfoRequestPayload
+function BeeServer:BreedInfoHandler(addr, data)
+    if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) then
+        return
     end
+
+    local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
+    local payload = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
+end
+
+-- Handles requests for dynamically changing addresses.
+---@param addr string
+---@param data PingRequestPayload
+function BeeServer:PingHandler(addr, data)
+    -- TODO: If we ever want to support multiple bots, then we will need each bot to have a uid so that
+    --       the server can keep track of which is which.
+    self.botAddr = addr
+
+    -- Just respond with our own ping, echoing back the transaction id.
+    local payload = {transactionId = data.transactionId}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
+end
+
+---@param addr string
+---@param data PrintErrorPayload
+function BeeServer:PrintErrorHandler(addr, data)
+    if data.errorMessage == nil then
+        Print("Robot error: unknown.")
+    else
+        Print(string.format("Robot error: %s", data.errorMessage))
+    end
+end
+
+---@param addr string
+---@param data PromptConditionsPayload
+function BeeServer:PromptConditionsHandler(addr, data)
+    if (
+        self.messagingPromptsPending["conditions"] or
+        (data == nil) or
+        (data.pathNode.parent1 == nil) or
+        (data.pathNode.parent2 == nil) or
+        (data.pathNode.target == nil) or
+        (data.pathNode.conditions == nil))
+    then
+        return
+    end
+
+    local pathNode = data.pathNode
+    if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
+        -- If there are no conditions, then immediately tell the robot it can continue.
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
+    else
+        self.messagingPromptsPending["conditions"] = true
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
+        MutationConditionsSet.PrintConditions(pathNode.conditions)
+        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
+    end
+end
+
+---@param addr string
+---@param data TraitBreedPathRequestPayload
+function BeeServer:TraitBreedPathHandler(addr, data)
+    if (data.trait == nil) or (data.value == nil) then
+        Print("Got unexpected TraitBreedPathRequestPayload format.")
+        return
+    end
+
+    local validTargets = {}  ---@type string[]
+    if data.trait == "species" then
+        validTargets = {[data.value.uid] = true}
+    else
+        local indexableValue = data.value
+        if data.trait == "territory" then
+            indexableValue = data.value[1]
+        elseif data.trait == "speed" then
+            indexableValue = math.floor(data.value * 10 + 0.5) / 10
+        end
+        validTargets = MutationTraits[data.trait][indexableValue]
+    end
+
+    if validTargets == nil then
+        Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
+            data.trait, TraitToString(data.trait, data.value)
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        return
+    end
+
+    local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, data.existingSpecies, validTargets)
+    if path == nil then
+        Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
+            data.trait, TraitToString(data.trait, data.value)
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        return
+    end
+
+    -- Sleep after printing things because OpenComputers' screen is really small.
+    -- This gives the player some time to actually look at it.
+    -- TODO: Switch this to something that requires scrolling to the end and back up.
+    Print(string.format("Trait '%s: %s' not found in breeding path. Breeding it through:",
+        data.trait, TraitToString(data.trait, data.value)
+    ))
+    for _, v in ipairs(path) do
+        Print(string.format("  %s + %s = %s", v.parent1, v.parent2, v.target))
+        Sleep(0.5)
+    end
+    Sleep(2)
+
+    local printedFoundations = false
+    for _, v in ipairs(path) do
+        if (v.conditions ~= nil) and MutationConditionsSet.FoundationIsPlaceableBlock(v.conditions) then
+            if not printedFoundations then
+                printedFoundations = true
+                Print(string.format("\nPlease gather the following foundations:"))
+                Sleep(0.5)
+            end
+            Print(string.format("  %s", v.conditions.foundation))
+            Sleep(0.5)
+        end
+    end
+
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, path)
+end
+
+---@param addr string
+---@param data TraitInfoRequestPayload
+function BeeServer:TraitInfoHandler(addr, data)
+    local payload = {dominant = TraitInfo[data.species]}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, payload)
 end
 
 return BeeServer
