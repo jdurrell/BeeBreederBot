@@ -19,11 +19,6 @@ local TraitInfo = require("BeeServer.SpeciesDominance")
 ---@field beeNameToUids table<string, string[]>
 ---@field botAddr string
 ---@field comm CommLayer
----@field lastTemplatePayload MakeTemplatePayload
----@field messagingPromptsPending table<string, boolean>
----@field messagingThreadHandle ThreadHandle
----@field messageHandlerTable table<integer, function>
----@field terminalHandlerTable table<string, function>
 local BeeServer = {}
 
 ---------------------
@@ -49,33 +44,12 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.event = eventLib
     obj.term = termLib
     obj.botAddr = config.botAddr
-    obj.conditionsPending = false
-    obj.messagingPromptsPending = {}
 
     obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
     if obj.comm == nil then
         Print("Failed to open communication layer.")
         obj:shutdown(1)
     end
-
-    -- Register request handlers.
-    obj.messageHandlerTable = {
-        [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
-        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
-        [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
-        [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
-        [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
-        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
-    }
-
-    -- Register command line handlers
-    obj.terminalHandlerTable = {
-        ["continue"] = BeeServer.ContinueCommandHandler,
-        ["import"] = BeeServer.ImportCommandHandler,
-        ["retry"] = BeeServer.RetryCommandHandler,
-        ["shutdown"] = BeeServer.ShutdownCommandHandler,
-        ["template"] = BeeServer.TemplateCommandHandler
-    }
 
     -- Obtain the full bee graph from the attached adapter and apiary.
     -- TODO: This is set up to be attached to an apiary, but this isn't technically required.
@@ -95,59 +69,42 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
     Print("Imported bee graph.")
 
-    -- Set up the terminal handler thread.
-    obj.messagingThreadHandle = threadLib.create(function ()
-        while true do
-            BeeServer.PollForMessageAndHandle(obj, nil)
-        end
-    end)
-    Print("Comms online.")
-
+    Print("Startup Success!")
     return obj
 end
 
--- Runs the main BeeServer operation loop.
-function BeeServer:RunServer()
-    Print("Startup Success!")
-
-    while true do
-        self:pollForTerminalInputAndHandle()
+-- Executes the given BeeServer command.
+---@param command string | nil
+---@param flags Set<string>
+---@param values table<string, any>
+function BeeServer:RunServer(command, flags, values)
+    if command == nil then
+        Print("Expected a command, got nothing.")
+        self:shutdown(1)
     end
+
+    if command == "template" then
+        self:TemplateCommand(flags, values)
+    elseif command == "import" then
+        self:ImportCommandHandler(flags, values)
+    else
+        Print(string.format("Unrecognized command '%s'.", command))
+        self:shutdown(1)
+    end
+
+    self:shutdown(0)
 end
 
 ---------------------
 --- Terminal handling:
 
----@param argv string[]
-function BeeServer:ContinueCommandHandler(argv)
-    if not self.messagingPromptsPending["conditions"] then
-        Print("Nothing to continue. Unrecognized context for this command.")
-        return
-    end
+---@param flags Set<string>
+---@param values any
+function BeeServer:TemplateCommand(flags, values)
+    ---@type MakeTemplateCommandPayload
+    local payload = {traits={}, raw=SetContains(flags, "raw")}
 
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.PromptConditionsResponse)
-    self.messagingPromptsPending["conditions"] = false
-end
-
-function BeeServer:ImportCommandHandler(argv)
-    if (argv[1] == nil) then
-        Print("Unrecognized command. Usage: import <princesses | drones>")
-        return
-    end
-
-    if argv[1] == "princesses" then
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportPrincessesCommand)
-        Print("Importing princesses...")
-    elseif argv[1] == "drones" then
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportDroneStacksCommand)
-        Print("Importing drones...")
-    else
-        Print("Unrecognized command. Usage: import <princesses | drones>")
-    end
-end
-
----@param argv string[]
-function BeeServer:TemplateCommandHandler(argv)
+    -- Input validation.
     local validTraitsTypes = {
         ["caveDwelling"] = "boolean",
         ["effect"] = "string",
@@ -163,213 +120,125 @@ function BeeServer:TemplateCommandHandler(argv)
         ["territory"] = "integer",
         ["tolerantFlyer"] = "boolean"
     }
-    local payload = {traits = {}, raw = TableContains(argv, "--raw")}  ---@type MakeTemplatePayload
 
-    local parameterArgs = {}
-    for i, v in ipairs(argv) do
-        if v:find("=", 1, true) ~= nil then
-            table.insert(parameterArgs, v)
-        end
-    end
-
-    for i, v in ipairs(parameterArgs) do
-        local fields = {}
-        for match in v:gmatch("[^=]+") do
-            table.insert(fields, match)
-        end
-
-        if #fields ~= 2 then
-            Print(string.format("Unrecognized parameter string '%s'.", v))
-            return
-        end
-
+    for k, v in pairs(values) do
         -- TODO: Actually validate all of the values given to us here.
-        if validTraitsTypes[fields[1]] == "boolean" then
-            fields[2] = fields[2]:lower()
-            if fields[2] == "true" then
-                payload.traits[fields[1]] = true
-            elseif fields[2] == "false" then
-                payload.traits[fields[1]] = false
-            else
-                Print(string.format("Unrecognized boolean value: '%s'.", fields[2]))
-                return
+        local expectedType = validTraitsTypes[k]
+        if expectedType == nil then
+            Print(string.format("Unrecognized option '%s'", k))
+            self:shutdown(1)
+        elseif expectedType == "boolean" then
+            if (v:lower() ~= "true") and (v:lower() ~= "false") then
+                Print(string.format("Unrecognized value '%s' for boolean field '%s'. Expected 'true' or 'false'", v, k))
+                self:shutdown(1)
             end
-        elseif validTraitsTypes[fields[1]] == "integer" then
-            local val = tonumber(fields[2], 10)
-            if val == nil then
-                Print(string.format("Unrecognized integer: '%s'.", fields[2]))
-                return
+            payload.traits[k] = (v:lower() == "true")
+        elseif expectedType == "integer" then
+            local integerValue = tonumber(v, 10)
+            if not type(integerValue) == "integer" then
+                Print(string.format("Unrecognized value '%s' for integer field '%s'.", k, v))
+                self:shutdown(1)
             end
-            payload.traits[fields[1]] = val
-        elseif validTraitsTypes[fields[1]] == "number" then
-            local val = tonumber(fields[2])
-            if val == nil then
-                Print(string.format("Unrecognized number: '%s'.", fields[2]))
-                return
-            end
-            payload.traits[fields[1]] = val
-        elseif validTraitsTypes[fields[1]] == "string" then
-            if fields[1] == "species" then
+            payload.traits[k] = integerValue
+        else  -- expectedType == "string"
+            if k == "species" then
                 ---@diagnostic disable-next-line: missing-fields
-                payload.traits["species"] = {uid = fields[2]}
+                payload.traits["species"] = {uid = v}
             else
-                payload.traits[fields[1]] = fields[2]
+                payload.traits[k] = v
             end
-        else
-            Print(string.format("Unrecognized argument: '%s'.", fields[1]))
-            return
         end
     end
 
     Print(string.format("Making internal template: %s.", TraitsToString(payload.traits)))
-    self.lastTemplatePayload = payload
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, payload)
+    self:RunCommand(CommLayer.MessageCode.MakeTemplateCommand, payload)
 end
 
----@param argv string[]
-function BeeServer:RetryCommandHandler(argv)
-    if self.lastTemplatePayload == nil then
-        Print("Error: No previous template attemt to retry.")
-        return
-    end
-
-    Print(string.format("Making internal template: %s.", TraitsToString(self.lastTemplatePayload.traits)))
-    self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.MakeTemplateCommand, self.lastTemplatePayload)
-end
-
----@param argv string[]
-function BeeServer:ShutdownCommandHandler(argv)
-    -- This may or may not cause the robot to actually shut down, but it will prevent it from continuing to start apiaries.
-    -- When using this command, expect to have to reset the system manually.
-    if self.botAddr ~= nil then
-        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.CancelCommand)
-    end
-    self:shutdown(0)
-end
-
-function BeeServer:pollForTerminalInputAndHandle()
-    local text = self.term.read()
-    if (text == nil) or (text == false) then
-        Print("Received cancellation token.")
+---@param args string[]
+---@param values any
+function BeeServer:ImportCommandHandler(args, values)
+    if (#args ~= 1) or (not TableIsEmpty(values)) then
+        Print("Unrecognized command. Usage: import <princesses | drones>")
         self:shutdown(1)
-        return
     end
 
-    -- Separate command line options.
-    -- TODO provide a way for a single argument to have a space in it.
-    local argv = {}
-    for arg in string.gmatch(UnwrapNull(text), "[^%s]+") do
-        table.insert(argv, arg)
+    if args[1] == "princesses" then
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportPrincessesCommand)
+        Print("Importing princesses...")
+    elseif args[1] == "drones" then
+        self.comm:SendMessage(self.botAddr, CommLayer.MessageCode.ImportDroneStacksCommand)
+        Print("Importing drones...")
+    else
+        Print("Unrecognized command. Usage: import <princesses | drones>")
+        self:shutdown(1)
     end
-
-    -- We could theoretically get no commands if the user gave us a blank line.
-    if #argv == 0 then
-        return
-    end
-
-    if self.terminalHandlerTable[argv[1]] == nil then
-        Print(string.format("Unrecognized command: '%s'", argv[1]))
-    end
-    local command = argv[1]
-    table.remove(argv, 1)
-
-    self.terminalHandlerTable[command](self, argv)
 end
 
--- Shuts down the server.
----@param code integer
-function BeeServer:shutdown(code)
-    if self.comm ~= nil then
-        self.comm:Close()
-    end
+---@param messageCode integer
+---@param payload table
+function BeeServer:RunCommand(messageCode, payload)
+    local transactionId = self.comm:SendMessage(self.botAddr, messageCode, nil, payload)
 
-    ExitProgram(code)
-end
+    local messageHandlerTable = {
+        [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
+        [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
+        [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
+        [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
+        [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
+        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
+    }
 
----------------------
---- Modem handling:
-
----@param timeout number | nil
-function BeeServer:PollForMessageAndHandle(timeout)
-    local response, addr = self.comm:GetIncoming(timeout, nil, self.botAddr)
-    if response ~= nil then
-        if self.messageHandlerTable[response.code] == nil then
-            Print("Received unidentified code " .. tostring(response.code))
-        else
-            self.messageHandlerTable[response.code](self, UnwrapNull(addr), response.payload)
+    while true do
+        local message, addr = self.comm:GetIncoming(nil, nil, self.botAddr)
+        if message == nil then
+            goto continue
         end
+        addr = UnwrapNull(addr)
+
+        if message.code == CommLayer.MessageCode.CommandFinishRequest then
+            if message.transactionId == transactionId then
+                -- The bot finished executing this command. We are done.
+                self.comm:SendMessage(addr, CommLayer.MessageCode.CommandFinishResponse, message.transactionId)
+                break
+            else
+                Print("Got unexpected transactionId for finished command.")
+            end
+        elseif messageHandlerTable[message.code] ~= nil then
+            messageHandlerTable[message.code](self, UnwrapNull(addr), message.transactionId, message.payload)
+        else
+            Print(string.format("Received unidentified message code: %d", message.code))
+        end
+        ::continue::
     end
+end
+
+-- Handles requests for dynamically changing addresses.
+---@param addr string
+---@param transactionId integer
+function BeeServer:PingHandler(addr, transactionId, data)
+    self.botAddr = addr
+
+    -- Just respond with our own ping, echoing back the transaction id.
+    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, transactionId, nil)
 end
 
 ---@param addr string
+---@param transactionId integer
 ---@param data BreedInfoRequestPayload
-function BeeServer:BreedInfoHandler(addr, data)
+function BeeServer:BreedInfoHandler(addr, transactionId, data)
     if (data == nil) or (data.parent1 == nil) or (data.parent2 == nil) or (data.target == nil) then
         return
     end
 
     local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
     local payload = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, payload)
-end
-
--- Handles requests for dynamically changing addresses.
----@param addr string
----@param data PingRequestPayload
-function BeeServer:PingHandler(addr, data)
-    -- TODO: If we ever want to support multiple bots, then we will need each bot to have a uid so that
-    --       the server can keep track of which is which.
-    self.botAddr = addr
-
-    -- Just respond with our own ping, echoing back the transaction id.
-    local payload = {transactionId = data.transactionId}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.PingResponse, payload)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, transactionId, payload)
 end
 
 ---@param addr string
----@param data PrintErrorPayload
-function BeeServer:PrintErrorHandler(addr, data)
-    if data.errorMessage == nil then
-        Print("Robot error: unknown.")
-    else
-        Print(string.format("Robot error: %s", data.errorMessage))
-    end
-end
-
----@param addr string
----@param data PromptConditionsPayload
-function BeeServer:PromptConditionsHandler(addr, data)
-    if (
-        self.messagingPromptsPending["conditions"] or
-        (data == nil) or
-        (data.pathNode.parent1 == nil) or
-        (data.pathNode.parent2 == nil) or
-        (data.pathNode.target == nil) or
-        (data.pathNode.conditions == nil))
-    then
-        return
-    end
-
-    local pathNode = data.pathNode
-    if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
-        -- If there are no conditions, then immediately tell the robot it can continue.
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
-            pathNode.target, pathNode.parent1, pathNode.parent2
-        ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse)
-    else
-        self.messagingPromptsPending["conditions"] = true
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
-            pathNode.target, pathNode.parent1, pathNode.parent2
-        ))
-        MutationConditionsSet.PrintConditions(pathNode.conditions)
-        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
-    end
-end
-
----@param addr string
+---@param transactionId integer
 ---@param data TraitBreedPathRequestPayload
-function BeeServer:TraitBreedPathHandler(addr, data)
+function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
     if (data.trait == nil) or (data.value == nil) then
         Print("Got unexpected TraitBreedPathRequestPayload format.")
         return
@@ -383,6 +252,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         if data.trait == "territory" then
             indexableValue = data.value[1]
         elseif data.trait == "speed" then
+            -- Round to 1 decimal point.
             indexableValue = math.floor(data.value * 10 + 0.5) / 10
         end
         validTargets = MutationTraits[data.trait][indexableValue]
@@ -392,7 +262,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
             data.trait, TraitToString(data.trait, data.value)
         ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, transactionId, {})
         return
     end
 
@@ -401,7 +271,7 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
             data.trait, TraitToString(data.trait, data.value)
         ))
-        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, {})
+        self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, transactionId, {})
         return
     end
 
@@ -430,14 +300,56 @@ function BeeServer:TraitBreedPathHandler(addr, data)
         end
     end
 
-    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, path)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, transactionId, path)
 end
 
 ---@param addr string
+---@param transactionId integer
 ---@param data TraitInfoRequestPayload
-function BeeServer:TraitInfoHandler(addr, data)
+function BeeServer:TraitInfoHandler(addr, transactionId, data)
     local payload = {dominant = TraitInfo[data.species]}
-    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, payload)
+    self.comm:SendMessage(addr, CommLayer.MessageCode.TraitInfoResponse, transactionId, payload)
+end
+
+---@param addr string
+---@param transactionId integer
+---@param data PromptConditionsPayload
+function BeeServer:PromptConditionsHandler(addr, transactionId, data)
+    local pathNode = data.pathNode
+    if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
+        -- If there are no conditions, then immediately tell the robot it can continue.
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
+        self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse, transactionId)
+    else
+        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
+            pathNode.target, pathNode.parent1, pathNode.parent2
+        ))
+        MutationConditionsSet.PrintConditions(pathNode.conditions)
+        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
+    end
+end
+
+---@param addr string
+---@param transactionId integer
+---@param data PrintErrorPayload
+function BeeServer:PrintErrorHandler(addr, transactionId, data)
+    if data.errorMessage == nil then
+        Print("Robot error: unknown.")
+    else
+        Print(string.format("Robot error: %s", data.errorMessage))
+    end
+end
+
+-- Shuts down the server.
+---@param code integer
+function BeeServer:shutdown(code)
+    if self.comm ~= nil then
+        self.comm:Close()
+    end
+
+    ExitProgram(code)
 end
 
 return BeeServer

@@ -113,7 +113,7 @@ function BeekeeperBot:importDroneStacksHandler(data)
     end
 end
 
----@param data MakeTemplatePayload
+---@param data MakeTemplateCommandPayload
 function BeekeeperBot:makeTemplateHandler(data)
     if data.traits == nil then
         self:outputError("Received invalid MakeTemplate payload.")

@@ -62,6 +62,20 @@ function TableContains(arr, value)
     return false
 end
 
+---@param tab table
+---@return boolean
+function TableIsEmpty(tab)
+    return (next(tab) ~= nil)
+end
+
+---@generic T
+---@param set Set<T>
+---@param value T
+---@return boolean
+function SetContains(set, value)
+    return set[value] ~= nil
+end
+
 -- This function taken from http://lua-users.org/wiki/CopyTable.
 -- Save copied tables in `copies`, indexed by original table.
 local function deepcopy(orig, copies)

@@ -171,29 +171,27 @@ local BeekeeperBotConfig = {}
 ---@field port integer
 local BeeServerConfig = {}
 
--- TODO: Define types for message payloads.
 --- Generics are still in progress, which is why this looks a little weird compared to the other types.
 ---@class Message
 ---@field code integer
+---@field transactionId integer
 ---@field payload table
 local Message = {}
 
----@class CodedMessage<T>: {code: integer, payload: T}
+---@class CodedMessage<T>: {code: integer, transactionId: integer, payload: T}
 local CodedMessage = {}
 
 -- TODO: Refactor this to be a unique key like "parent1-parent2".
 -- Mapping of princess to drone to chance for parents to mutate into the target and chance for parents to mutate into a different species.
 ---@alias BreedInfoCache table<string, table<string, {targetMutChance: number, nonTargetMutChance: number}>>
 
+---@alias MakeTemplateCommandPayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
 ---@alias BreedInfoRequestPayload {parent1: string, parent2: string, target: string}
 ---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
----@alias PingRequestPayload {transactionId: integer}
----@alias PingResponsePayload {transactionId: integer}
 ---@alias TraitInfoRequestPayload {species: string}
 ---@alias TraitInfoResponsePaytoad {dominant: boolean}
 ---@alias PromptConditionsPayload {pathNode: BreedPathNode}
 ---@alias PrintErrorPayload {errorMessage: string}
----@alias MakeTemplatePayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
 ---@alias TraitBreedPathRequestPayload {trait: string, value: TraitValue, existingSpecies: Set<string>}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
 

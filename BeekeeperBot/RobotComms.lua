@@ -8,106 +8,29 @@ require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 
 ---@param expectedCode MessageCode
+---@param transactionId integer
 ---@param message any
 ---@param shouldHavePayload boolean
 ---@return boolean
-function RobotComms:validateExpectedMessage(expectedCode, message, shouldHavePayload)
+local function validateExpectedMessage(expectedCode, transactionId, message, shouldHavePayload)
     if message == nil then
         Print("Got unexpected nil response when expecting response of type " .. tostring(expectedCode) .. ".")
         return false
-    end
-
-    if message.code == CommLayer.MessageCode.CancelCommand then
+    elseif message.code == CommLayer.MessageCode.CancelCommand then
         Print("Received cancellation request.")
         return false
-    end
-
-    if message.code ~= expectedCode then
+    elseif message.code ~= expectedCode then
         Print("Got unexpected response of type " .. tostring(message.code) .. ". Expected response of type " .. tostring(expectedCode) .. ".")
         return false
-    end
-
-    if shouldHavePayload and (message.payload == nil) then
+    elseif message.transactionId ~= transactionId then
+        Print("Got unexpected transaction id: " .. message.transactionId .. ". Expected transaction id: " .. transactionId)
+        return false
+    elseif shouldHavePayload and (message.payload == nil) then
         Print("Got unexpected nil payload in response of type " .. tostring(message.code) .. ".")
         return false
     end
 
     return true
-end
-
--- Broadcasts a message to all servers and establishes communication with the one that responds.
--- Sets the serverAddr to the address of the server that responds.
-function RobotComms:EstablishComms()
-    -- TODO: Do addresses even change when a computer reboots, or can the address be in the config?
-    Print("Establishing conection to server...")
-
-    while true do
-        local tid = math.floor(math.random(65535))
-        local payload = {transactionId = tid}
-        self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, payload)
-
-        while true do
-            local response, addr = self.comm:GetIncoming(10, nil, self.serverAddr)  -- Explicitly don't filter for PingRequest to clean out old messages.
-            if response == nil then
-                -- If we didn't get a response, then we will need to re-send the request.
-                break
-            elseif (self:validateExpectedMessage(CommLayer.MessageCode.PingResponse, response, true) and
-                (response.payload.transactionId == tid)
-            ) then
-                self.serverAddr = UnwrapNull(addr)
-                return
-            end
-
-            -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
-            -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous request.
-        end
-    end
-end
-
----@param parent1 string,
----@param parent2 string,
----@param target string
----@return BreedInfoResponsePayload | nil
-function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
-    ::restart::
-    local payload = {parent1 = parent1, parent2 = parent2, target = target}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, payload)
-
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse, self.serverAddr)
-    if response == nil then
-        goto restart
-    end
-    if not self:validateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, response, true) then
-        return nil
-    end
-
-    return UnwrapNull(response).payload
-end
-
----@param trait string
----@param value TraitValue
----@param existingSpecies Set<string>
----@return TraitBreedPathResponsePayload | nil
-function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies)
-    ::restart::
-    local payload = {trait = trait, value = value, existingSpecies = existingSpecies}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, payload)
-
-    local response, _ = self.comm:GetIncoming(40000, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
-    if response == nil then
-        goto restart
-    end
-    if not self:validateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, response, true) then
-        return nil
-    end
-
-    -- An empty breed path is an error.
-    local responsePayload = UnwrapNull(response).payload ---@type TraitBreedPathResponsePayload
-    if #responsePayload == 0 then
-        return nil
-    end
-
-    return responsePayload
 end
 
 ---@return any
@@ -121,41 +44,113 @@ function RobotComms:GetCommandFromServer()
     return request
 end
 
+-- Broadcasts a message to all servers and establishes communication with the one that responds.
+-- Sets the serverAddr to the address of the server that responds.
+function RobotComms:EstablishComms()
+    Print("Establishing conection to server...")
+
+    local requestSuccess = false
+    while not requestSuccess do
+        local tid = self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, nil, nil)
+        if tid ~= nil then
+            local response, addr = self.comm:GetIncoming(10, nil, self.serverAddr)  -- Explicitly don't filter for PingRequest to clean out old messages.
+            if validateExpectedMessage(CommLayer.MessageCode.PingResponse, tid, response, true) then
+                self.serverAddr = UnwrapNull(addr)
+                requestSuccess = true
+            end
+            -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
+            -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous request.
+        end
+    end
+end
+
+---@param parent1 string,
+---@param parent2 string,
+---@param target string
+---@return BreedInfoResponsePayload
+function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
+    local payload = {parent1=parent1, parent2=parent2, target=target}
+
+    local responsePayload = nil
+    while responsePayload == nil do
+        local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, nil, payload)
+        if tid ~= nil then
+            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse, self.serverAddr)
+            if validateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, tid, response, true) then
+                responsePayload = UnwrapNull(response).payload
+            end
+        end
+    end
+
+    return responsePayload
+end
+
+---@param trait string
+---@param value TraitValue
+---@param existingSpecies Set<string>
+---@return TraitBreedPathResponsePayload | nil
+function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies)
+    local payload = {trait=trait, value=value, existingSpecies=existingSpecies}
+
+    local responsePayload = nil
+    while responsePayload == nil do
+        local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, nil, payload)
+        if tid ~= nil then
+            local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
+            if validateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, tid, response, true) then
+                ---@type TraitBreedPathResponsePayload
+                local path = UnwrapNull(response).payload
+                if #responsePayload == 0 then
+                    -- An empty breed path is an error.
+                    return nil
+                end
+                responsePayload = path
+            end
+        end
+    end
+
+    return responsePayload
+end
+
 ---@param species string
 ---@return boolean | nil
 function RobotComms:GetTraitInfoFromServer(species)
-    ::restart::
-    local payload = {species = species}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, payload)
+    local payload = {species=species}
 
-    local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse, self.serverAddr)
-    if response == nil then
-        goto restart
-    end
-    if not self:validateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, response, true) then
-        return nil
+    local responsePayload = nil
+    while responsePayload == nil do
+        local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, nil, payload)
+        if tid ~= nil then
+            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse, self.serverAddr)
+            if validateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, tid, response, true) then
+                responsePayload = UnwrapNull(response).payload.dominant
+            end
+        end
     end
 
-    return UnwrapNull(response).payload.dominant
+    return responsePayload
 end
 
 ---@param errorMessage string
 function RobotComms:ReportErrorToServer(errorMessage)
-    local payload = {errorMessage = errorMessage}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PrintErrorRequest, payload)
+    local payload = {errorMessage=errorMessage}
+    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PrintErrorRequest, nil, payload)
 end
 
 -- Waits for the user at the server to acknowledge that conditions associated with the given mutation have been met, if any.
 ---@param breedPathNode BreedPathNode
 function RobotComms:WaitForConditionsAcknowledged(breedPathNode)
-    ::restart::
     local payload = {pathNode=breedPathNode}
-    self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, payload)
 
-    local response, _ = self.comm:GetIncoming(nil, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
-    if response == nil then
-        self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PingRequest)
-        goto restart
+    local responsePayload = nil
+    while responsePayload == nil do
+        local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, nil, payload)
+        if tid ~= nil then
+            local response, _ = self.comm:GetIncoming(nil, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
+            if validateExpectedMessage(CommLayer.MessageCode.PromptConditionsResponse, tid, response, false) then
+                return
+            end
+        end
     end
 end
 

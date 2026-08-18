@@ -60,7 +60,7 @@ end
 ---@param port integer
 ---@param code MessageCode
 ---@param message string
-function M.broadcast(port, code, message)
+function M.broadcast(port, code, transactionId, message)
     local thread = Coroutine.running()
 
     Luaunit.assertTableContains(M.__openPorts[port], thread)
@@ -68,7 +68,7 @@ function M.broadcast(port, code, message)
 
     for _, receiver in portReceivers do
         if receiver ~= thread then
-            local eventToPush = {receiver, thread, port, 0, message}
+            local eventToPush = {receiver, thread, port, 0, transactionId, message}
             Event.__push(receiver, "modem_message", eventToPush)
         end
     end
@@ -83,10 +83,11 @@ end
 ---@param addr string
 ---@param port integer
 ---@param code MessageCode
+---@param transactionId integer
 ---@param payload string
-function M.send(addr, port, code, payload)
+function M.send(addr, port, code, transactionId, payload)
 
-    M.__sendNoYield(addr, port, code, payload)
+    M.__sendNoYield(addr, port, code, transactionId, payload)
 
     -- We must yield here to give receivers a chance to respond to this.
     -- Because broadcast messages have (possibly) multiple receivers, we
@@ -101,8 +102,9 @@ end
 ---@param addr any
 ---@param port integer
 ---@param code MessageCode
+---@param transactionId integer
 ---@param payload any
-function M.__sendNoYield(addr, port, code, payload)
+function M.__sendNoYield(addr, port, code, transactionId, payload)
     local thread = Coroutine.running()
     Luaunit.assertNotIsNil(M.__openPorts[port])
 
@@ -114,7 +116,7 @@ function M.__sendNoYield(addr, port, code, payload)
     -- TODO: Refactor M.__openPorts[port] to be a set instead of a list so we don't have to do this nonsense.
     for _, receiver in ipairs(M.__openPorts[port]) do
         if receiver == addr then
-            Event.__push(receiver, "modem_message", M.__CreateModemEvent(receiver, thread, port, code, payload))
+            Event.__push(receiver, "modem_message", M.__CreateModemEvent(receiver, thread, port, code, transactionId, payload))
         end
     end
 end
@@ -125,8 +127,8 @@ end
 ---@param code MessageCode
 ---@param payload any
 ---@return any
-function M.__CreateModemEvent(receiver, sender, port, code, payload)
-    return {receiver, sender, port, 0, code, payload}
+function M.__CreateModemEvent(receiver, sender, port, code, transactionId, payload)
+    return {receiver, sender, port, 0, code, transactionId, payload}
 end
 
 return M
