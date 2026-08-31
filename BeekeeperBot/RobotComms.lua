@@ -35,31 +35,11 @@ end
 
 ---@return any
 function RobotComms:GetCommandFromServer()
-    ::restart::
-    local request, _ = self.comm:GetIncoming(nil, nil, self.serverAddr)
-    if request == nil then
-        goto restart
-    end
-
-    return request
-end
-
--- Broadcasts a message to all servers and establishes communication with the one that responds.
--- Sets the serverAddr to the address of the server that responds.
-function RobotComms:EstablishComms()
-    Print("Establishing conection to server...")
-
-    local requestSuccess = false
-    while not requestSuccess do
-        local tid = self.comm:SendMessage(nil, CommLayer.MessageCode.PingRequest, nil, nil)
-        if tid ~= nil then
-            local response, addr = self.comm:GetIncoming(10, nil, self.serverAddr)  -- Explicitly don't filter for PingRequest to clean out old messages.
-            if validateExpectedMessage(CommLayer.MessageCode.PingResponse, tid, response, true) then
-                self.serverAddr = UnwrapNull(addr)
-                requestSuccess = true
-            end
-            -- If the response wasn't a PingResponse to our message, then it was some old message that we just happened to get.
-            -- We should just continue (clean it out of the queue) and ignore it since it was intended for a previous request.
+    while true do
+        local request, serverAddr = self.comm:GetIncoming(nil, nil, nil)
+        if request ~= nil then
+            self.serverAddr = UnwrapNull(serverAddr)
+            return request
         end
     end
 end

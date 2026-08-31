@@ -76,10 +76,6 @@ function BeekeeperBot:Create(componentLib, eventLib, robotLib, serialLib, sidesL
         [CommLayer.MessageCode.MakeTemplateCommand] = BeekeeperBot.makeTemplateHandler,
     }
 
-    Print("Pinging server for startup...")
-    obj.robotComms:EstablishComms()
-    Print("Got response from server " .. obj.robotComms.serverAddr .. ".")
-
     return obj
 end
 
