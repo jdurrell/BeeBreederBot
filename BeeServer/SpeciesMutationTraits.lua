@@ -4509,7 +4509,7 @@ return {
             ["gregtech.bee.speciesDrake"] = true,
             ["magicbees.speciesTCFire"] = true,
         },
-        NONE = {
+        ["NONE"] = {
             ["extrabees.species.abyss"] = true,
             ["extrabees.species.alcohol"] = true,
             ["extrabees.species.ancient"] = true,

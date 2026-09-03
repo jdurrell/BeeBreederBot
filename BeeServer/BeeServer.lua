@@ -11,6 +11,8 @@ local MutationConditionsSet = require("Shared.MutationConditionSet")
 local MutationMath = require("BeeServer.MutationMath")
 local MutationTraits = require("BeeServer.SpeciesMutationTraits")
 local TraitInfo = require("BeeServer.SpeciesDominance")
+local StringToTraitValue = require("BeeServer.StringToTraitValue")
+local ValidTraitValues = require("BeeServer.ValidTraitValues")
 
 ---@class BeeServer
 ---@field event Event
@@ -76,7 +78,7 @@ end
 -- Executes the given BeeServer command.
 ---@param command string | nil
 ---@param flags Set<string>
----@param values table<string, any>
+---@param values table<string, string>
 function BeeServer:RunServer(command, flags, values)
     if command == nil then
         Print("Expected a command, got nothing.")
@@ -99,54 +101,57 @@ end
 --- Terminal handling:
 
 ---@param flags Set<string>
----@param values any
+---@param values table<string, string>
 function BeeServer:TemplateCommand(flags, values)
     ---@type MakeTemplateCommandPayload
     local payload = {traits={}, raw=SetContains(flags, "raw")}
 
-    -- Input validation.
-    local validTraitsTypes = {
-        ["caveDwelling"] = "boolean",
-        ["effect"] = "string",
-        ["fertility"] = "integer",
-        ["flowering"] = "integer",
-        ["flowerProvider"] = "integer",
-        ["humidityTolerance"] = "string",
-        ["lifespan"] = "integer",
-        ["nocturnal"] = "boolean",
-        ["species"] = "string",
-        ["speed"] = "number",
-        ["temperatureTolerance"] = "string",
-        ["territory"] = "integer",
-        ["tolerantFlyer"] = "boolean"
-    }
-
     for k, v in pairs(values) do
-        -- TODO: Actually validate all of the values given to us here.
-        local expectedType = validTraitsTypes[k]
-        if expectedType == nil then
+        if ValidTraitValues[k] == nil then
             Print(string.format("Unrecognized option '%s'", k))
             self:shutdown(1)
-        elseif expectedType == "boolean" then
-            if (v:lower() ~= "true") and (v:lower() ~= "false") then
-                Print(string.format("Unrecognized value '%s' for boolean field '%s'. Expected 'true' or 'false'", v, k))
-                self:shutdown(1)
-            end
-            payload.traits[k] = (v:lower() == "true")
-        elseif expectedType == "integer" then
-            local integerValue = tonumber(v, 10)
-            if not type(integerValue) == "integer" then
-                Print(string.format("Unrecognized value '%s' for integer field '%s'.", k, v))
-                self:shutdown(1)
-            end
-            payload.traits[k] = integerValue
-        else  -- expectedType == "string"
-            if k == "species" then
-                ---@diagnostic disable-next-line: missing-fields
-                payload.traits["species"] = {uid = v}
+        end
+
+        local realValue
+        if StringToTraitValue[k][v] ~= nil then
+            realValue = StringToTraitValue[k][v]
+        else
+            local expectedType = type(ValidTraitValues[k][1])
+            if expectedType == "boolean" then
+                if (v:lower() ~= "true") and (v:lower() ~= "false") then
+                    Print(string.format("Unrecognized value '%s' for boolean field '%s'. Expected 'true' or 'false'", v, k))
+                    self:shutdown(1)
+                end
+                realValue = (v:lower() == "true")
+            elseif expectedType == "integer" then
+                local integerValue = tonumber(v, 10)
+                if not type(integerValue) == "integer" then
+                    Print(string.format("Unrecognized value '%s' for integer field '%s'.", k, v))
+                    self:shutdown(1)
+                end
+                realValue = integerValue
+            elseif expectedType == "string" then
+                realValue = v
             else
-                payload.traits[k] = v
+                Print(string.format("Unrecognized type %s.", expectedType))
+                self:shutdown(1)
             end
+        end
+
+        if not TableContains(ValidTraitValues[k], v) then
+            Print(string.format("Unrecognized value for field %s: '%s'", k, v))
+            self:shutdown(1)
+        end
+
+        if k == "species" then
+            ---@diagnostic disable-next-line: missing-fields
+            ---@cast realValue string
+            payload.traits.species = {uid = realValue}
+        elseif k == "territory" then
+            ---@cast realValue integer[]
+            payload.traits.territory = realValue
+        else
+            payload.traits[k] = realValue
         end
     end
 
