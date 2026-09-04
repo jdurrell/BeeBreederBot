@@ -20,6 +20,7 @@ local ValidTraitValues = require("BeeServer.ValidTraitValues")
 ---@field beeGraph SpeciesGraph
 ---@field beeNameToUids table<string, string[]>
 ---@field botAddr string
+---@field cancelled boolean
 ---@field comm CommLayer
 local BeeServer = {}
 
@@ -41,11 +42,11 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     self.__index = self
 
     -- Store away system libraries.
-    -- Do this in the constructor instead of statically so that we can inject our
-    -- own system libraries for testing.
+    -- Do this in the constructor instead of statically so that we can inject our own system libraries for testing.
     obj.event = eventLib
     obj.term = termLib
     obj.botAddr = config.botAddr
+    obj.cancelled = false
 
     obj.comm = CommLayer:Open(componentLib, eventLib, serialLib, config.port)
     if obj.comm == nil then
@@ -70,6 +71,21 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib,
     obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
     obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
     Print("Imported bee graph.")
+
+    if not eventLib.listen("interrupted", function ()
+        Print("Cancellation token received. Exiting.")
+
+        if obj.comm ~= nil then
+            obj.comm:SendMessage(obj.botAddr, CommLayer.MessageCode.CancelCommand)
+        end
+
+        obj.cancelled = true
+        return false
+    end) then
+        Print("Failed to register cancellation handler.")
+        obj:shutdown(1)
+    end
+    Print("Registered interrupt handler.")
 
     Print("Startup Success!")
     return obj
@@ -215,7 +231,13 @@ function BeeServer:RunCommand(messageCode, payload)
     }
 
     while true do
-        local message, addr = self.comm:GetIncoming(nil, nil, self.botAddr)
+        local message, addr = self.comm:GetIncoming(1, nil, self.botAddr)
+
+        -- Shut down if we got cancelled asynchronously.
+        if self.cancelled then
+            self:shutdown(1)
+        end
+
         if message == nil then
             goto continue
         end
@@ -371,6 +393,7 @@ end
 -- Shuts down the server.
 ---@param code integer
 function BeeServer:shutdown(code)
+    Print("Server shutting down.")
     if self.comm ~= nil then
         self.comm:Close()
     end

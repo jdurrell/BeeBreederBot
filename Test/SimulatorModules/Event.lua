@@ -60,6 +60,13 @@ function M.pull(timeout, name, ...)
     return M.__pullNoYield(name)
 end
 
+---@param event string
+---@param callback function
+---@return boolean
+function M.listen(event, callback)
+    return true
+end
+
 -- Attempts to pull an event of the given key from the event queue. Returns nil if nothing was found.
 -- This does not yield the coroutine so that it can be called from test verification code.
 ---@param name string
