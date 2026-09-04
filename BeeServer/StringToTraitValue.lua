@@ -1,4 +1,8 @@
 return {
+    caveDwelling = {
+        ["false"] = false,
+        ["true"] = true,
+    },
     effect = {
         -- Extra Bees.
         ["acidic"] = "extrabees.effect.acid.name",
@@ -87,6 +91,7 @@ return {
         ["withering"] = "magicbees.effectWithering",
         ["wooly"] = "magicbees.effectSheep",
     },
+    fertility = {},
     flowering = {
         ["slowest"] = 5,
         ["slower"] = 10,
@@ -136,6 +141,7 @@ return {
             "flowersBookshelf",
         }
     },
+    humidityTolerance = {};  -- Input strings are all exactly equal to the values.
     lifespan = {
         ["shortest"] = 10,
         ["shorter"] = 20,
@@ -147,6 +153,10 @@ return {
         ["longer"] = 60,
         ["longest"] = 70,
         ["eon"] = 600,
+    },
+    nocturnal = {
+        ["false"] = false,
+        ["true"] = true,
     },
     species = {
         ["abandoned"] = "magicbees.speciesAbandoned",
@@ -634,10 +644,15 @@ return {
         ["fastest"] = 1.7,
         ["blinding"] = 2.0,
     },
+    temperatureTolerance = {};  -- Input strings are all exactly equal to the values.
     territory = {
         ["average"] = {9, 6, 9},
         ["large"] = {11, 8, 11},
         ["larger"] = {12, 13, 12},
         ["largest"] = {13, 15, 13},
     },
+    tolerantFlyer = {
+        ["false"] = false,
+        ["true"] = true,
+    }
 }

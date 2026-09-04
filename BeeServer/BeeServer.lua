@@ -107,14 +107,15 @@ function BeeServer:TemplateCommand(flags, values)
     local payload = {traits={}, raw=SetContains(flags, "raw")}
 
     for k, v in pairs(values) do
+        local stringLower = v:lower()
         if ValidTraitValues[k] == nil then
             Print(string.format("Unrecognized option '%s'", k))
             self:shutdown(1)
         end
 
         local realValue
-        if StringToTraitValue[k][v] ~= nil then
-            realValue = StringToTraitValue[k][v]
+        if StringToTraitValue[k][stringLower] ~= nil then
+            realValue = StringToTraitValue[k][stringLower]
             if type(realValue) == "table" then
                 -- Some string items are ambiguous due to overlap between mods.
                 -- Ask the user directly to disambiguate.
@@ -133,7 +134,7 @@ function BeeServer:TemplateCommand(flags, values)
                 ---@cast value string
                 value = UnwrapNull(value):gsub("[\r\n]", "")
                 local index = tonumber(value, 10)
-                realValue = StringToTraitValue[k][v][index]
+                realValue = StringToTraitValue[k][stringLower][index]
             end
         else
             local expectedType = type(ValidTraitValues[k][1])
@@ -143,9 +144,9 @@ function BeeServer:TemplateCommand(flags, values)
                     self:shutdown(1)
                 end
                 realValue = (v:lower() == "true")
-            elseif expectedType == "integer" then
+            elseif expectedType == "number" then
                 local integerValue = tonumber(v, 10)
-                if not type(integerValue) == "integer" then
+                if not type(integerValue) == "number" then
                     Print(string.format("Unrecognized value '%s' for integer field '%s'.", k, v))
                     self:shutdown(1)
                 end
@@ -158,7 +159,7 @@ function BeeServer:TemplateCommand(flags, values)
             end
         end
 
-        if not TableContains(ValidTraitValues[k], v) then
+        if not TableContains(ValidTraitValues[k], realValue) then
             Print(string.format("Unrecognized value for field %s: '%s'", k, v))
             self:shutdown(1)
         end

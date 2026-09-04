@@ -123,7 +123,7 @@ return {
         "flowersBotania",
         "flowersThaumcraftAuraNode",
         "flowersThaumcraft",
-        -- "flowersBookshelf",  -- See comment in StringToTraitValue.
+        "flowersBookshelf",  -- See comment in StringToTraitValue.
     },
     humidityTolerance = {
         "NONE",
