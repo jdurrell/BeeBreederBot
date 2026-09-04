@@ -115,6 +115,26 @@ function BeeServer:TemplateCommand(flags, values)
         local realValue
         if StringToTraitValue[k][v] ~= nil then
             realValue = StringToTraitValue[k][v]
+            if type(realValue) == "table" then
+                -- Some string items are ambiguous due to overlap between mods.
+                -- Ask the user directly to disambiguate.
+                Print(string.format("Value '%s' for trait '%s' is ambiguous: Please select one of the following: ", v, k))
+                ---@cast realValue table
+                for i, v2 in ipairs(realValue) do
+                    Print(string.format("[%d]: %s", i, v2))
+                end
+
+                local value = self.term.read()
+                if value == nil or value == false then
+                    Print("Invalid input.")
+                    self:shutdown(1)
+                end
+
+                ---@cast value string
+                value = UnwrapNull(value):gsub("[\r\n]", "")
+                local index = tonumber(value, 10)
+                realValue = StringToTraitValue[k][v][index]
+            end
         else
             local expectedType = type(ValidTraitValues[k][1])
             if expectedType == "boolean" then
