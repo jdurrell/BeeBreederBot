@@ -210,7 +210,7 @@ function M.ClosestMatchToTraitsMatcher(targetTraits, numPrincesses, verbose)
                 -- Next, prioritize getting the maximum number of target alleles to eventually get pure-breds.
                 score = score + (totalNumMatchingAlleles << 12)
 
-                -- Pick the highest stack size becuase it's likely to be the closest to convergence,
+                -- Pick the highest stack size because it's likely to be the closest to convergence,
                 -- but only if all of its traits are pure-bred. A large stack with non-pure-bred traits
                 -- will result in princess oscillation instead of convergence.
                 if AnalysisUtil.AllTraitsPure(droneStack.individual) then
