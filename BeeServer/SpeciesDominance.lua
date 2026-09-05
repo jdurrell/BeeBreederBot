@@ -1,5 +1,5 @@
 -- Interpreted from various sources, based on my understanding of the applicable source code.
-return {species = {
+return {
     -- Base Forestry bees: https://github.com/GTNewHorizons/forestryMC/blob/master/src/main/java/forestry/apiculture/genetics/BeeDefinition.java
     ["forestry.speciesAgrarian"] = true,
     ["forestry.speciesAustere"] = false,
@@ -461,4 +461,4 @@ return {species = {
 
     -- Gendustry: https://github.com/GTNewHorizons/gendustry/blob/master/src/main/resources/assets/gendustry/config/bees_patreon.cfg
     ["gendustry.bee.derpious"] = true,
-}}
+}

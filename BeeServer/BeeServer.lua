@@ -252,7 +252,7 @@ function BeeServer:RunCommand(messageCode, payload)
                 Print("Got unexpected transactionId for finished command.")
             end
         elseif messageHandlerTable[message.code] ~= nil then
-            messageHandlerTable[message.code](self, UnwrapNull(addr), message.transactionId, message.payload)
+            messageHandlerTable[message.code](self, addr, message.transactionId, message.payload)
         else
             Print(string.format("Received unidentified message code: %d", message.code))
         end
