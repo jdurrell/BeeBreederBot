@@ -292,7 +292,7 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
         return
     end
 
-    local validTargets = {}  ---@type string[]
+    local validTargets = {}  ---@type Set<string>
     if data.trait == "species" then
         validTargets = {[data.value.uid] = true}
     else
@@ -326,7 +326,7 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
     -- Sleep after printing things because OpenComputers' screen is really small.
     -- This gives the player some time to actually look at it.
     -- TODO: Switch this to something that requires scrolling to the end and back up.
-    Print(string.format("Trait '%s: %s' not found in breeding path. Breeding it through:",
+    Print(string.format("Breeding trait '%s: %s' through:",
         data.trait, TraitToString(data.trait, data.value)
     ))
     for _, v in ipairs(path) do
