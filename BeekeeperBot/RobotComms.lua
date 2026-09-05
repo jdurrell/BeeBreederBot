@@ -80,7 +80,7 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies
             if validateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, tid, response, true) then
                 ---@type TraitBreedPathResponsePayload
                 local path = UnwrapNull(response).payload
-                if #responsePayload == 0 then
+                if #path == 0 then
                     -- An empty breed path is an error.
                     return nil
                 end
@@ -122,8 +122,7 @@ end
 function RobotComms:WaitForConditionsAcknowledged(breedPathNode)
     local payload = {pathNode=breedPathNode}
 
-    local responsePayload = nil
-    while responsePayload == nil do
+    while true do
         local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.PromptConditionsRequest, nil, payload)
         if tid ~= nil then
             local response, _ = self.comm:GetIncoming(nil, CommLayer.MessageCode.PromptConditionsResponse, self.serverAddr)
