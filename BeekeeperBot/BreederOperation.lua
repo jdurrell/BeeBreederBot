@@ -262,6 +262,7 @@ end
 function BreedOperator:GetStackInDroneSlot(slot)
     self.robot.turnRight()
     local stack = self.ic.getStackInSlot(self.sides.front, slot)
+    stack.slotInChest = slot
     self.robot.turnLeft()
 
     return stack

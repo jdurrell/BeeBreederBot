@@ -267,11 +267,12 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             end
 
             -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
+            ---@type integer[]
             local stacksToReturn = {finishedDroneSlot}
             for j = 1, 2 do
                 local stackAfter = self.breeder:GetStackInDroneSlot(j)
                 if (stackAfter ~= nil) and AnalysisUtil.AllBeeTraitsEqual(stackAfter.individual, starterDrones[i]) then
-                    table.insert(stacksToReturn, stackAfter)
+                    table.insert(stacksToReturn, j)
                 end
             end
 
