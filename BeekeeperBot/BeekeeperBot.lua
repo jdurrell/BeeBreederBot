@@ -90,6 +90,8 @@ function BeekeeperBot:RunRobot()
         else
             self.messageHandlerTable[request.code](self, request.payload)
         end
+
+        self.robotComms:ReportCommandDone(request.transactionId)
     end
 end
 

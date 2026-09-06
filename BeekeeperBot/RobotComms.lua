@@ -143,6 +143,21 @@ function RobotComms:PollForCancel()
     return true
 end
 
+---@param transactionId integer
+function RobotComms:ReportCommandDone(transactionId)
+    for i = 1, 3 do
+        self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.CommandFinishRequest, transactionId)
+
+        local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.CommandFinishRequest, self.serverAddr)
+        if validateExpectedMessage(CommLayer.MessageCode.CommandFinishResponse, transactionId, response, false) then
+            return
+        end
+    end
+
+    -- We don't want to get stuck here forever if the server shut down or cancelled in the meantime.
+    Print("Warning: Server did not ack the finished command after three tries. Continuing anyways.")
+end
+
 -- Closes the communications to the server.
 function RobotComms:Shutdown()
     -- TODO: Should we fire off a "shutting down" message to the server?
