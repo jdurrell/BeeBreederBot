@@ -199,7 +199,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 return false
             end
             if not self:replicateIfNecessary({species = {uid = pathNode.parent2}}, numSpeciesReplicate, 2) then
-                self:outputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent2))
+                self:outputError(string.format("Replicate parent 2 '%s' failed.",  pathNode.parent2))
                 return false
             end
 
