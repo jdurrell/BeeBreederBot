@@ -1,3 +1,4 @@
+---@return {caveDwelling: table<string, boolean>, effect: table<string, string>, fertility: {}, flowering: table<string, integer>, flowerProvider: table<string, string | string[]>, humidityTolerance: {}, lifespan: table<string, integer>, nocturnal: table<string, boolean>, species: table<string, string | string[]>, speed: table<string, integer>, temperatureTolerance: {}, territory: table<string, integer>[], tolerantFlyer: table<string, boolean>}
 return {
     caveDwelling = {
         ["false"] = false,

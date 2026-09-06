@@ -1,4 +1,5 @@
 -- Interpreted from various sources, based on my understanding of the applicable source code.
+---@return table<string, boolean>
 return {
     -- Base Forestry bees: https://github.com/GTNewHorizons/forestryMC/blob/master/src/main/java/forestry/apiculture/genetics/BeeDefinition.java
     ["forestry.speciesAgrarian"] = true,

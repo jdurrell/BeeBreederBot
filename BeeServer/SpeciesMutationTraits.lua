@@ -1,3 +1,4 @@
+---@return {caveDwelling: table<boolean, Set<string>>, effect: table<string, Set<string>>, fertility: table<integer, Set<string>>, flowerProvider: table<string, Set<string>>, flowering: table<integer, Set<string>>, humidityTolerance: table<string, Set<string>>, lifespan: table<integer, Set<string>>, nocturnal: table<boolean, Set<string>>, speed: table<number, Set<string>>, temperatureTolerance: table<string, Set<string>>, territory: table<integer, Set<string>>, tolerantFlyer: table<boolean, Set<string>>}
 return {
     caveDwelling = {
         [false] = {

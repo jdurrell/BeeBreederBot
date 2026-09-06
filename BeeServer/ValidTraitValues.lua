@@ -1,3 +1,4 @@
+---@type {caveDwelling: boolean[], effect: string[], fertility: integer[], flowering: integer[], flowerProvider: string[], humidityTolerance: string[], lifespan: integer[], nocturnal: boolean[], species: string[], speed: number[], temperatureTolerance: string[], territory: integer[][], tolerantFlyer: boolean[]}
 return {
     caveDwelling = { false, true },
     effect = {
