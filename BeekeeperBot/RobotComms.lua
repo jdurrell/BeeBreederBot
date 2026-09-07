@@ -7,6 +7,41 @@ local RobotComms = {}
 require("Shared.Shared")
 local CommLayer = require("Shared.CommLayer")
 
+-- Creates a RobotComms object.
+---@param componentLib Component
+---@param eventLib Event
+---@param serializationLib Serialization
+---@param serverAddr string
+---@param port integer
+---@return RobotComms | nil
+function RobotComms:Create(componentLib, eventLib, serializationLib, serverAddr, port)
+    local obj = {}
+    setmetatable(obj, self)
+    self.__index = self
+
+    local comm = CommLayer:Open(componentLib, eventLib, serializationLib, port)
+    if comm == nil then
+        Print("Failed to open CommLayer during RobotComms initialization.")
+        return nil
+    end
+    obj.comm = comm
+
+    obj.serverAddr = serverAddr
+
+    return obj
+end
+
+---@return Message
+function RobotComms:GetCommandFromServer()
+    while true do
+        local request, serverAddr = self.comm:GetIncoming(nil, nil, nil)
+        if request ~= nil then
+            self.serverAddr = UnwrapNull(serverAddr)
+            return request
+        end
+    end
+end
+
 ---@param expectedCode MessageCode
 ---@param transactionId integer
 ---@param message any
@@ -31,17 +66,6 @@ local function validateExpectedMessage(expectedCode, transactionId, message, sho
     end
 
     return true
-end
-
----@return any
-function RobotComms:GetCommandFromServer()
-    while true do
-        local request, serverAddr = self.comm:GetIncoming(nil, nil, nil)
-        if request ~= nil then
-            self.serverAddr = UnwrapNull(serverAddr)
-            return request
-        end
-    end
 end
 
 ---@param parent1 string,
@@ -165,30 +189,6 @@ function RobotComms:Shutdown()
     if self.comm ~= nil then
         self.comm:Close()
     end
-end
-
--- Creates a RobotComms object.
----@param componentLib Component
----@param eventLib Event
----@param serializationLib Serialization
----@param serverAddr string
----@param port integer
----@return RobotComms | nil
-function RobotComms:Create(componentLib, eventLib, serializationLib, serverAddr, port)
-    local obj = {}
-    setmetatable(obj, self)
-    self.__index = self
-
-    local comm = CommLayer:Open(componentLib, eventLib, serializationLib, port)
-    if comm == nil then
-        Print("Failed to open CommLayer during RobotComms initialization.")
-        return nil
-    end
-    obj.comm = comm
-
-    obj.serverAddr = serverAddr
-
-    return obj
 end
 
 return RobotComms
