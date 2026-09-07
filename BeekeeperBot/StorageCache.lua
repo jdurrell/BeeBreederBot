@@ -91,6 +91,16 @@ function StorageRowCache:GetAllSpecies()
     return species
 end
 
+---@return AnalyzedBeeTraits[]
+function StorageRowCache:GetAllTraitSets()
+    local traitSets = {}
+    for i, v in ipairs(self.cache) do
+        table.insert(traitSets, v.traits)
+    end
+
+    return traitSets
+end
+
 -- Allocates a new chest slot for a drone with the given traits.
 ---@param traits AnalyzedBeeTraits
 ---@return StorageCacheEntry

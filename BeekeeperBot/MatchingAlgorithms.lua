@@ -2,6 +2,7 @@
 local M = {}
 local MatchingMath = require("BeekeeperBot.MatchingMath")
 local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
+require("Shared.Shared")
 
 ---@alias Matcher fun(princessStack: AnalyzedBeeStack, droneStackList: AnalyzedBeeStack[]): integer, number | nil
 ---@alias StackFinisher fun(princessStack: AnalyzedBeeStack | nil, droneStackList: AnalyzedBeeStack[] | nil): {princess: integer | nil, drones: integer | nil}
@@ -11,32 +12,18 @@ local AnalysisUtil = require("BeekeeperBot.BeeAnalysisUtil")
 -- with the given princess while also prioritizing traits that make the breeding faster namely high fertility, low lifespan,
 -- cave-dwelling, and rain-tolerance. It will also prioritize traits that are generally beneficial, like production speed.
 ---@param numPrincesses integer
----@param mutationTrait string
----@param mutationValue TraitValue
+---@param mutationTraits PartialAnalyzedBeeTraits
 ---@param preferredTraits PartialAnalyzedBeeTraits
 ---@param breedInfoCache BreedInfoCache
 ---@param traitInfo TraitInfoSpecies
 ---@param verbose boolean
 ---@return Matcher
-function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, preferredTraits, breedInfoCache, traitInfo, verbose)
-    preferredTraits[mutationTrait] = mutationValue
+function M.MutatedAlleleMatcher(numPrincesses, mutationTraits, preferredTraits, breedInfoCache, traitInfo, verbose)
+    for k, v in pairs(mutationTraits) do
+        preferredTraits[k] = v
+    end
     local princessCount = 0
     local comparisonPrincessIndividual  ---@type AnalyzedBeeIndividual
-
-    -- Track the "best" of various traits to pivot to including them automatically.
-    -- This optimizes the breeding speed.
-    local maxFertilitySeen = ((preferredTraits.fertility ~= nil) and preferredTraits.fertility) or math.mininteger
-    local maxSpeedSeen = ((preferredTraits.speed) and preferredTraits.speed) or math.mininteger
-    local minLifespanSeen = ((preferredTraits.lifespan ~= nil) and preferredTraits.lifespan) or math.maxinteger
-
-    -- Allow a trait given by the caller to override whatever we think is "best".
-    local lockFertility = (mutationTrait == "fertility") or (preferredTraits.fertility ~= nil)
-    local lockLifespan = (mutationTrait == "lifespan") or (preferredTraits.lifespan ~= nil)
-    local lockSpeed = (mutationTrait == "speed") or (preferredTraits.speed ~= nil)
-    local lockEffect = (mutationTrait == "effect") or (preferredTraits.effect ~= nil)
-    local lockCaveDwelling = (mutationTrait == "caveDwelling") or (preferredTraits.caveDwelling ~= nil)
-    local lockNocturnal = (mutationTrait == "nocturnal") or (preferredTraits.nocturnal ~= nil)
-    local lockTolerantFlyer = (mutationTrait == "tolerantFlyer") or (preferredTraits.tolerantFlyer ~= nil)
 
     return function (princessStack, droneStackList)
         local princessBee = princessStack.individual
@@ -59,56 +46,27 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 -- * (F): Likeness to the princess.
                 -- 
                 -- Each of these make up certain base-10 digits in the score, ordered in place value by priority:
-                --   AA BB CCCC DD EE FF
+                --   AA BB CCCCC DD EE FF
 
                 -- Distinguish from other drones by three decimal points.
-                -- Maximum number of target alleles is 2, so this takes 4 decimal points in the score.
-                local score = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
-                    princessBee, droneBee, mutationTrait, mutationValue, breedInfoCache, traitInfo
-                ) * 1e3) * 1e6
+                -- Maximum number of target alleles is 2 * 13 = 26, so this takes 5 decimal points in the score.
+                local score = 0
+                for trait, value in pairs(mutationTraits) do
+                    local scoreForTrait = math.ceil(MatchingMath.CalculateExpectedNumberOfTargetAllelesPerOffspring(
+                        princessBee, droneBee, trait, value, breedInfoCache, traitInfo
+                    ) * 1e3) * 1e6
 
-                if score == 0 then
-                    -- Don't choose a drone that has no chance of producing the desired mutation trait.
-                    if verbose then
-                        Print("No change of producing target. Skipping.")
+                    if scoreForTrait == 0 then
+                        -- Don't choose a drone that has no chance of producing the desired mutation traits.
+                        -- TODO: Should this prioritize getting back to one of the parents to that we can mutate on a subsequent attempt?
+                        ---      The "randomness" from this might be enough, though.
+                        if verbose then
+                            Print("No change of producing target mutation traits. Skipping.")
+                        end
+                        return 0
                     end
-                    return 0
-                end
 
-                -- If the caller didn't specifically request one of these traits, then attempt to adjust the preferred traits for
-                -- the ones that cause faster breeding.
-                -- TODO: Although this is probably best in the general case, if the trait isn't actually sourced from the target species
-                -- (i.e. it's from the princess or some intermittent drone), then it is much more possible for it to breed back out of the population.
-                if (not lockFertility) and (math.max(droneBee.active.fertility, droneBee.inactive.fertility) > maxFertilitySeen) then
-                    maxFertilitySeen = math.max(droneBee.active.fertility, droneBee.inactive.fertility)
-                    preferredTraits.fertility = maxFertilitySeen
-                    lockFertility = (maxFertilitySeen == 4)
-                end
-                if (not lockSpeed) and (math.max(droneBee.active.speed, droneBee.inactive.speed) > maxSpeedSeen) then
-                    maxSpeedSeen = math.max(droneBee.active.speed, droneBee.inactive.speed)
-                    preferredTraits.speed = maxSpeedSeen
-                    lockSpeed = (math.abs(maxSpeedSeen - 2.0) < 0.001)
-                end
-                if (not lockLifespan) and (math.min(droneBee.active.lifespan, droneBee.inactive.lifespan) < minLifespanSeen) then
-                    minLifespanSeen = math.min(droneBee.active.lifespan, droneBee.inactive.lifespan)
-                    preferredTraits.lifespan = minLifespanSeen
-                    lockLifespan = (minLifespanSeen == 10)
-                end
-                if (not lockEffect) and ((droneBee.active.effect == "NONE") or (droneBee.inactive.effect == "NONE")) then
-                    preferredTraits.effect = "NONE"
-                    lockEffect = true
-                end
-                if (not lockCaveDwelling) and (droneBee.active.caveDwelling or droneBee.inactive.caveDwelling) then
-                    preferredTraits.caveDwelling = true
-                    lockCaveDwelling = true
-                end
-                if (not lockNocturnal) and (droneBee.active.nocturnal or droneBee.inactive.nocturnal) then
-                    preferredTraits.nocturnal = true
-                    lockNocturnal = true
-                end
-                if (not lockTolerantFlyer) and (droneBee.active.tolerantFlyer or droneBee.inactive.tolerantFlyer) then
-                    preferredTraits.tolerantFlyer = true
-                    lockTolerantFlyer = true
+                    score = score + scoreForTrait
                 end
 
                 local numTraitsAtLeastOneAllele = 0
@@ -132,8 +90,8 @@ function M.MutatedAlleleMatcher(numPrincesses, mutationTrait, mutationValue, pre
                 -- We want to try to ensure that we don't accidentally breed any target traits out of the population, so prioritize
                 -- getting as many traits with a target allele as possible.
                 -- There are 13 traits, so we need two decimal points per value.
-                score = score + (numTraitsAtLeastOneAllele * 1e12)
-                score = score + (numTraitsAtLeastTwoAlleles * 1e10)
+                score = score + (numTraitsAtLeastOneAllele * 1e13)
+                score = score + (numTraitsAtLeastTwoAlleles * 1e11)
 
                 -- Prioritize getting the maximum number of target alleles to eventually get pure-breds.
                 score = score + totalNumMatchingAlleles * 1e4

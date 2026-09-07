@@ -223,6 +223,7 @@ function BeeServer:RunCommand(messageCode, payload)
 
     local messageHandlerTable = {
         [CommLayer.MessageCode.BreedInfoRequest] = BeeServer.BreedInfoHandler,
+        [CommLayer.MessageCode.DefaultGenomeRequest] = BeeServer.DefaultGenomeHandler,
         [CommLayer.MessageCode.PingRequest] = BeeServer.PingHandler,
         [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
@@ -281,6 +282,35 @@ function BeeServer:BreedInfoHandler(addr, transactionId, data)
     local targetMutChance, nonTargetMutChance = MutationMath.CalculateBreedInfo(data.parent1, data.parent2, data.target, self.beeGraph)
     local payload = {targetMutChance = targetMutChance, nonTargetMutChance = nonTargetMutChance}
     self.comm:SendMessage(addr, CommLayer.MessageCode.BreedInfoResponse, transactionId, payload)
+end
+
+---@param addr string
+---@param transactionId integer
+---@param data DefaultGenomeRequestPayload
+function BeeServer:DefaultGenomeHandler(addr, transactionId, data)
+    -- We already store the default genome in pieces for each species, but it is optimized for lookup by trait, rather than species.
+    -- Reconstruct the genome by linear search to avoid additional memory for a lookup table.
+    local genome = {}
+
+    genome.species = {uid=data.species}
+    for k, v in pairs(MutationTraits) do
+        local found = false
+        for k2, v2 in pairs(v) do
+            if v2[data.species] ~= nil then
+                genome[k] = k2
+                found = true
+                break
+            end
+        end
+
+        if not found then
+            Print(string.format("Failed to find trait '%s' in default genome for species '%s'", k, data.species))
+            return
+        end
+    end
+
+    local payload = {traits = genome}
+    self.comm:SendMessage(addr, CommLayer.MessageCode.DefaultGenomeResponse, transactionId, payload)
 end
 
 ---@param addr string

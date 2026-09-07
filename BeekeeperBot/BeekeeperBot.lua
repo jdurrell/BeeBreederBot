@@ -152,8 +152,12 @@ function BeekeeperBot:makeTemplateHandler(data)
         Print("All required traits now in population.")
 
         -- No need to do a template breed if the above was enough.
-        if self.breeder.storageCache:GetDroneEntry(data.traits) == nil then
-            if not self:breedTemplateFromEstablishedTraits(data.traits) then
+        local newTargetTraits = self:computeBestTraitsFromTraitSet(self.breeder.storageCache:GetAllTraitSets())
+        for trait, value in pairs(data.traits) do
+            newTargetTraits[trait] = value
+        end
+        if self.breeder.storageCache:GetDroneEntry(newTargetTraits) == nil then
+            if not self:breedTemplateFromEstablishedTraits(newTargetTraits) then
                 self:outputError("Failed to breed template from established population traits.")
                 return
             end
@@ -171,110 +175,77 @@ end
 function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
     -- If we don't have all of the traits, then figure out how to breed them into the storage population.
     local traitsPresent = {}
-    for k, v in pairs(targetTraits) do
+    for trait, value in pairs(targetTraits) do
         -- TODO: Eventually, create an iterator for the cache so that we don't have to run through the whole thing several times.
-        traitsPresent[k] = (self.breeder.storageCache:GetDroneEntry({[k] = v}) ~= nil)
+        traitsPresent[trait] = (self.breeder.storageCache:GetDroneEntry({[trait] = value}) ~= nil)
     end
 
     -- Now, actually breed those traits into the storage population, if necessary.
-    for k, v in pairs(targetTraits) do
-        if traitsPresent[k] then
+    for trait, value in pairs(targetTraits) do
+        if traitsPresent[trait] then
             -- We already had this trait or happened to discover this trait while breeding something else.
             goto continue
         end
 
-          ---@type TraitBreedPathResponsePayload | nil
-        local path = self.robotComms:GetBreedPathForTraitFromServer(k, v, self.breeder.storageCache:GetAllSpecies())
+        ---@type TraitBreedPathResponsePayload | nil
+        local path = self.robotComms:GetBreedPathForTraitFromServer(trait, value, self.breeder.storageCache:GetAllSpecies())
         if path == nil then
             self:outputError("Failed to get a valid breeding path for the requested mutation.")
             return false
         end
 
-        Print(string.format("Breeding trait %s into the population via species '%s'.", TraitsToString({[k] = v}), path[#(path)].target))
-        local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
+        Print(string.format("Breeding trait %s into the population via species '%s'.", TraitsToString({[trait] = value}), path[#(path)].target))
         for i, pathNode in ipairs(path) do
             -- Obtain the parents.
-            if not self:replicateIfNecessary({species = {uid = pathNode.parent1}}, numSpeciesReplicate, 1) then
+            -- Best traits to start with from the parents.
+            -- TODO: Need to factor in preferred traits here (i.e. pick the best parents to start since we could have multiple of the species).
+            local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
+            local templateParent1, templateParent2 = self:computeInitialPreferredParentTraits(pathNode.parent1, pathNode.parent2)
+            if not self:replicateIfNecessary(templateParent1, numSpeciesReplicate, 1) then
                 self:outputError(string.format("Replicate parent 1 '%s' failed.",  pathNode.parent1))
                 return false
             end
-            if not self:replicateIfNecessary({species = {uid = pathNode.parent2}}, numSpeciesReplicate, 2) then
+            if not self:replicateIfNecessary(templateParent2, numSpeciesReplicate, 2) then
                 self:outputError(string.format("Replicate parent 2 '%s' failed.",  pathNode.parent2))
                 return false
             end
 
             -- Set up the breeding station.
             self.breeder:ImportHoldoverStacksToActiveChest({1, 2}, {numSpeciesReplicate, numSpeciesReplicate}, {1, 2})
+            local starterDrone1 = self.breeder:GetStackInDroneSlot(1)
+            local starterDrone2 = self.breeder:GetStackInDroneSlot(2)
+            if (starterDrone1 == nil) or (starterDrone2 == nil) then
+                self:outputError("Parents disappeared from drone chest.")
+                return false
+            end
+
             self.breeder:RetrieveStockPrincessesFromChest(nil, {})
             self:ensureSpecialConditionsMet(pathNode)
 
-            -- We will certainly want to breed high fertility into the drones of the target species.
-            local starterDrones = {}
-            local maxFertilityPreExisting = -1
-            for j = 1, 2 do
-                local stack = self.breeder:GetStackInDroneSlot(j)
-                if stack == nil then
-                    self:outputError("Drones were removed from chest between holdover import and conditions completion.")
-                    return false
-                end
-                local starterTraits = stack.individual.active
-                table.insert(starterDrones, starterTraits)
-                maxFertilityPreExisting = math.max(maxFertilityPreExisting, starterTraits.fertility)
-            end
-
-            -- Do the breeding.
             -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
             -- Otherwise, breed for species so that we can build up the tree to get the last node.
-            local mutationTrait = ((i == #pathNode) and v.trait) or "species"
-            local mutationValue = ((i == #pathNode) and targetTraits[v.trait]) or {uid=pathNode.target}
-            local breedInfoCache = {}
-            local traitInfoCache = {species = {}}
-            local finishedDroneSlot = self:breed(
-                MatchingAlgorithms.MutatedAlleleMatcher(
-                    self.breeder.numApiaries,
-                    mutationTrait,
-                    mutationValue,
-                    {humidityTolerance = self.config.defaultHumidityTolerance, temperatureTolerance = self.config.defaultTemperatureTolerance},
-                    breedInfoCache,
-                    traitInfoCache,
-                    self.config.verbose
-                ),
-                MatchingAlgorithms.DroneStackOfSpeciesPositiveFertilityFinisher(pathNode.target, maxFertilityPreExisting, 64),
-                GarbageCollectionPolicies.ClearDronesByFertilityPurityStackSizeCollector(pathNode.target),
-                function (princessStack, droneStackList)
-                    self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
-                    self:populateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-                end
-            ).drones
-
-            if finishedDroneSlot == nil then
-                self:outputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", pathNode.target, pathNode.parent1, pathNode.parent2))
-                self.breeder:BreakAndReturnFoundationsToInputChest()  -- Avoid double-prompting for foundations.
+            local mutationTrait = ((i == #pathNode) and value) or "species"
+            local mutationValue = ((i == #pathNode) and targetTraits[value]) or {uid=pathNode.target}
+            local adjustedMutationTraits, adjustedPreferredTraits = self:computeAdjustedMutationAndPreferredTraits(
+                {[mutationTrait]=mutationValue}, 1, 2, pathNode.target
+            )
+            if (adjustedMutationTraits == nil) or (adjustedPreferredTraits == nil) then
                 return false
             end
 
-            -- If we have enough of the target species now, then store the drones at the new location.
-            -- Technically, we only require the finished stack to have the desired trait, which doesn't require it to be the "target" species.
-            local droneStack = self.breeder:GetStackInDroneSlot(finishedDroneSlot)
+            local droneStack = self:breedNewTrait(pathNode, adjustedMutationTraits, adjustedPreferredTraits)
             if droneStack == nil then
-                self:outputError("Expected finished drone to be in the slot.")
+                self.breeder:BreakAndReturnFoundationsToInputChest()
                 return false
-            end
-            for k2, v2 in pairs(targetTraits) do
-                -- It is technically possible that we got additional traits beyond what we were specifically aiming for.
-                -- If so, then update the cache so that trying to get it through another mutation can be skipped later.
-                if AnalysisUtil.TraitIsEqual(droneStack.individual.active, k2, v2) then
-                    traitsPresent[k2] = true
-                end
             end
 
             -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
             ---@type integer[]
-            local stacksToReturn = {finishedDroneSlot}
-            for j = 1, 2 do
-                local stackAfter = self.breeder:GetStackInDroneSlot(j)
-                if (stackAfter ~= nil) and AnalysisUtil.AllBeeTraitsEqual(stackAfter.individual, starterDrones[i]) then
-                    table.insert(stacksToReturn, j)
+            local stacksToReturn = {droneStack.slotInChest}
+            for slot, starterDrone in ipairs({starterDrone1, starterDrone2}) do
+                local stackAfter = self.breeder:GetStackInDroneSlot(slot)
+                if (stackAfter ~= nil) and AnalysisUtil.AllBeeTraitsEqual(stackAfter.individual, starterDrone.individual.active) then
+                    table.insert(stacksToReturn, slot)
                 end
             end
 
@@ -290,6 +261,237 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
     end
 
     return true
+end
+
+---@param parent1 string
+---@param parent2 string
+---@return PartialAnalyzedBeeTraits, PartialAnalyzedBeeTraits
+function BeekeeperBot:computeInitialPreferredParentTraits(parent1, parent2)
+    local parentTraits = {}
+
+    for i, v in ipairs({parent1, parent2}) do
+        ---@type AnalyzedBeeTraits[]
+        local traitSetForSpecies = {}
+        for i2, v2 in ipairs(self.breeder.storageCache.cache) do
+            if v2.traits.species.uid == v then
+                table.insert(traitSetForSpecies, v2)
+            end
+        end
+
+        -- Find trait set for this species that has the most of the best traits.
+        local idealTraits = self:computeBestTraitsFromTraitSet(traitSetForSpecies)
+        parentTraits[i] = TableMax(traitSetForSpecies, function (item)
+            local totalMatching = 0
+            for trait, value in pairs(item) do
+                if AnalysisUtil.TraitIsEqual(item, trait, value) then
+                    totalMatching = totalMatching + 1
+                end
+            end
+
+            return totalMatching
+        end)
+    end
+
+    return parentTraits[1], parentTraits[2]
+end
+
+---@param targetMutationTraits PartialAnalyzedBeeTraits
+---@param parent1Slot integer
+---@param parent2Slot integer
+---@param targetSpecies string
+---@return PartialAnalyzedBeeTraits | nil, PartialAnalyzedBeeTraits | nil
+function BeekeeperBot:computeAdjustedMutationAndPreferredTraits(targetMutationTraits, parent1Slot, parent2Slot, targetSpecies)
+    local adjustedPreferredTraits = self:computeAdjustedPreferredTraits(targetMutationTraits, parent1Slot, parent2Slot)
+    if adjustedPreferredTraits == nil then
+        return nil, nil
+    end
+
+    local payload = self.robotComms:GetDefaultGenomeFromServer(targetSpecies)
+    if payload == nil then
+        self:outputError(string.format("Failed to get default genome from server for species '%s'", targetSpecies))
+        return nil, nil
+    end
+    local defaultGenome = payload.traits
+
+    -- Note that the caller might not be looking for species (since it is faster to avoid it when only looking for a particular trait).
+    -- Copy the (possibly nil) value here instead of using targetSpecies directly in order to maintain that.
+    local adjustedTargetMutationTraits = Copy(targetMutationTraits)
+
+    -- If a given trait is a new target, then it will not appear in the preferred traits. Therefore, we only need to check for new "best"
+    -- alleles that are not already given to us as a target, but will happen to newly appear in the target species' default mutation genome.
+    -- Additionally, if a new best allele exists in the default genome, then we may need to override a worse allele for the same trait.
+    -- However, if a "best" trait *does* already exist in the parents, then don't add it to the mutation traits to avoid higher dependency
+    -- on the mutation.
+    if (adjustedPreferredTraits.caveDwelling == nil) and defaultGenome.caveDwelling then
+        adjustedTargetMutationTraits.caveDwelling = true
+    end
+    if (adjustedPreferredTraits.effect == nil) and (defaultGenome.effect == "forestry.allele.effect.none") then
+        adjustedTargetMutationTraits.effect = "forestry.allele.effect.none"
+    end
+    if (adjustedPreferredTraits.fertility ~= nil) and (defaultGenome.fertility > adjustedPreferredTraits.fertility) then
+        adjustedTargetMutationTraits.fertility = defaultGenome.fertility
+        adjustedPreferredTraits.fertility = nil
+    end
+    if (targetMutationTraits.flowering ~= nil) and (defaultGenome.flowering < adjustedPreferredTraits.flowering) then
+        adjustedTargetMutationTraits.flowering = defaultGenome.flowering
+        adjustedPreferredTraits.flowering = nil
+    end
+    if (adjustedPreferredTraits.flowerProvider == nil) and (defaultGenome.flowerProvider == "flowersVanilla") then
+        adjustedTargetMutationTraits.flowerProvider = "flowersVanilla"
+    end
+    if (adjustedPreferredTraits.lifespan ~= nil) and (defaultGenome.lifespan < adjustedPreferredTraits.lifespan) then
+        adjustedTargetMutationTraits.lifespan = defaultGenome.lifespan
+        adjustedPreferredTraits.lifespan = nil
+    end
+    if (adjustedPreferredTraits.nocturnal == nil) and defaultGenome.nocturnal then
+        adjustedTargetMutationTraits.nocturnal = true
+    end
+    if (adjustedPreferredTraits.speed ~= nil) and (defaultGenome.speed > adjustedPreferredTraits.speed) then
+        adjustedTargetMutationTraits.speed = defaultGenome.speed
+        adjustedPreferredTraits.speed = nil
+    end
+    if (adjustedPreferredTraits.territory ~= nil) and (defaultGenome.territory[1] < adjustedPreferredTraits.territory[1]) then
+        adjustedTargetMutationTraits.territory = defaultGenome.territory
+        adjustedPreferredTraits.territory = nil
+    end
+    if (targetMutationTraits.tolerantFlyer == nil) and (defaultGenome.tolerantFlyer) then
+        adjustedTargetMutationTraits.tolerantFlyer = true
+    end
+
+    return adjustedTargetMutationTraits, adjustedPreferredTraits
+end
+
+---@param targetTraits PartialAnalyzedBeeTraits
+---@param parent1Slot integer
+---@param parent2Slot integer
+---@return PartialAnalyzedBeeTraits | nil
+function BeekeeperBot:computeAdjustedPreferredTraits(targetTraits, parent1Slot, parent2Slot)
+    local parent1Traits = self.breeder:GetStackInDroneSlot(parent1Slot)
+    local parent2Traits = self.breeder:GetStackInDroneSlot(parent2Slot)
+    if (parent1Traits == nil) or (parent2Traits == nil) then
+        self:outputError("Failed to get starting parent genomes from drone chest.")
+        return nil
+    end
+
+    ---@type PartialAnalyzedBeeTraits
+    local adjustedPreferredTraits = self:computeBestTraitsFromTraitSet({parent1Traits.individual.active, parent2Traits.individual.active})
+
+    -- Wipe out anything that is specifically selected for as a target.
+    for trait, value in pairs(targetTraits) do
+        adjustedPreferredTraits[trait] = nil
+    end
+
+    return adjustedPreferredTraits
+end
+
+---@param traitSet AnalyzedBeeTraits[]
+---@return PartialAnalyzedBeeTraits
+function BeekeeperBot:computeBestTraitsFromTraitSet(traitSet)
+    local preferredSet = {}
+
+    if TableHasCondition(traitSet, function (item)
+        return item.caveDwelling
+    end) then
+        preferredSet.caveDwelling = true
+    end
+
+    if TableHasCondition(traitSet, function (item)
+        return item.effect == "forestry.allele.effect.none"
+    end) then
+        preferredSet.effect = "forestry.allele.effect.none"
+    end
+
+    preferredSet.fertility = TableMax(traitSet, function (item)
+        return item.fertility
+    end).fertility
+
+    preferredSet.flowering = TableMin(traitSet, function (item)
+        return item.flowering
+    end).flowering
+
+    if TableHasCondition(traitSet, function (item)
+        return item.flowerProvider == "flowersVanilla"
+    end) then
+        preferredSet.flowerProvider = "flowersVanilla"
+    end
+
+    preferredSet.humidityTolerance = self.config.defaultHumidityTolerance
+
+    preferredSet.lifespan = TableMin(traitSet, function (item)
+        return item.lifespan
+    end).lifespan
+
+    if (TableHasCondition(traitSet, function (item)
+        return item.nocturnal
+    end)) then
+        preferredSet.nocturnal = true
+    end
+
+    preferredSet.speed = TableMax(traitSet, function (item)
+        return item.speed
+    end).speed
+
+    preferredSet.temperatureTolerance = self.config.defaultTemperatureTolerance
+
+    preferredSet.territory = TableMin(traitSet, function (item)
+        return item.territory[1]
+    end).territory
+
+    if (TableHasCondition(traitSet, function (item)
+        return item.tolerantFlyer
+    end)) then
+        preferredSet.tolerantFlyer = true
+    end
+
+    return preferredSet
+end
+
+---@param pathNode BreedPathNode
+---@param mutationTraits PartialAnalyzedBeeTraits
+---@param preferredTraits PartialAnalyzedBeeTraits
+---@return AnalyzedBeeStack | nil
+function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
+    local fullTargetTraits = Copy(mutationTraits)
+    for trait, value in pairs(preferredTraits) do
+        fullTargetTraits[trait] = value
+    end
+
+    -- Do the breeding.
+    -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
+    -- Otherwise, breed for species so that we can build up the tree to get the last node.
+    local breedInfoCache = {}
+    local traitInfoCache = {species={}}
+    local finishedDroneSlot = self:breed(
+        MatchingAlgorithms.MutatedAlleleMatcher(
+            self.breeder.numApiaries,
+            mutationTraits,
+            preferredTraits,
+            breedInfoCache,
+            traitInfoCache,
+            self.config.verbose
+        ),
+        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, 64),
+        GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
+        function (princessStack, droneStackList)
+            self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
+            self:populateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+        end
+    ).drones
+
+    if finishedDroneSlot == nil then
+        self:outputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", pathNode.target, pathNode.parent1, pathNode.parent2))
+        return nil
+    end
+
+    -- If we have enough of the target species now, then store the drones at the new location.
+    -- Technically, we only require the finished stack to have the desired trait, which doesn't require it to be the "target" species.
+    local droneStack = self.breeder:GetStackInDroneSlot(finishedDroneSlot)
+    if droneStack == nil then
+        self:outputError("Expected finished drone to be in the slot.")
+        return nil
+    end
+
+    return droneStack
 end
 
 -- Breeds a template bee from traits that already exist in the population.

@@ -24,12 +24,14 @@ CommLayer.MessageCode = {
     PrintErrorRequest = 12,
     TraitBreedPathRequest = 13,
     TraitBreedPathResponse = 14,
-    ImportDroneStacksCommand = 15,
-    ImportPrincessesCommand = 16,
-    MakeTemplateCommand = 17,
-    CommandAcceptResponse = 18,
-    CommandFinishRequest = 19,
-    CommandFinishResponse = 20,
+    DefaultGenomeRequest = 15,
+    DefaultGenomeResponse = 16,
+    ImportDroneStacksCommand = 17,
+    ImportPrincessesCommand = 18,
+    MakeTemplateCommand = 19,
+    CommandAcceptResponse = 20,
+    CommandFinishRequest = 21,
+    CommandFinishResponse = 22,
 }
 
 CommLayer.DefaultComPort = 34000

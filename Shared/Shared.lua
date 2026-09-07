@@ -69,6 +69,51 @@ function TableIsEmpty(tab)
 end
 
 ---@generic T
+---@param tab T[]
+---@param predicate fun(item: T): boolean
+function TableHasCondition(tab, predicate)
+    for k, v in pairs(tab) do
+        if predicate(v) then
+            return true
+        end
+    end
+
+    return false
+end
+
+---@generic T
+---@param tab T[]
+---@param valueExtractor fun(item: T): integer
+---@return T
+function TableMax(tab, valueExtractor)
+    local max = tab[1]
+    for k, v in pairs(tab) do
+        local val = valueExtractor(v)
+        if val > max then
+            max = val
+        end
+    end
+
+    return max
+end
+
+---@generic T
+---@param tab T[]
+---@param valueExtractor fun(item: T): integer
+---@return T
+function TableMin(tab, valueExtractor)
+    local min = tab[1]
+    for k, v in pairs(tab) do
+        local val = valueExtractor(v)
+        if val < min then
+            min = val
+        end
+    end
+
+    return min
+end
+
+---@generic T
 ---@param set Set<T>
 ---@param value T
 ---@return boolean
@@ -114,7 +159,7 @@ function TraitToString(trait, value)
     elseif trait == "speed" then
         return string.format("%.1f", value)
     elseif trait == "territory" then
-        return string.format("[ %u, %u, %u]", value[1], value[2], value[3])
+        return string.format("[%d, %d, %d]", value[1], value[2], value[3])
     end
 end
 

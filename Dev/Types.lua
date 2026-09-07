@@ -194,6 +194,8 @@ local CodedMessage = {}
 ---@alias PrintErrorPayload {errorMessage: string}
 ---@alias TraitBreedPathRequestPayload {trait: string, value: TraitValue, existingSpecies: Set<string>}
 ---@alias TraitBreedPathResponsePayload BreedPathNode[]
+---@alias DefaultGenomeRequestPayload {species: string}
+---@alias DefaultGenomeResponsePayload {traits: AnalyzedBeeTraits}
 
 ---@class Set<T>: table<T, boolean>
 local Set = {}
