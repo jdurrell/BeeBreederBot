@@ -198,7 +198,6 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
         for i, pathNode in ipairs(path) do
             -- Obtain the parents.
             -- Best traits to start with from the parents.
-            -- TODO: Need to factor in preferred traits here (i.e. pick the best parents to start since we could have multiple of the species).
             local numSpeciesReplicate = 4 + (2 * self.breeder.numApiaries)
             local templateParent1, templateParent2 = self:computeInitialPreferredParentTraits(pathNode.parent1, pathNode.parent2)
             if not self:replicateIfNecessary(templateParent1, numSpeciesReplicate, 1) then
