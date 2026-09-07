@@ -118,12 +118,12 @@ function BeekeeperBot:makeTemplateHandler(data)
         return
     end
 
-    -- Set default tolerances.
-    data.traits.temperatureTolerance = ((data.traits.temperatureTolerance == nil) and self.config.defaultTemperatureTolerance) or data.traits.temperatureTolerance
-    data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
-
     if data.raw then
         Print("Processing raw breed request...")
+
+        -- Set default tolerances. We want this even in raw mode because the acclimatiser setup cannot be avoided.
+        data.traits.temperatureTolerance = ((data.traits.temperatureTolerance == nil) and self.config.defaultTemperatureTolerance) or data.traits.temperatureTolerance
+        data.traits.humidityTolerance = ((data.traits.humidityTolerance == nil) and self.config.defaultHumidityTolerance) or data.traits.humidityTolerance
 
         -- If raw is specified, then the user is responsible for organizing everything in the proper chests.
         local slots = self:breed(
