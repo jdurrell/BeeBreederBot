@@ -30,7 +30,7 @@ elseif thread == nil then
     return
 end
 
-local config = {port=34000, logFilepath="./species.log", botAddr=""}
+local config = {port=34000, botAddr=""}
 if not ConfigService.LoadConfig("./server.cfg", config, false) then
     Print("Failed to read configuration.")
     return
