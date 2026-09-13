@@ -79,7 +79,7 @@ function RobotComms:GetBreedInfoFromServer(parent1, parent2, target)
     while responsePayload == nil do
         local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.BreedInfoRequest, nil, payload)
         if tid ~= nil then
-            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.BreedInfoResponse, self.serverAddr)
+            local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.BreedInfoResponse, self.serverAddr)
             if validateExpectedMessage(CommLayer.MessageCode.BreedInfoResponse, tid, response, true) then
                 responsePayload = UnwrapNull(response).payload
             end
@@ -100,7 +100,7 @@ function RobotComms:GetBreedPathForTraitFromServer(trait, value, existingSpecies
     while responsePayload == nil do
         local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitBreedPathRequest, nil, payload)
         if tid ~= nil then
-            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
+            local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.TraitBreedPathResponse, self.serverAddr)
             if validateExpectedMessage(CommLayer.MessageCode.TraitBreedPathResponse, tid, response, true) then
                 ---@type TraitBreedPathResponsePayload
                 local path = UnwrapNull(response).payload
@@ -125,7 +125,7 @@ function RobotComms:GetDefaultGenomeFromServer(species)
     while responsePayload == nil do
         local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.DefaultGenomeRequest, nil, payload)
         if tid ~= nil then
-            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.DefaultGenomeResponse, self.serverAddr)
+            local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.DefaultGenomeResponse, self.serverAddr)
             if validateExpectedMessage(CommLayer.MessageCode.DefaultGenomeResponse, tid, response, true) then
                 responsePayload = UnwrapNull(response).payload
             end
@@ -144,7 +144,7 @@ function RobotComms:GetTraitInfoFromServer(species)
     while responsePayload == nil do
         local tid = self.comm:SendMessage(self.serverAddr, CommLayer.MessageCode.TraitInfoRequest, nil, payload)
         if tid ~= nil then
-            local response, _ = self.comm:GetIncoming(5.0, CommLayer.MessageCode.TraitInfoResponse, self.serverAddr)
+            local response, _ = self.comm:GetIncoming(10, CommLayer.MessageCode.TraitInfoResponse, self.serverAddr)
             if validateExpectedMessage(CommLayer.MessageCode.TraitInfoResponse, tid, response, true) then
                 responsePayload = UnwrapNull(response).payload.dominant
             end
