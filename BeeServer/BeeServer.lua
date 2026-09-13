@@ -33,10 +33,9 @@ local BeeServer = {}
 ---@param eventLib Event
 ---@param serialLib Serialization
 ---@param termLib Term
----@param threadLib any
 ---@param config BeeServerConfig
 ---@return BeeServer
-function BeeServer:Create(componentLib, eventLib, serialLib, termLib, threadLib, config)
+function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
     local obj = {}
     setmetatable(obj, self)
     self.__index = self

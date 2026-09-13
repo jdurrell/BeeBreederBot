@@ -8,8 +8,6 @@ local Modem = require("Test.SimulatorModules.Component.Modem")
 local Res = require("Test.Resources.TestData")
 local Serialization = require("Test.SimulatorModules.Serialization")
 local Term = require("Test.SimulatorModules.Term")
-local Thread = require("Test.SimulatorModules.Thread")
-local Util = require("Test.Utilities.CommonUtilities")
 
 local BeeServer = require("BeeServer.BeeServer")
 local CommLayer = require("Shared.CommLayer")
@@ -77,7 +75,7 @@ local function makeServerCommand(port, command, args, values)
 
     local serverThread = Coroutine.create(function ()
         -- Server must be initialized inside the other coroutine so that the modem registration ties to its thread.
-        server = BeeServer:Create(Component, Event, Serialization, Term, Thread, config)
+        server = BeeServer:Create(Component, Event, Serialization, Term, config)
         Luaunit.assertNotIsNil(server)
         verifyModemStateAfterServerStart(port, Coroutine.running())
         Coroutine.yield("server startup")
