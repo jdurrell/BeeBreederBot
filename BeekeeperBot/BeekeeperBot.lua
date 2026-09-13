@@ -549,11 +549,12 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
         end
 
         -- For subsequent parents, get the best trait set that fills in the gaps of the working template.
+        ---@type AnalyzedBeeTraits
         local maxRemainingTraitSet = TableMax(self.breeder.storageCache.cache, function (_, item)
             return TableCount(requiredTraits, function (trait2, value2)
                 return (finishedTraits[trait2] == nil) and AnalysisUtil.TraitIsEqual(item.traits, trait2, value2)
             end)
-        end)
+        end).traits
         local nextTraits = Copy(finishedTraits)
         for trait2, value2 in pairs(requiredTraits) do
             if AnalysisUtil.TraitIsEqual(maxRemainingTraitSet, trait2, value2) then
