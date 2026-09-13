@@ -242,7 +242,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
             if droneStack == nil then
                 return false
             end
-            self.breeder:ExportDroneStacksToHoldovers({droneStack.slotInChest}, {16}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
+            self.breeder:ExportDroneStacksToHoldovers({droneStack.slotInChest}, {self:numReplicate()}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
 
             -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
             ---@type integer[]
@@ -484,7 +484,7 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
             traitInfoCache,
             self.config.verbose
         ),
-        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, 16),
+        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, self:numReplicate()),
         GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
         function (princessStack, droneStackList)
             self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
@@ -562,10 +562,8 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
             end
         end
 
-        -- Get 16 drones that have the requested trait.
-        local numTraitReplicate = 4 + (2 * self.breeder.numApiaries)
         Print(string.format("Replicating stack with traits %s.", TraitsToString(maxRemainingTraitSet)))
-        if not self:replicateIfNecessary(maxRemainingTraitSet, numTraitReplicate, HOLDOVER_SLOT_GRAFTING_BEES) then
+        if not self:replicateIfNecessary(maxRemainingTraitSet, self:numReplicate(), HOLDOVER_SLOT_GRAFTING_BEES) then
             self:outputError("Failed to replicate template of new trait.")
             return false
         end
@@ -574,7 +572,7 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
         Print(string.format("Adding trait %s into the working template.", TraitsToString({[trait] = value})))
         self.breeder:ImportHoldoverStacksToActiveChest(
             {HOLDOVER_SLOT_WORKING_TEMPLATE, HOLDOVER_SLOT_GRAFTING_BEES},
-            {numTraitReplicate, numTraitReplicate},
+            {self:numReplicate(), self:numReplicate()},
             {ACTIVE_SLOT_WORKING_TEMPLATE, ACTIVE_SLOT_GRAFTING_BEES}
         )
         local currentWorkingTemplate = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
@@ -594,7 +592,7 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
 
         local finishedSlots = self:breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(nextTraits, self.breeder.numApiaries, self.config.verbose),
-            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(nextTraits, 16),
+            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(nextTraits, self:numReplicate()),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(nextTraits),
             nil
         )
@@ -617,7 +615,7 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
         end
 
         -- Cleanup. Export the new drones to holdovers and return the starter drones (if any still remain) to the storage row.
-        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {16}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
+        self.breeder:ExportDroneStacksToHoldovers({finishedSlots.drones}, {self:numReplicate()}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
         local slotsToReturn = {}
         local workingTemplateAfter = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
         if ((workingTemplateAfter ~= nil) and
@@ -636,9 +634,9 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
         ::continue::
     end
 
-    -- Final drone stack is in the holdover chest, but we only have 16. Breed it up to 64 to finish it off, then store it.
+    -- Final drone stack is in the holdover chest, but we only have a partial stack. Breed it up to 64 to finish it off, then store it.
     Print("Working template finished. Breeding template up to full stack.")
-    self.breeder:ImportHoldoverStacksToActiveChest({HOLDOVER_SLOT_WORKING_TEMPLATE}, {16}, {ACTIVE_SLOT_WORKING_TEMPLATE})
+    self.breeder:ImportHoldoverStacksToActiveChest({HOLDOVER_SLOT_WORKING_TEMPLATE}, {self:numReplicate()}, {ACTIVE_SLOT_WORKING_TEMPLATE})
     local droneStack = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
     if droneStack == nil then
         self:outputError("Failed to get drones from chest after importing.")
@@ -676,7 +674,7 @@ function BeekeeperBot:replicateIfNecessary(traits, amount, holdoverSlot)
         return false
     end
 
-    if cacheEntry.stackSize - amount >= 16 then
+    if cacheEntry.stackSize - amount >= self:numReplicate() then
         Print(string.format("Drone stack size sufficient. Skipping replication of trait pattern %s", TraitsToString(traits)))
         self.breeder:RetrieveDroneStacksToHoldovers({{entry=cacheEntry, amount=amount, destinationChestSlot=holdoverSlot}})
         return true
@@ -782,6 +780,11 @@ function BeekeeperBot:replicateTemplate(traits, amount, holdoverDroneSlot, cache
     end
 
     return true
+end
+
+---@return integer
+function BeekeeperBot:numReplicate()
+    return 4 + (2 * self.breeder.numApiaries)
 end
 
 -- Breeds the target using the drones and princesses in the active chests.
