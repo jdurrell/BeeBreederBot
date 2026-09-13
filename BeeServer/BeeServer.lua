@@ -293,22 +293,33 @@ function BeeServer:DefaultGenomeHandler(addr, transactionId, data)
     local genome = {}
 
     genome.species = {uid=data.species}
-    for k, v in pairs(MutationTraits) do
+    for trait, valueTable in pairs(MutationTraits) do
         local found = false
-        for k2, v2 in pairs(v) do
-            if v2[data.species] ~= nil then
-                genome[k] = k2
+        for value, speciesSet in pairs(valueTable) do
+            if speciesSet[data.species] ~= nil then
                 found = true
+                local genomeValue = value ---@type any
+                if trait == "territory" then
+                    -- Special case for territory because it's an array, and the "indexable value" in MutationTraits is an integer.
+                    for i, v3 in ipairs(ValidTraitValues.territory) do
+                        if v3[1] == value then
+                            genomeValue = v3
+                            break
+                        end
+                    end
+                end
+                genome[trait] = genomeValue
                 break
             end
         end
 
         if not found then
-            Print(string.format("Failed to find trait '%s' in default genome for species '%s'", k, data.species))
+            Print(string.format("Failed to find trait '%s' in default genome for species '%s'", trait, data.species))
             return
         end
     end
 
+    ---@type DefaultGenomeResponsePayload
     local payload = {traits = genome}
     self.comm:SendMessage(addr, CommLayer.MessageCode.DefaultGenomeResponse, transactionId, payload)
 end

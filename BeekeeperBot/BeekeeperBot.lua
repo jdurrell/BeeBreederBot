@@ -14,6 +14,11 @@ local MatchingAlgorithms = require("BeekeeperBot.MatchingAlgorithms")
 local MutationConditionSet = require("Shared.MutationConditionSet")
 local RobotComms = require("BeekeeperBot.RobotComms")
 
+local HOLDOVER_SLOT_WORKING_TEMPLATE = 1
+local HOLDOVER_SLOT_GRAFTING_BEES = 2
+local ACTIVE_SLOT_WORKING_TEMPLATE = 1
+local ACTIVE_SLOT_GRAFTING_BEES = 2
+
 ---@class BeekeeperBot
 ---@field config BeekeeperBotConfig
 ---@field component Component
@@ -218,9 +223,6 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 return false
             end
 
-            self.breeder:RetrieveStockPrincessesFromChest(nil, {})
-            self:ensureSpecialConditionsMet(pathNode)
-
             -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
             -- Otherwise, breed for species so that we can build up the tree to get the last node.
             local mutationTrait = ((i == #pathNode) and value) or "species"
@@ -232,28 +234,35 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 return false
             end
 
+            self:ensureSpecialConditionsMet(pathNode)
             local droneStack = self:breedNewTrait(pathNode, adjustedMutationTraits, adjustedPreferredTraits)
-            if droneStack == nil then
+            if (MutationConditionSet.FoundationIsPlaceableBlock(pathNode.conditions)) then
                 self.breeder:BreakAndReturnFoundationsToInputChest()
+            end
+            if droneStack == nil then
                 return false
             end
+            self.breeder:ExportDroneStacksToHoldovers({droneStack.slotInChest}, {16}, {HOLDOVER_SLOT_WORKING_TEMPLATE})
 
             -- TODO: We probably don't necessarily need to return everything if this result will be used next in the breeding path.
             ---@type integer[]
-            local stacksToReturn = {droneStack.slotInChest}
+            local stacksToReturn = {}
             for slot, starterDrone in ipairs({starterDrone1, starterDrone2}) do
                 local stackAfter = self.breeder:GetStackInDroneSlot(slot)
                 if (stackAfter ~= nil) and AnalysisUtil.AllBeeTraitsEqual(stackAfter.individual, starterDrone.individual.active) then
                     table.insert(stacksToReturn, slot)
                 end
             end
-
             self.breeder:StoreDronesFromActiveChest(stacksToReturn)
-            self.breeder:TrashSlotsFromDroneChest(nil)
-            self.breeder:ReturnActivePrincessesToStock(nil)
-            if (MutationConditionSet.FoundationIsPlaceableBlock(pathNode.conditions)) then
-                self.breeder:BreakAndReturnFoundationsToInputChest()
+
+            -- We have the new mutations, and we have all of the "best" alleles from the *parents*. Check if we have all of the best
+            -- alleles from the *population*, too.
+            local bestTraits = self:computeBestTraitsFromTraitSet(self.breeder.storageCache:GetAllTraitSets())
+            for trait2, value2 in pairs(adjustedMutationTraits) do
+                -- Override something we are specifically getting from the mutation.
+                bestTraits[trait2] = value2
             end
+            self:breedTemplate(droneStack.individual.active, bestTraits)
         end
 
         ::continue::
@@ -273,21 +282,16 @@ function BeekeeperBot:computeInitialPreferredParentTraits(parent1, parent2)
         local traitSetForSpecies = {}
         for i2, v2 in ipairs(self.breeder.storageCache.cache) do
             if v2.traits.species.uid == v then
-                table.insert(traitSetForSpecies, v2)
+                table.insert(traitSetForSpecies, v2.traits)
             end
         end
 
         -- Find trait set for this species that has the most of the best traits.
         local idealTraits = self:computeBestTraitsFromTraitSet(traitSetForSpecies)
-        parentTraits[i] = TableMax(traitSetForSpecies, function (item)
-            local totalMatching = 0
-            for trait, value in pairs(item) do
-                if AnalysisUtil.TraitIsEqual(item, trait, value) then
-                    totalMatching = totalMatching + 1
-                end
-            end
-
-            return totalMatching
+        parentTraits[i] = TableMax(traitSetForSpecies, function (_, item)
+            return TableCount(idealTraits, function (trait, value)
+                return AnalysisUtil.TraitIsEqual(item, trait, value)
+            end)
         end)
     end
 
@@ -388,27 +392,27 @@ end
 function BeekeeperBot:computeBestTraitsFromTraitSet(traitSet)
     local preferredSet = {}
 
-    if TableHasCondition(traitSet, function (item)
+    if TableHasCondition(traitSet, function (_, item)
         return item.caveDwelling
     end) then
         preferredSet.caveDwelling = true
     end
 
-    if TableHasCondition(traitSet, function (item)
+    if TableHasCondition(traitSet, function (_, item)
         return item.effect == "forestry.allele.effect.none"
     end) then
         preferredSet.effect = "forestry.allele.effect.none"
     end
 
-    preferredSet.fertility = TableMax(traitSet, function (item)
+    preferredSet.fertility = TableMax(traitSet, function (_, item)
         return item.fertility
     end).fertility
 
-    preferredSet.flowering = TableMin(traitSet, function (item)
+    preferredSet.flowering = TableMin(traitSet, function (_, item)
         return item.flowering
     end).flowering
 
-    if TableHasCondition(traitSet, function (item)
+    if TableHasCondition(traitSet, function (_, item)
         return item.flowerProvider == "flowersVanilla"
     end) then
         preferredSet.flowerProvider = "flowersVanilla"
@@ -416,33 +420,43 @@ function BeekeeperBot:computeBestTraitsFromTraitSet(traitSet)
 
     preferredSet.humidityTolerance = self.config.defaultHumidityTolerance
 
-    preferredSet.lifespan = TableMin(traitSet, function (item)
+    preferredSet.lifespan = TableMin(traitSet, function (_, item)
         return item.lifespan
     end).lifespan
 
-    if (TableHasCondition(traitSet, function (item)
+    if (TableHasCondition(traitSet, function (_, item)
         return item.nocturnal
     end)) then
         preferredSet.nocturnal = true
     end
 
-    preferredSet.speed = TableMax(traitSet, function (item)
+    preferredSet.speed = TableMax(traitSet, function (_, item)
         return item.speed
     end).speed
 
     preferredSet.temperatureTolerance = self.config.defaultTemperatureTolerance
 
-    preferredSet.territory = TableMin(traitSet, function (item)
+    preferredSet.territory = TableMin(traitSet, function (_, item)
         return item.territory[1]
     end).territory
 
-    if (TableHasCondition(traitSet, function (item)
+    if (TableHasCondition(traitSet, function (_, item)
         return item.tolerantFlyer
     end)) then
         preferredSet.tolerantFlyer = true
     end
 
     return preferredSet
+end
+
+---@param targetTraits PartialAnalyzedBeeTraits
+---@return AnalyzedBeeTraits
+function BeekeeperBot:computeMaxMatchingTraitSet(targetTraits)
+    return TableMax(self.breeder.storageCache.cache, function (_, item)
+        return TableCount(targetTraits, function(trait, value)
+            return AnalysisUtil.TraitIsEqual(item.traits, trait, value)
+        end)
+    end)
 end
 
 ---@param pathNode BreedPathNode
@@ -458,6 +472,7 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
     -- Do the breeding.
     -- Only try to breed for the trait if we are the last node (i.e. the one that can actually get that trait).
     -- Otherwise, breed for species so that we can build up the tree to get the last node.
+    self.breeder:RetrieveStockPrincessesFromChest(nil, {})
     local breedInfoCache = {}
     local traitInfoCache = {species={}}
     local finishedDroneSlot = self:breed(
@@ -469,7 +484,7 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
             traitInfoCache,
             self.config.verbose
         ),
-        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, 64),
+        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, 16),
         GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
         function (princessStack, droneStackList)
             self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
@@ -479,6 +494,7 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
 
     if finishedDroneSlot == nil then
         self:outputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", pathNode.target, pathNode.parent1, pathNode.parent2))
+        self.breeder:ReturnActivePrincessesToStock(nil)
         return nil
     end
 
@@ -487,9 +503,11 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
     local droneStack = self.breeder:GetStackInDroneSlot(finishedDroneSlot)
     if droneStack == nil then
         self:outputError("Expected finished drone to be in the slot.")
+        self.breeder:ReturnActivePrincessesToStock(nil)
         return nil
     end
 
+    self.breeder:ReturnActivePrincessesToStock(nil)
     return droneStack
 end
 
@@ -498,52 +516,55 @@ end
 ---@return boolean
 function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
     -- Look for existing bees that are the closest match to the target template since they will be the best starting point.
-    local maxTraitEntry = nil ---@type StorageCacheEntry
-    local maxMatchingTraits = -1
-    for _, v in ipairs(self.breeder.storageCache.cache) do
-        local matchingTraits = 0
-        for trait, value in pairs(targetTraits) do
-            if AnalysisUtil.TraitIsEqual(v.traits, trait, value) then
-                matchingTraits = matchingTraits + 1
-            end
-        end
-
-        if matchingTraits > maxMatchingTraits then
-            maxTraitEntry = v
-            maxMatchingTraits = matchingTraits
-        end
-    end
-
-    local finishedTraits = {}
-    for trait, value in pairs(targetTraits) do
-        if AnalysisUtil.TraitIsEqual(maxTraitEntry.traits, trait, value) then
-            finishedTraits[trait] = value
-        end
-    end
+    local maxStartingTraitSet = self:computeMaxMatchingTraitSet(targetTraits)
 
     -- Get drones that have the initial best starting traits.
-    Print(string.format("Starting with best trait set %s.", TraitsToString(maxTraitEntry.traits)))
+    Print(string.format("Starting with best trait set %s.", TraitsToString(maxStartingTraitSet)))
     local numTraitReplicate = 4 + (2 * self.breeder.numApiaries)
-    if not self:replicateIfNecessary(maxTraitEntry.traits, numTraitReplicate, 1) then
+    if not self:replicateIfNecessary(maxStartingTraitSet, numTraitReplicate, HOLDOVER_SLOT_WORKING_TEMPLATE) then
         self:outputError("Failed to replicate starting template.")
         return false
     end
 
+    return self:breedTemplate(maxStartingTraitSet, targetTraits)
+end
+
+---@param workingTemplateTraits AnalyzedBeeTraits
+---@param requiredTraits PartialAnalyzedBeeTraits
+---@return boolean
+function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
+    local finishedTraits = {}
+    for trait, value in pairs(requiredTraits) do
+        if AnalysisUtil.TraitIsEqual(workingTemplateTraits, trait, value) then
+            finishedTraits[trait] = value
+        end
+    end
+
     -- Add traits into the starting template one at a time.
-    local HOLDOVER_SLOT_WORKING_TEMPLATE = 1
-    local HOLDOVER_SLOT_GRAFTING_BEES = 2
-    local ACTIVE_SLOT_WORKING_TEMPLATE = 1
-    local ACTIVE_SLOT_GRAFTING_BEES = 2
-    for trait, value in pairs(targetTraits) do
+    for trait, value in pairs(requiredTraits) do
         if finishedTraits[trait] ~= nil then
             -- We only need to breed in traits that we haven't finished with yet.
             Print(string.format("Trait %s is already present in the working template.", TraitsToString({[trait] = value})))
             goto continue
         end
 
+        -- For subsequent parents, get the best trait set that fills in the gaps of the working template.
+        local maxRemainingTraitSet = TableMax(self.breeder.storageCache.cache, function (_, item)
+            return TableCount(requiredTraits, function (trait2, value2)
+                return (finishedTraits[trait2] == nil) and AnalysisUtil.TraitIsEqual(item.traits, trait2, value2)
+            end)
+        end)
+        local nextTraits = Copy(finishedTraits)
+        for trait2, value2 in pairs(requiredTraits) do
+            if AnalysisUtil.TraitIsEqual(maxRemainingTraitSet, trait2, value2) then
+                nextTraits[trait2] = value2
+            end
+        end
+
         -- Get 16 drones that have the requested trait.
-        Print(string.format("Replicating stack with trait %s.", TraitsToString({[trait] = value})))
-        if not self:replicateIfNecessary({[trait] = value}, numTraitReplicate, HOLDOVER_SLOT_GRAFTING_BEES) then
+        local numTraitReplicate = 4 + (2 * self.breeder.numApiaries)
+        Print(string.format("Replicating stack with traits %s.", TraitsToString(maxRemainingTraitSet)))
+        if not self:replicateIfNecessary(maxRemainingTraitSet, numTraitReplicate, HOLDOVER_SLOT_GRAFTING_BEES) then
             self:outputError("Failed to replicate template of new trait.")
             return false
         end
@@ -570,14 +591,13 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
             return false
         end
 
-        local nextTraits = Copy(finishedTraits)
-        nextTraits[trait] = value
         local finishedSlots = self:breed(
             MatchingAlgorithms.ClosestMatchToTraitsMatcher(nextTraits, self.breeder.numApiaries, self.config.verbose),
             MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(nextTraits, 16),
             GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(nextTraits),
             nil
         )
+        self.breeder:ReturnActivePrincessesToStock(nil)
         if (finishedSlots.drones == nil) or (finishedSlots.princess == nil) then
             self:outputError(string.format("Failed to breed trait '%s' into the template.", trait))
             return false
@@ -588,10 +608,10 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
         local newTraits = self.breeder:GetStackInDroneSlot(finishedSlots.drones).individual.active
         for newTrait, _ in pairs(newTraits) do
             if ((finishedTraits[newTrait] == nil) and
-                (targetTraits[newTrait] ~= nil) and
-                AnalysisUtil.TraitIsEqual(newTraits, newTrait, targetTraits[newTrait])
+                (requiredTraits[newTrait] ~= nil) and
+                AnalysisUtil.TraitIsEqual(newTraits, newTrait, requiredTraits[newTrait])
             ) then
-                finishedTraits[newTrait] = targetTraits[newTrait]
+                finishedTraits[newTrait] = requiredTraits[newTrait]
             end
         end
 
@@ -618,19 +638,25 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
     -- Final drone stack is in the holdover chest, but we only have 16. Breed it up to 64 to finish it off, then store it.
     Print("Working template finished. Breeding template up to full stack.")
     self.breeder:ImportHoldoverStacksToActiveChest({HOLDOVER_SLOT_WORKING_TEMPLATE}, {16}, {ACTIVE_SLOT_WORKING_TEMPLATE})
+    local droneStack = self.breeder:GetStackInDroneSlot(ACTIVE_SLOT_WORKING_TEMPLATE)
+    if droneStack == nil then
+        self:outputError("Failed to get drones from chest after importing.")
+        return false
+    end
+    self.breeder:RetrieveStockPrincessesFromChest(nil, {droneStack.individual.active.species.uid})
     local finishedDrones = self:breed(
-        MatchingAlgorithms.ClosestMatchToTraitsMatcher(targetTraits, self.breeder.numApiaries, self.config.verbose),
-        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(targetTraits, 64),
-        GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(targetTraits),
+        MatchingAlgorithms.ClosestMatchToTraitsMatcher(requiredTraits, self.breeder.numApiaries, self.config.verbose),
+        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(requiredTraits, 64),
+        GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(requiredTraits),
         nil
     ).drones
+    self.breeder:ReturnActivePrincessesToStock(nil)
+
     if finishedDrones == nil then
         self:outputError("Failed to breed final template up to 64.")
         return false
     end
-
     self.breeder:StoreDronesFromActiveChest({finishedDrones})
-    self.breeder:ReturnActivePrincessesToStock(nil)
 
     return true
 end
@@ -655,6 +681,7 @@ function BeekeeperBot:replicateIfNecessary(traits, amount, holdoverSlot)
         return true
     end
 
+    Print(string.format("Drone stack size insufficient. Replicating trait pettern %s", TraitsToString(traits)))
     return self:replicateTemplate(traits, amount, holdoverSlot, cacheEntry, true, true)
 end
 

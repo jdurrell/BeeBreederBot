@@ -49,11 +49,12 @@ function ExitProgram(code)
     end
 end
 
----@param arr table
----@param value any
+---@generic T, U
+---@param tab table<T, U> | U[]
+---@param value U
 ---@return boolean
-function TableContains(arr, value)
-    for _, v in pairs(arr) do
+function TableContains(tab, value)
+    for k, v in pairs(tab) do
         if v == value then
             return true
         end
@@ -68,12 +69,12 @@ function TableIsEmpty(tab)
     return (next(tab) ~= nil)
 end
 
----@generic T
----@param tab T[]
----@param predicate fun(item: T): boolean
+---@generic T, U
+---@param tab table<T, U> | U[]
+---@param predicate fun(k: T, v: U): boolean
 function TableHasCondition(tab, predicate)
     for k, v in pairs(tab) do
-        if predicate(v) then
+        if predicate(k, v) then
             return true
         end
     end
@@ -81,36 +82,65 @@ function TableHasCondition(tab, predicate)
     return false
 end
 
----@generic T
----@param tab T[]
----@param valueExtractor fun(item: T): integer
----@return T
-function TableMax(tab, valueExtractor)
-    local max = tab[1]
+---@generic T, U
+---@param tab table<T, U> | U[]
+---@param predicate fun(k: T, v: U): boolean
+---@return integer
+function TableCount(tab, predicate)
+    local count = 0
     for k, v in pairs(tab) do
-        local val = valueExtractor(v)
-        if val > max then
-            max = val
+        if predicate(k, v) then
+            count = count + 1
         end
     end
 
-    return max
+    return count
 end
 
----@generic T
----@param tab T[]
----@param valueExtractor fun(item: T): integer
----@return T
-function TableMin(tab, valueExtractor)
-    local min = tab[1]
+---@generic T, U
+---@param tab table<T, U> | U[]
+---@param valueExtractor fun(k: T, v: U): integer
+---@return U
+function TableMax(tab, valueExtractor)
+    local maxElement
     for k, v in pairs(tab) do
-        local val = valueExtractor(v)
-        if val < min then
-            min = val
+        maxElement = v
+        break
+    end
+
+    local maxValue = math.mininteger
+    for k, v in pairs(tab) do
+        local val = valueExtractor(k, v)
+        if val > maxValue then
+            maxValue = val
+            maxElement = v
         end
     end
 
-    return min
+    return maxElement
+end
+
+---@generic T, U
+---@param tab table<T, U> | U[]
+---@param valueExtractor fun(k: T, v: U): integer
+---@return U
+function TableMin(tab, valueExtractor)
+    local minElement
+    for k, v in pairs(tab) do
+        minElement = v
+        break
+    end
+
+    local minValue = math.maxinteger
+    for k, v in pairs(tab) do
+        local val = valueExtractor(k, v)
+        if val < minValue then
+            minValue = val
+            minElement = v
+        end
+    end
+
+    return minElement
 end
 
 ---@generic T

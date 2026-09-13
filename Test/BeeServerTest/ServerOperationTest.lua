@@ -185,3 +185,45 @@ TestBeeServerStandalone = {}
         stopServerAndVerifyShutdown(server, serverThread, tid)
         Modem.close(CommLayer.DefaultComPort)
     end
+
+    function TestBeeServerStandalone:TestDefaultGenome()
+        -- TODO: Do we need to add species to this?
+        local thisThread = Coroutine.running()
+        ApicultureTiles.__Initialize(Res.BeeGraphActual.RawMutationInfo)
+
+        local server, serverThread = makeServerCommand(CommLayer.DefaultComPort, "template", {}, {species = "forestry.speciesMajestic"})
+        runThreadAndVerifyResponse(serverThread, "modem_send")
+        local tid, _ = verifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.MakeTemplateCommand)
+        runThreadAndVerifyResponse(serverThread, "event_pull")
+
+        -- Pick a simple species that's easy to verify.
+        Modem.__sendNoYield(serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.DefaultGenomeRequest, 456789, {species = "forestry.speciesMajestic"})
+        runThreadAndVerifyResponse(serverThread, "modem_send")
+        local _, response = verifyModemResponse(thisThread, serverThread, CommLayer.DefaultComPort, CommLayer.MessageCode.DefaultGenomeResponse, 456789)
+        Luaunit.assertEquals(response, {traits = {
+            caveDwelling = false,
+            effect = "forestry.allele.effect.none",
+            fertility = 4,
+            flowerProvider = "flowersVanilla",
+            flowering = 5,
+            humidityTolerance = "NONE",
+            lifespan = 35,
+            nocturnal = false,
+            species = {
+                uid = "forestry.speciesMajestic",
+            },
+            speed = 1.0,
+            temperatureTolerance = "NONE",
+            territory = {
+                [1] = 9,
+                [2] = 6,
+                [3] = 9,
+            },
+            tolerantFlyer = false,
+        }})
+        runThreadAndVerifyResponse(serverThread, "event_pull")
+
+        stopServerAndVerifyShutdown(server, serverThread, tid)
+        Modem.close(CommLayer.DefaultComPort)
+    end
+
