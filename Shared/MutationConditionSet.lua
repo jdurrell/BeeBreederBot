@@ -149,6 +149,36 @@ function ConditionFunctions.FoundationIsPlaceableBlock(conditions)
 end
 
 ---@param conditions MutationConditionSet
+---@return boolean
+function ConditionFunctions.IsManualFoundation(conditions)
+    return (
+        (conditions.foundation ~= nil) and
+
+        -- TODO: Verify whether this name will match correctly. It might not need to be manual.
+        (conditions.foundation ~= "α Centauri Bb Surface Block")
+        (conditions.foundation ~= "Aura node") and
+        (conditions.foundation ~= "Ender Goo") and
+        (conditions.foundation ~= "IC2 Coolant") and
+        (conditions.foundation ~= "IC2 Hot Coolant") and
+        (conditions.foundation ~= "Lava") and
+        (conditions.foundation ~= "Short Mead") and
+        (conditions.foundation ~= "Water")
+    )
+end
+
+---@param conditions MutationConditionSet
+function ConditionFunctions.RequiresManual(conditions)
+    return (
+        ConditionFunctions.IsManualFoundation(conditions) or
+        (conditions.biome ~= nil) or
+        (conditions.dimension ~= nil) or
+        (conditions.humidity ~= nil) or
+        (conditions.temperature ~= nil) or
+        (conditions.timeCalendar ~= nil)
+    )
+end
+
+---@param conditions MutationConditionSet
 function ConditionFunctions.PrintConditions(conditions)
     if conditions.biome ~= nil then
         Print(string.format("biome: %s", conditions.biome))

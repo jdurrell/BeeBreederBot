@@ -936,26 +936,18 @@ end
 
 ---@param node BreedPathNode
 function BeekeeperBot:ensureSpecialConditionsMet(node)
-    if (MutationConditionSet.IsTrivialConditions(node.conditions)) then
-        return
+    if MutationConditionSet.RequiresManual(node.conditions) then
+        self.robotComms:WaitForConditionsAcknowledged(node)
     end
 
     -- Encase this in a loop in case the user doesn't provide the foundations correctly.
     local placingFoundations = MutationConditionSet.FoundationIsPlaceableBlock(node.conditions)
-    local promptedOnce = false
-    while true do
-        local shouldPlaceFoundation = placingFoundations
-        if shouldPlaceFoundation then
-            local retval = self.breeder:PlaceFoundations(node.conditions.foundation)
-            shouldPlaceFoundation = (retval == "no foundation")
+    while placingFoundations do
+        if self.breeder:PlaceFoundations(node.conditions.foundation) == "no foundation" then
+            self.robotComms:WaitForConditionsAcknowledged(node)
+        else
+            placingFoundations = false
         end
-
-        if promptedOnce and (not shouldPlaceFoundation) then
-            break
-        end
-
-        self.robotComms:WaitForConditionsAcknowledged(node)
-        promptedOnce = true
     end
 end
 
