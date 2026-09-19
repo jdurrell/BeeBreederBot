@@ -227,7 +227,7 @@ function BeeServer:RunCommand(messageCode, payload)
         [CommLayer.MessageCode.PrintErrorRequest] = BeeServer.PrintErrorHandler,
         [CommLayer.MessageCode.PromptConditionsRequest] = BeeServer.PromptConditionsHandler,
         [CommLayer.MessageCode.TraitBreedPathRequest] = BeeServer.TraitBreedPathHandler,
-        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler
+        [CommLayer.MessageCode.TraitInfoRequest] = BeeServer.TraitInfoHandler,
     }
 
     while true do
@@ -410,12 +410,20 @@ function BeeServer:PromptConditionsHandler(addr, transactionId, data)
             pathNode.target, pathNode.parent1, pathNode.parent2
         ))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse, transactionId)
-    else
+        return
+    end
+
+    while true do
         Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
             pathNode.target, pathNode.parent1, pathNode.parent2
         ))
         MutationConditionsSet.PrintConditions(pathNode.conditions)
-        Print("Once the conditions have been met, enter the command 'continue' to tell the robot to continue.")
+        Print("Once the conditions have been met, enter 'continue' to tell the robot to continue.")
+        local input = self.term.read()
+        if input == "continue" then
+            self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse, transactionId)
+            break
+        end
     end
 end
 
