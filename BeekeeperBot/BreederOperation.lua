@@ -733,7 +733,7 @@ function BreedOperator:PlaceFoundations(block)
     for i = 1, self.ic.getInventorySize(self.sides.front) do
         -- TODO: Allow foundation blocks to be spread out over multiple stacks.
         local stack = self.ic.getStackInSlot(self.sides.front, i)
-        if (stack ~= nil) and (string.find(stack.label, block) ~= nil) and (stack.size >= self.numApiaries) then
+        if (stack ~= nil) and (stack.label:lower() == block:lower()) and (stack.size >= self.numApiaries) then
             self.ic.suckFromSlot(self.sides.front, i, self.numApiaries)
             hasStack = true
             break
@@ -770,7 +770,6 @@ function BreedOperator:PlaceFoundations(block)
     end
     self.robot.turnRight()
     self:moveBackwards(2)
-    self:moveDownwards(1)
 
     return "success"
 end

@@ -1,10 +1,8 @@
 -- This program handles querying the tree for the bee breeding path.
 
-local MutationConditionSet = require("Shared.MutationConditionSet")
-
 ---@class BFSQueue
 ---@field count integer
----@field pathlookup table<string, {parents: string[] | nil, conditions: MutationConditionSet}>  Table to lookup the path later.
+---@field pathlookup table<string, {parents: string[] | nil, conditions: MutationConditionSet | nil}>  Table to lookup the path later.
 ---@field queue string[]                      Queue of species for the BFS search.
 ---@field seen table<string, integer>
 local BFSQueue = {}
@@ -26,7 +24,7 @@ end
 -- Push an item onto the BFS queue.
 ---@param name string
 ---@param parents string[] | nil
----@param conditions MutationConditionSet
+---@param conditions MutationConditionSet | nil
 function BFSQueue:Push(name, parents, conditions)
     table.insert(self.queue, name)
     if self.seen[name] == nil then

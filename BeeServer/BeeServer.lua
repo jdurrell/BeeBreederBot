@@ -18,7 +18,6 @@ local ValidTraitValues = require("BeeServer.ValidTraitValues")
 ---@field event Event
 ---@field term Term
 ---@field beeGraph SpeciesGraph
----@field beeNameToUids table<string, string[]>
 ---@field botAddr string
 ---@field cancelled boolean
 ---@field comm CommLayer
@@ -68,7 +67,6 @@ function BeeServer:Create(componentLib, eventLib, serialLib, termLib, config)
         obj:shutdown(1)
     end
     obj.beeGraph = GraphParse.ImportBeeGraph(apicultureComponent)
-    obj.beeNameToUids = GraphParse.ImportBeeNames(apicultureComponent)
     Print("Imported bee graph.")
 
     if not eventLib.listen("interrupted", function ()
@@ -419,8 +417,9 @@ function BeeServer:PromptConditionsHandler(addr, transactionId, data)
         ))
         MutationConditionsSet.PrintConditions(pathNode.conditions)
         Print("Once the conditions have been met, enter 'continue' to tell the robot to continue.")
-        local input = self.term.read()
+        local input = self.term.read():gsub("%s", ""):gsub("\n", "")
         if input == "continue" then
+            Print("continuing")
             self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse, transactionId)
             break
         end

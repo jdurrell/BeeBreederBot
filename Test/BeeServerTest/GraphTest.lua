@@ -43,7 +43,7 @@ local function assertGraphsEquivalent(graph1, graph2)
             -- Not an equivalence check, but each node's parent mutation should only have
             -- each unique combination of parents appear once.
             Luaunit.assertIsNil(g1Parents[key])
-            g1Parents[key] = parents.chance
+            g1Parents[key] = {chance = parents.chance, conditions = parents.conditions}
         end
         local g2Parents = {}
         for i, parents in ipairs(g2Node.parentMutations) do
@@ -57,7 +57,7 @@ local function assertGraphsEquivalent(graph1, graph2)
             -- Not an equivalence check, but each node's parent mutation should only have
             -- each unique combination of parents appear once.
             Luaunit.assertIsNil(g2Parents[key])
-            g2Parents[key] = parents.chance
+            g2Parents[key] = {chance = parents.chance, conditions = parents.conditions}
         end
         Luaunit.assertEquals(g1Parents, g2Parents)
 
@@ -71,7 +71,7 @@ local function assertGraphsEquivalent(graph1, graph2)
             for _, parentAndChance in ipairs(g1ChildMuts) do
                 -- Not an equivalence check, but this *should* be unique.
                 Luaunit.assertIsNil(g1Children[child][parentAndChance.parent])
-                g1Children[child][parentAndChance.parent] = parentAndChance.chance
+                g1Children[child][parentAndChance.parent] = {chance = parentAndChance.chance, conditions = parentAndChance.conditions}
             end
         end
         local g2Children = {}
@@ -81,7 +81,7 @@ local function assertGraphsEquivalent(graph1, graph2)
             for _, parentAndChance in ipairs(g2ChildMuts) do
                 -- Not an equivalence check, but this *should* be unique.
                 Luaunit.assertIsNil(g2Children[child][parentAndChance.parent])
-                g2Children[child][parentAndChance.parent] = parentAndChance.chance
+                g2Children[child][parentAndChance.parent] = {chance = parentAndChance.chance, conditions = parentAndChance.conditions}
             end
         end
         Luaunit.assertEquals(g1Children, g2Children)
@@ -218,9 +218,8 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Tropical", "Common", 0.35)
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
-        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)        
+        GraphParse.AddMutationToGraph(graph, "Marshy", "Tropical", "Common", 0.25)
         assertGraphsEquivalent(graph, expected)
-
 
         graph = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
@@ -236,6 +235,36 @@ TestGraphParse = {}
         GraphParse.AddMutationToGraph(graph, "Forest", "Meadows", "Common", 0.15)
         GraphParse.AddMutationToGraph(graph, "Common", "Meadows", "Cultivated", 0.2)
         GraphParse.AddMutationToGraph(graph, "Forest", "Common", "Cultivated", 0.1)
+        assertGraphsEquivalent(graph, expected)
+    end
+
+    function TestGraphParse:TestAddMutationSpecialConditions()
+        local expected = {
+            Parent1={
+                speciesName="Parent1",
+                parentMutations={},
+                childMutations={
+                    Result1={{parent="Parent2", chance=0.35, conditions = {foundation = "clay"}}},
+                },
+            },
+            Parent2={
+                speciesName="Parent2",
+                parentMutations={},
+                childMutations={
+                    Result1={{parent="Parent1", chance=0.35, conditions = {foundation = "clay"}}},
+                },
+            },
+            Result1={
+                speciesName="Result1",
+                parentMutations={
+                    {parents={"Parent1", "Parent2"}, chance=0.35, conditions = {foundation = "clay"}},
+                },
+                childMutations={},
+            },
+        }
+
+        local graph = {}
+        GraphParse.AddMutationToGraph(graph, "Parent1", "Parent2", "Result1", 0.35, {"Requires Clay as a foundation."})
         assertGraphsEquivalent(graph, expected)
     end
 
