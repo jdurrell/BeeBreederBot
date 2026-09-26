@@ -815,7 +815,6 @@ function BreedOperator:BreakAndReturnFoundationsToInputChest()
     end
     self.robot.turnRight()
     self:moveBackwards(2)
-    self:moveDownwards(1)
 
     -- Return the pickaxe and the foundation blocks to the inputs chest.
     self:moveToInputChest()
