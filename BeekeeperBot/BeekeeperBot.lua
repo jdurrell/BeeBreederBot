@@ -475,22 +475,29 @@ function BeekeeperBot:breedNewTrait(pathNode, mutationTraits, preferredTraits)
     self.breeder:RetrieveStockPrincessesFromChest(nil, {})
     local breedInfoCache = {}
     local traitInfoCache = {species={}}
-    local finishedDroneSlot = self:breed(
-        MatchingAlgorithms.MutatedAlleleMatcher(
-            self.breeder.numApiaries,
-            mutationTraits,
-            preferredTraits,
-            breedInfoCache,
-            traitInfoCache,
-            self.config.verbose
-        ),
-        MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, self:numReplicate()),
-        GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
-        function (princessStack, droneStackList)
-            self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
-            self:populateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
-        end
-    ).drones
+
+    local finishedDroneSlot
+    if MutationConditionSet.RequiresManualBreed(pathNode.conditions) then
+        -- If we set up the population manually, then we shouldn't have mutations here.
+        finishedDroneSlot = self:breed(
+            MatchingAlgorithms.ClosestMatchToTraitsMatcher(fullTargetTraits, self.breeder.numApiaries, self.config.verbose),
+            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, self:numReplicate()),
+            GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
+            nil
+        ).drones
+    else
+        finishedDroneSlot = self:breed(
+            MatchingAlgorithms.MutatedAlleleMatcher(
+                self.breeder.numApiaries, mutationTraits, preferredTraits, breedInfoCache, traitInfoCache, self.config.verbose
+            ),
+            MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(fullTargetTraits, self:numReplicate()),
+            GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(fullTargetTraits),
+            function (princessStack, droneStackList)
+                self:populateBreedInfoCache(princessStack, droneStackList, pathNode.target, breedInfoCache)
+                self:populateTraitInfoCache(princessStack, droneStackList, traitInfoCache)
+            end
+        ).drones
+    end
 
     if finishedDroneSlot == nil then
         self:outputError(string.format("Error breeding '%s' from '%s' and '%s'. Retrying from parent replication.", pathNode.target, pathNode.parent1, pathNode.parent2))
@@ -938,6 +945,7 @@ end
 function BeekeeperBot:ensureSpecialConditionsMet(node)
     if MutationConditionSet.RequiresManual(node.conditions) then
         self.robotComms:WaitForConditionsAcknowledged(node)
+        return
     end
 
     -- Encase this in a loop in case the user doesn't provide the foundations correctly.

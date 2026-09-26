@@ -180,9 +180,32 @@ function ConditionFunctions.IsManualFoundation(conditions)
 end
 
 ---@param conditions MutationConditionSet
+---@return boolean
 function ConditionFunctions.RequiresManual(conditions)
     return (
+        ConditionFunctions.RequiresManualSetup(conditions) or
+        ConditionFunctions.RequiresManualBreed(conditions)
+    )
+end
+
+---@param conditions MutationConditionSet
+---@return boolean
+function ConditionFunctions.RequiresManualSetup(conditions)
+    return (
         ConditionFunctions.IsManualFoundation(conditions) or
+        (conditions.biome ~= nil) or
+        (conditions.dimension ~= nil) or
+        (conditions.humidity ~= nil) or
+        (conditions.temperature1 ~= nil) or
+        (conditions.temperature2 ~= nil) or
+        (conditions.timeCalendar ~= nil)
+    )
+end
+
+---@param conditions MutationConditionSet
+---@return boolean
+function ConditionFunctions.RequiresManualBreed(conditions)
+    return (
         (conditions.biome ~= nil) or
         (conditions.dimension ~= nil) or
         (conditions.humidity ~= nil) or

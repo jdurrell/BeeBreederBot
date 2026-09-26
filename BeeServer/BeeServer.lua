@@ -416,7 +416,15 @@ function BeeServer:PromptConditionsHandler(addr, transactionId, data)
             pathNode.target, pathNode.parent1, pathNode.parent2
         ))
         MutationConditionsSet.PrintConditions(pathNode.conditions)
-        Print("Once the conditions have been met, enter 'continue' to tell the robot to continue.")
+        if MutationConditionsSet.RequiresManualBreed(pathNode.conditions) then
+            Print("Conditions cannot be ensured by the breeder. Breed a starter drone population from the parents under the above conditions.")
+            Print(string.format("parent1: %s, parent2: %s, target: %s", pathNode.parent1, pathNode.parent2, pathNode.target))
+        elseif MutationConditionsSet.RequiresManualSetup(pathNode.conditions) then
+            Print("Conditions cannot be managed by the breeder. Set up the conditions manually.")
+        else
+            Print("Insert foundation blocks into the input chest.")
+        end
+        Print("Once completed, enter 'continue' to tell the robot to continue.")
         local input = self.term.read():gsub("%s", ""):gsub("\n", "")
         if input == "continue" then
             Print("continuing")
