@@ -2,6 +2,7 @@ require("Shared.Shared")
 __ActivateTestMode()
 
 Luaunit = require("Test.luaunit")
+require("Test.BeekeeperBotTest.BeeAnalysisUtilTest")
 require("Test.BeekeeperBotTest.GarbageCollectionTest")
 require("Test.BeekeeperBotTest.MatchingMathTest")
 require("Test.BeeServerTest.GraphTest")

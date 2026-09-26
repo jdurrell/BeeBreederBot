@@ -79,12 +79,11 @@ local TraitInfoSpecies = {}
 ---@field tolerantFlyer table<boolean, boolean>
 local TraitInfoFull = {}
 
--- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
--- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
----@class AnalyzedBeeStack
+-- Bee stack pulled directly from the game.
+---@class RawAnalyzedBeeStack
 ---@field damage number
 ---@field hasTag boolean
----@field individual AnalyzedBeeIndividual  The actual bee information.
+---@field individual RawAnalyzedBeeIndividual  The actual bee information.
 ---@field inputs {}  Empty table? It seems that there is nothing actually in here.
 ---@field isCraftable boolean
 ---@field label string  Translated name (appears as the "common name" of the item in-game).
@@ -94,19 +93,29 @@ local TraitInfoFull = {}
 ---@field outputs {}  Empty table? It seems that there is nothing actually in here.
 ---@field size integer  Number of items in the stack.
 ---@field tag string  Not really sure what type this technically is. It doesn't matter, though, and I don't think it's technically supposed to be exposed anyways.
+---@field __hash string  Testing field for simulator optimization.
+local RawAnalyzedBeeStack = {}
+
+-- Post-processed bee stack after unused fields have been pulled out.
+-- TODO: All of this information was sourced from a drone. I *think* princesses have the exact same structure, but this should be verified.
+-- TODO: All of this information was sourced from a Forest bee. Other species could potentially have additional information.
+---@class AnalyzedBeeStack
+---@field individual AnalyzedBeeIndividual  The actual bee information.
+---@field size integer  Number of items in the stack.
 ---@field slotInChest integer  Must be assigned upon reading the stack from the chest.
 ---@field __hash string  Testing field for simulator optimization.
 local AnalyzedBeeStack = {}
 
----@class AnalyzedBeeIndividual
----@field active AnalyzedBeeTraits  Active traits for this individual.
+-- Bee individual pulled directly from the game.
+---@class RawAnalyzedBeeIndividual
+---@field active RawAnalyzedBeeTraits  Active traits for this individual.
 ---@field canSpawn boolean
 ---@field displayName string  "Common" name of the primary species.
 ---@field generation integer
 ---@field hasEffect boolean
 ---@field health integer  -- Unsure whether this is 'number' or 'integer'? Either way, it doesn't seem to be relevant.
 ---@field ident string  An identifier like "forestry.speciesForest".
----@field inactive AnalyzedBeeTraits  Inactive traits for this individual.
+---@field inactive RawAnalyzedBeeTraits  Inactive traits for this individual.
 ---@field isAlive boolean
 ---@field isAnalyzed boolean  Whether this bee has been analyzed.
 ---@field isSecret boolean
@@ -114,8 +123,33 @@ local AnalyzedBeeStack = {}
 ---@field maxHealth integer
 ---@field type string  For bees, this seems to always be set to "bee".
 ---@field __genome ForestryGenome  For use by modules internal to testing *only*! This field is not accessible from production code.
+local RawAnalyzedBeeIndividual = {}
+
+-- Post-processed bee individual after unused fields have been pulled out.
+---@class AnalyzedBeeIndividual
+---@field active AnalyzedBeeTraits  Active traits for this individual.
+---@field inactive AnalyzedBeeTraits  Inactive traits for this individual.
+---@field __genome ForestryGenome  For use by modules internal to testing *only*! This field is not accessible from production code.
 local AnalyzedBeeIndividual = {}
 
+-- Raw bee traits pulled directly from the game.
+---@class RawAnalyzedBeeTraits
+---@field caveDwelling boolean  Whether this bee can work without access to the sky above its housing.
+---@field effect string  The effect provided by this bee, or "NONE" if no effect.
+---@field fertility integer  The number of drones produced by this bee upon dying.
+---@field flowering integer  The degree to which this bee spreads flowers.
+---@field flowerProvider string  Describes the flowers required by this bee. TODO: Verify these values and possibly include logic for placing correct flowers.
+---@field humidityTolerance string  The humidity tolerance of this bee, or "NONE" if none.
+---@field lifespan integer
+---@field nocturnal boolean  Whether this bee can work at night.
+---@field species RawBeeSpecies  Information on the species of this bee.
+---@field speed number
+---@field temperatureTolerance string  The temperature tolerance of this bee, of "NONE" if none.
+---@field territory integer[]
+---@field tolerantFlyer boolean  Whether this bee can work in the rain.
+local RawAnalyzedBeeTraits = {}
+
+-- Post-processed traits after pulling out unused fields.
 ---@class AnalyzedBeeTraits
 ---@field caveDwelling boolean  Whether this bee can work without access to the sky above its housing.
 ---@field effect string  The effect provided by this bee, or "NONE" if no effect.
@@ -132,6 +166,18 @@ local AnalyzedBeeIndividual = {}
 ---@field tolerantFlyer boolean  Whether this bee can work in the rain.
 local AnalyzedBeeTraits = {}
 
+-- Bee species pulled directly from the game.
+---@class RawBeeSpecies
+---@field humidity string  The humidity required by this species for its jubilant state.
+---@field name string  The "common" name of this species.
+---@field temperature string  The temperature required by this species for its jubilant state.
+---@field uid string  The unique identifier for this species like "forestry.speciesForest".
+local RawBeeSpecies = {}
+
+-- Post-processed bee species once unused fields have been pulled out.
+---@class BeeSpecies
+---@field uid string
+
 ---@class PartialAnalyzedBeeTraits
 ---@field caveDwelling boolean | nil  Whether this bee can work without access to the sky above its housing.
 ---@field effect string | nil  The effect provided by this bee, or "NONE" if no effect.
@@ -141,21 +187,14 @@ local AnalyzedBeeTraits = {}
 ---@field humidityTolerance string | nil  The humidity tolerance of this bee, or "NONE" if none.
 ---@field lifespan integer | nil
 ---@field nocturnal boolean | nil  Whether this bee can work at night.
----@field species BeeSpecies | {uid: string} | nil  Information on the species of this bee.
+---@field species BeeSpecies | nil  Information on the species of this bee.
 ---@field speed number | nil
 ---@field temperatureTolerance string | nil  The temperature tolerance of this bee, of "NONE" if none.
 ---@field territory integer[] | nil
 ---@field tolerantFlyer boolean | nil  Whether this bee can work in the rain.
 local PartialAnalyzedBeeTraits = {}
 
----@alias TraitValue BeeSpecies | {uid: string} | boolean | string | integer
-
----@class BeeSpecies
----@field humidity string  The humidity required by this species for its jubilant state.
----@field name string  The "common" name of this species.
----@field temperature string  The temperature required by this species for its jubilant state.
----@field uid string  The unique identifier for this species like "forestry.speciesForest".
-local BeeSpecies = {}
+---@alias TraitValue BeeSpecies | boolean | string | integer
 
 ---@class BeekeeperBotConfig
 ---@field apiaries integer

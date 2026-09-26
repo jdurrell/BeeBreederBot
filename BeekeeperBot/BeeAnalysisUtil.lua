@@ -97,4 +97,45 @@ function M.IsPureBred(individual, species)
     return (individual.active.species.uid == species) and (individual.active.species.uid == individual.inactive.species.uid)
 end
 
+-- TODO: We can reduce the memory requirement in these functions by simply deleting fields instead of constructing new tables.
+--       Figure out how to do this without sacrificing type safety.
+
+---@param stack RawAnalyzedBeeStack
+---@param slot integer
+---@return AnalyzedBeeStack
+function M.AnalyzedBeeStackFromRaw(stack, slot)
+    ---@type AnalyzedBeeStack
+    return {
+        individual = {
+            active = M.AnalyzedBeeTraitsFromRaw(stack.individual.active),
+            inactive = M.AnalyzedBeeTraitsFromRaw(stack.individual.inactive),
+            __genome = nil,  -- Testing-only field.
+        },
+        size = stack.size,
+        slotInChest = slot,
+        __hash = nil  -- Testing-only field.
+    }
+end
+
+---@param traits RawAnalyzedBeeTraits
+---@return AnalyzedBeeTraits
+function M.AnalyzedBeeTraitsFromRaw(traits)
+    ---@type AnalyzedBeeTraits
+    return {
+        caveDwelling = traits.caveDwelling,
+        effect = traits.effect,
+        fertility = traits.fertility,
+        flowering = traits.flowering,
+        flowerProvider = traits.flowerProvider,
+        humidityTolerance = traits.humidityTolerance,
+        lifespan = traits.lifespan,
+        nocturnal = traits.nocturnal,
+        species = {uid = traits.species.uid},
+        speed = traits.speed,
+        temperatureTolerance = traits.temperatureTolerance,
+        territory = traits.territory,
+        tolerantFlyer = traits.tolerantFlyer,
+    }
+end
+
 return M

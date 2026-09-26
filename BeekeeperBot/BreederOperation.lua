@@ -66,8 +66,8 @@ function BreedOperator:GetPrincessesInChest()
 
     local princesses = {}
     for i = 1, self.ic.getInventorySize(self.sides.front) do
-        local stack = self.ic.getStackInSlot(self.sides.front, i)
-        if (stack ~= nil) and (stack.label:find("[P|p]rincess") ~= nil) then
+        local stack = self:getBeeStackFromChest(i, "princess")
+        if stack ~= nil then
             stack.slotInChest = i
             table.insert(princesses, stack)
         end
@@ -85,13 +85,12 @@ function BreedOperator:GetDronesInChest()
     self.robot.turnRight()
 
     -- Scan the attached inventory to collect all drones.
+    ---@type AnalyzedBeeStack[]
     local drones = {}
     for i = 1, self.ic.getInventorySize(self.sides.front) do
-        ---@type AnalyzedBeeStack
-        local droneStack = self.ic.getStackInSlot(self.sides.front, i)
-        if droneStack ~= nil then
-            droneStack.slotInChest = i
-            table.insert(drones, droneStack)
+        local stack = self:getBeeStackFromChest(i, "drone")
+        if stack ~= nil then
+            table.insert(drones, stack)
         end
     end
 
@@ -219,10 +218,14 @@ function BreedOperator:StoreDronesFromActiveChest(slots)
     self.robot.turnRight()
     local droneTraits = {}
     for i, v in ipairs(slots) do
-        local drone = self.ic.getStackInSlot(self.sides.front, v)  ---@type AnalyzedBeeStack
-        table.insert(droneTraits, drone.individual.active)
-        self.robot.select(i)
-        self.ic.suckFromSlot(self.sides.front, v, 64)
+        local drone = self:getBeeStackFromChest(v, "drone")
+
+        -- TODO: What do to if we *do* get nil here?
+        if drone ~= nil then
+            table.insert(droneTraits, drone.individual.active)
+            self.robot.select(i)
+            self.ic.suckFromSlot(self.sides.front, v, 64)
+        end
     end
     self.robot.turnLeft()
 
@@ -238,8 +241,8 @@ function BreedOperator:RefreshStorageCache()
     local chest = 1
     while self.ic.getInventorySize(self.sides.front) ~= nil do
         for i = 1, self.ic.getInventorySize(self.sides.front) do
-            local stack = self.ic.getStackInSlot(self.sides.front, i)  ---@type AnalyzedBeeStack
-            if (stack ~= nil) and (stack.label:find("[D|d]rone") ~= nil) then
+            local stack = self:getBeeStackFromChest(i, "drone")
+            if stack ~= nil then
                 -- This is a valid drone stack, so add it to the list.
                 -- All drones in storage are pure-bred, so we only need to add one set of traits.
                 self.storageCache:LoadDrone(stack.individual.active, stack.size, chest, i)
@@ -261,7 +264,7 @@ end
 ---@return AnalyzedBeeStack | nil
 function BreedOperator:GetStackInDroneSlot(slot)
     self.robot.turnRight()
-    local stack = self.ic.getStackInSlot(self.sides.front, slot)
+    local stack = self:getBeeStackFromChest(slot, "drone")
     stack.slotInChest = slot
     self.robot.turnLeft()
 
@@ -881,6 +884,19 @@ function BreedOperator:storeDrones(traitSets)
     self.robot.turnLeft()
 
     return true
+end
+
+---@param slot integer
+---@param pattern string
+---@return AnalyzedBeeStack | nil
+function BreedOperator:getBeeStackFromChest(slot, pattern)
+    ---@type RawAnalyzedBeeStack | nil
+    local stack = self.ic.getStackInSlot(self.sides.front, slot)
+    if (stack == nil) or(stack.label:lower():find(pattern) == nil) then
+        return nil
+    end
+
+    return AnalysisUtil.AnalyzedBeeStackFromRaw(stack, slot)
 end
 
 -- Returns the index of an empty slot in the chest or `-1` if none exist.
