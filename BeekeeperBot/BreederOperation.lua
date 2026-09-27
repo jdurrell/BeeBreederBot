@@ -340,6 +340,7 @@ function BreedOperator:TrashSlotsFromDroneChest(slots)
 end
 
 -- Moves `n` princesses from the stock chest into the princess chest. If `n` is nil, then moves `numApiaries` princesses.
+-- Will retry forever until it retrieves enough princesses.
 -- Attempts to choose princesses according to the preferences list.
 -- TODO: Actually utilize the preferences list.
 -- TODO: Deal with n > 16.
@@ -353,29 +354,27 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     self:moveToStorageColumn()
     self:moveToStockPrincessChestFromStorageColumnOrigin()
 
-    -- Get the princesses out of the chest.
+    -- Get the princesses out of the chest. Retry forever since we could possibly have exported all of our princesses
+    -- temporarily. This allows the player to just slap them back into the chest and move on.
     local numRetrieved = 0
-    for i = 1, self.ic.getInventorySize(self.sides.front) do
-        if self.ic.getStackInSlot(self.sides.front, i) ~= nil then
-            self.robot.select(numRetrieved + 1)
-            if not self.ic.suckFromSlot(self.sides.front, i, 1) then
-                Print(("Failed to take stock princess out of slot %u."):format(i))
-                return false
-            end
-            numRetrieved = numRetrieved + 1
+    while numRetrieved < n do
+        for i = 1, self.ic.getInventorySize(self.sides.front) do
+            if self:getBeeStackFromChest(i, "princess") ~= nil then
+                self.robot.select(numRetrieved + 1)
+                if not self.ic.suckFromSlot(self.sides.front, i, 1) then
+                    Print(("Failed to take stock princess out of slot %u."):format(i))
+                end
+                numRetrieved = numRetrieved + 1
 
-            if numRetrieved >= n then
-                break
+                if numRetrieved >= n then
+                    break
+                end
             end
         end
-    end
 
-    -- Error out if we didn't find the requested number.
-    local succeeded = true
-    if numRetrieved < n then
-        succeeded = false
-        Print(("Failed to retrieve %u stock princesses. Only found %u"):format(n, numRetrieved))
-        self:unloadInventory()
+        if numRetrieved < n then
+            Print(("Failed to retrieve %u stock princesses. Only found %u"):format(n, numRetrieved))
+        end
     end
 
     -- Return to the breeder station.
@@ -389,7 +388,7 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     -- Clean up by returning to starting position.
     self.robot.turnRight()
 
-    return succeeded
+    return true
 end
 
 -- Returns `amount` princesses from the active chest to the stock chest.
