@@ -265,8 +265,17 @@ end
 function BreedOperator:GetStackInDroneSlot(slot)
     self.robot.turnRight()
     local stack = self:getBeeStackFromChest(slot, "drone")
-    stack.slotInChest = slot
     self.robot.turnLeft()
+
+    return stack
+end
+
+---@param slot integer
+---@return AnalyzedBeeStack | nil
+function BreedOperator:GetStackInPrincessSlot(slot)
+    self.robot.turnLeft()
+    local stack = self:getBeeStackFromChest(slot, "princess")
+    self.robot.turnRight()
 
     return stack
 end

@@ -117,7 +117,7 @@ end
 ---@param values table<string, string>
 function BeeServer:TemplateCommand(flags, values)
     ---@type MakeTemplateCommandPayload
-    local payload = {traits={}, raw=SetContains(flags, "raw")}
+    local payload = {traits={}, raw=SetContains(flags, "raw"), questbook=SetContains(flags, "questbook")}
 
     for k, v in pairs(values) do
         local stringLower = v:lower()

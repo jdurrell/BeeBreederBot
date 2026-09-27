@@ -150,7 +150,7 @@ function BeekeeperBot:makeTemplateHandler(data)
             return
         end
 
-        if not self:breedTraitsIntoPopulation(data.traits) then
+        if not self:breedTraitsIntoPopulation(data.traits, data.questbook) then
             self:outputError("Failed to breed target traits from mutations.")
             return
         end
@@ -176,8 +176,9 @@ end
 
 -- Breeds the given traits into the population via mutations, if they don't already exist.
 ---@param targetTraits PartialAnalyzedBeeTraits
+---@param princessQuestbookMode boolean
 ---@return boolean
-function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
+function BeekeeperBot:breedTraitsIntoPopulation(targetTraits, princessQuestbookMode)
     -- If we don't have all of the traits, then figure out how to breed them into the storage population.
     local traitsPresent = {}
     for trait, value in pairs(targetTraits) do
@@ -262,7 +263,7 @@ function BeekeeperBot:breedTraitsIntoPopulation(targetTraits)
                 -- Override something we are specifically getting from the mutation.
                 bestTraits[trait2] = value2
             end
-            self:breedTemplate(droneStack.individual.active, bestTraits)
+            self:breedTemplate(droneStack.individual.active, bestTraits, princessQuestbookMode)
         end
 
         ::continue::
@@ -533,13 +534,14 @@ function BeekeeperBot:breedTemplateFromEstablishedTraits(targetTraits)
         return false
     end
 
-    return self:breedTemplate(maxStartingTraitSet, targetTraits)
+    return self:breedTemplate(maxStartingTraitSet, targetTraits, false)
 end
 
 ---@param workingTemplateTraits AnalyzedBeeTraits
 ---@param requiredTraits PartialAnalyzedBeeTraits
+---@param exportNewPrincessSpeciesToOutput boolean
 ---@return boolean
-function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
+function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits, exportNewPrincessSpeciesToOutput)
     local finishedTraits = {}
     for trait, value in pairs(requiredTraits) do
         if AnalysisUtil.TraitIsEqual(workingTemplateTraits, trait, value) then
@@ -650,19 +652,27 @@ function BeekeeperBot:breedTemplate(workingTemplateTraits, requiredTraits)
         return false
     end
     self.breeder:RetrieveStockPrincessesFromChest(nil, {droneStack.individual.active.species.uid})
-    local finishedDrones = self:breed(
+    local finished = self:breed(
         MatchingAlgorithms.ClosestMatchToTraitsMatcher(requiredTraits, self.breeder.numApiaries, self.config.verbose),
         MatchingAlgorithms.DroneStackAndPrincessOfTraitsFinisher(requiredTraits, 64),
         GarbageCollectionPolicies.ClearDronesByFurthestAlleleMatchingCollector(requiredTraits),
         nil
-    ).drones
+    )
+    if exportNewPrincessSpeciesToOutput and (finished.princess ~= nil) then
+        local princessStack = self.breeder:GetStackInPrincessSlot(finished.princess)
+        if princessStack == nil then
+            self:outputError("Princess stack didn't appear after successful breed.")
+            return false
+        end
+        self.breeder:ExportPrincessStackToOutput(finished.princess, 1)
+    end
     self.breeder:ReturnActivePrincessesToStock(nil)
 
-    if finishedDrones == nil then
+    if finished.drones == nil then
         self:outputError("Failed to breed final template up to 64.")
         return false
     end
-    self.breeder:StoreDronesFromActiveChest({finishedDrones})
+    self.breeder:StoreDronesFromActiveChest({finished.drones})
 
     return true
 end
