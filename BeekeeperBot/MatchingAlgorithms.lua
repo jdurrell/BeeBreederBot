@@ -218,14 +218,14 @@ function M.GenericHighestScore(droneStackList, scoreFunc, maxPossibleScore, verb
 
         local score = scoreFunc(droneStack)
         if verbose then
-            Print(string.format("%u (max: %d)", score, maxScore))
+            Print(("%u (max: %d)"):format(score, maxScore))
         end
         if score > maxScore then
             maxDroneStack = droneStack
             maxScore = score
             if maxScore == maxPossibleScore then
                 if verbose then
-                    Print(string.format("Terminating early for max score on slot %u.", droneStack.slotInChest))
+                    Print(("Terminating early for max score on slot %u."):format(droneStack.slotInChest))
                 end
                 break
             end

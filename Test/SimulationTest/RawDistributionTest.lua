@@ -19,7 +19,7 @@ local function verifyAlwaysGeneratesValue(generateSample, value, n)
     for i = 1, n do
         Luaunit.assertEquals(generateSample(), value, "'Always Equals' failed at iteration " .. tostring(i) .. ".")
     end
-    Util.VerbosePrint(string.format("\nn = %u, all correct!", n))
+    Util.VerbosePrint(("\nn = %u, all correct!"):format(n))
 end
 
 ---@param generateSample fun(): number  A function that samples the distribution.
@@ -67,12 +67,12 @@ local function performZTest(generateSample, muZero, variance, n, alphaLevel)
     -- significance represented by `alphaLevel`. Since we must test for the observed value being greater than or less than the expected
     -- probability, our z-test must be two-sided.
     local threshold = AlphaLevelToTwoSidedZThreshold[alphaLevel]
-    Util.VerbosePrint(string.format("\nDid Z-test at alpha = %.3f:\nz = %.3f, mu0 = %.7f,\nrejection distance: %.7f, xBar = %.7f",
+    Util.VerbosePrint(("\nDid Z-test at alpha = %.3f:\nz = %.3f, mu0 = %.7f,\nrejection distance: %.7f, xBar = %.7f"):format(
         alphaLevel, z, muZero, threshold * stdev, xBar
     ))
 
     Luaunit.assertIsTrue(math.abs(z) < threshold,
-        string.format("Z-test failed: z=%.3f is outside threshold %.7f. Observed xBar %.7f, expected ~%.7f.", z, threshold, xBar, muZero)
+        ("Z-test failed: z=%.3f is outside threshold %.7f. Observed xBar %.7f, expected ~%.7f."):format(z, threshold, xBar, muZero)
     )
     Util.VerbosePrint("H0 not rejected!")
 end
@@ -331,7 +331,7 @@ local function RunExpectedTargetAllelesTest(target, queenSpeciesActive, queenSpe
     else
         -- The variance is too large for us to use a Z-test, even at large sample sizes. Mostly the distribution is not normal.
         Luaunit.assertIsTrue(math.abs(average - expectedAlleles) < 0.005,
-            string.format("Got %.7f, expected ~%.7f. Difference %.7f", average, expectedAlleles, average - expectedAlleles)
+            ("Got %.7f, expected ~%.7f. Difference %.7f"):format(average, expectedAlleles, average - expectedAlleles)
         )
     end
 end

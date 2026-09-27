@@ -49,7 +49,7 @@ function BreedOperator:Create(componentLib, robotLib, sidesLib, numApiaries)
     obj.sides = sidesLib
 
     if (numApiaries < 1) or (numApiaries > 4) then
-        Print(string.format("Number of apiaries must be from 1 to 4 (inclusive). Got invalid number: %d", numApiaries))
+        Print(("Number of apiaries must be from 1 to 4 (inclusive). Got invalid number: %d"):format(numApiaries))
         return nil
     end
     obj.numApiaries = numApiaries
@@ -350,7 +350,7 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
         if self.ic.getStackInSlot(self.sides.front, i) ~= nil then
             self.robot.select(numRetrieved + 1)
             if not self.ic.suckFromSlot(self.sides.front, i, 1) then
-                Print(string.format("Failed to take stock princess out of slot %u.", i))
+                Print(("Failed to take stock princess out of slot %u."):format(i))
                 return false
             end
             numRetrieved = numRetrieved + 1
@@ -365,7 +365,7 @@ function BreedOperator:RetrieveStockPrincessesFromChest(n, preferences)
     local succeeded = true
     if numRetrieved < n then
         succeeded = false
-        Print(string.format("Failed to retrieve %u stock princesses. Only found %u", n, numRetrieved))
+        Print(("Failed to retrieve %u stock princesses. Only found %u"):format(n, numRetrieved))
         self:unloadInventory()
     end
 

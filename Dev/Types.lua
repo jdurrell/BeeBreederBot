@@ -224,7 +224,7 @@ local CodedMessage = {}
 -- Mapping of princess to drone to chance for parents to mutate into the target and chance for parents to mutate into a different species.
 ---@alias BreedInfoCache table<string, table<string, {targetMutChance: number, nonTargetMutChance: number}>>
 
----@alias MakeTemplateCommandPayload {traits: PartialAnalyzedBeeTraits, raw: boolean}
+---@alias MakeTemplateCommandPayload {traits: PartialAnalyzedBeeTraits, raw: boolean, questbook: boolean}
 ---@alias BreedInfoRequestPayload {parent1: string, parent2: string, target: string}
 ---@alias BreedInfoResponsePayload {targetMutChance: number, nonTargetMutChance: number}
 ---@alias TraitInfoRequestPayload {species: string}

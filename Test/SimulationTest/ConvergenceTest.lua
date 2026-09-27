@@ -187,7 +187,7 @@ local function runConvergenceTest(matcher, endCondition, garbageCollector, maxIt
                 --     print("Removed " .. #slotsToRemove .. " drone stacks:")
                 --     for _, removeSlot in ipairs(slotsToRemove) do
                 --         local stack = droneStacks[removeSlot]
-                --         print(string.format("\tSlot  = %s\n\tSpecies = %s / %s\n\tfertility  = %u / %u\n\tSize = %u",
+                --         print(("\tSlot  = %s\n\tSpecies = %s / %s\n\tfertility  = %u / %u\n\tSize = %u"):format(
                 --             stack.slotInChest, stack.individual.active.species.uid, stack.individual.inactive.species.uid,
                 --             stack.individual.active.fertility, stack.individual.inactive.fertility, stack.size
                 --         ))
@@ -218,7 +218,7 @@ local function runConvergenceTest(matcher, endCondition, garbageCollector, maxIt
             sumItersToConvergence = sumItersToConvergence + iteration
         end
     end
-    Util.VerbosePrint(string.format("Converged %u / %u times, averaging %.2f iterations to converge.", convergences, numTrials, sumItersToConvergence / convergences))
+    Util.VerbosePrint(("Converged %u / %u times, averaging %.2f iterations to converge."):format(convergences, numTrials, sumItersToConvergence / convergences))
 
     return convergences / numTrials
 end
@@ -270,7 +270,7 @@ TestConvergenceMutatedAllele = {}
             12121
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceMutatedAllele:TestMutationTargetHasOneFertility()
@@ -307,7 +307,7 @@ TestConvergenceMutatedAllele = {}
             3002
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceMutatedAllele:TestMutationAdditionalPreferredTraits()
@@ -348,7 +348,7 @@ TestConvergenceMutatedAllele = {}
             12121
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceMutatedAllele:TestMutationAdditionalMutationTraits()
@@ -386,7 +386,7 @@ TestConvergenceMutatedAllele = {}
             12121
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceMutatedAllele:TestMutationAdditionalMutationTraitsAndPreferredTraits()
@@ -431,7 +431,7 @@ TestConvergenceMutatedAllele = {}
             12121
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
 TestConvergenceClosestMatchToTraits = {}
@@ -490,7 +490,7 @@ TestConvergenceClosestMatchToTraits = {}
             initialDroneStacks,
             4001
         )
-        Luaunit.assertIsTrue(successRatio >= 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio >= 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceClosestMatchToTraits:TestFullProductionTraitsMutationPossible()
@@ -548,7 +548,7 @@ TestConvergenceClosestMatchToTraits = {}
             initialDroneStacks,
             4001
         )
-        Luaunit.assertIsTrue(successRatio >= 0.95, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio >= 0.95, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceClosestMatchToTraits:TestReplicateFromOneFertilityNoMutations()
@@ -574,7 +574,7 @@ TestConvergenceClosestMatchToTraits = {}
             3003
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceClosestMatchToTraits:TestReplicateFromOneFertilityWithMutations()
@@ -600,7 +600,7 @@ TestConvergenceClosestMatchToTraits = {}
             3004
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end
 
     function TestConvergenceClosestMatchToTraits:TestReplicateFromOneFertilityLowNumberDrones()
@@ -623,8 +623,8 @@ TestConvergenceClosestMatchToTraits = {}
             apiary,
             initialPrincess,
             initialDroneStacks,
-            65416541
+            65426542
         )
 
-        Luaunit.assertIsTrue(successRatio > 0.85, string.format("Failed to converge. Success ratio only %.2f.", successRatio))
+        Luaunit.assertIsTrue(successRatio > 0.85, ("Failed to converge. Success ratio only %.2f."):format(successRatio))
     end

@@ -187,9 +187,9 @@ function TraitToString(trait, value)
     if trait == "species" then
         return value.uid
     elseif trait == "speed" then
-        return string.format("%.1f", value)
+        return ("%.1f"):format(value)
     elseif trait == "territory" then
-        return string.format("[%d, %d, %d]", value[1], value[2], value[3])
+        return ("[%d, %d, %d]"):format(value[1], value[2], value[3])
     end
 end
 
@@ -203,48 +203,48 @@ function TraitsToString(traits)
     local str = "{"
 
     if traits.species ~= nil then
-        str = str .. string.format("species: '%s', ", traits.species.uid)
+        str = str .. ("species: '%s', "):format(traits.species.uid)
     end
     if traits.caveDwelling ~= nil then
-        str = str .. string.format("caveDwelling: '%s', ", tostring(traits.caveDwelling))
+        str = str .. ("caveDwelling: '%s', "):format(tostring(traits.caveDwelling))
     end
     if traits.effect ~= nil then
-        str = str .. string.format("effect: '%s', ", traits.effect)
+        str = str .. ("effect: '%s', "):format(traits.effect)
     end
     if traits.fertility ~= nil then
-        str = str .. string.format("fertility: %u, ", traits.fertility)
+        str = str .. ("fertility: %u, "):format(traits.fertility)
     end
     if traits.flowering ~= nil then
-        str = str .. string.format("flowering: %u, ", traits.flowering)
+        str = str .. ("flowering: %u, "):format(traits.flowering)
     end
     if traits.flowerProvider ~= nil then
-        str = str .. string.format("flowerProvider: '%s', ", traits.flowerProvider)
+        str = str .. ("flowerProvider: '%s', "):format(traits.flowerProvider)
     end
     if traits.lifespan ~= nil then
-        str = str .. string.format("lifespan: %u, ", traits.lifespan)
+        str = str .. ("lifespan: %u, "):format(traits.lifespan)
     end
     if traits.nocturnal ~= nil then
-        str = str .. string.format("nocturnal: '%s', ", tostring(traits.nocturnal))
+        str = str .. ("nocturnal: '%s', "):format(tostring(traits.nocturnal))
     end
     if traits.speed ~= nil then
-        str = str .. string.format("speed: %.1f, ", traits.speed)
+        str = str .. ("speed: %.1f, "):format(traits.speed)
     end
     if traits.territory ~= nil then
         -- During testing, we sometimes only set one of these values, so we have backups here to prevent crashing.
-        str = str .. string.format("territory: [%u, %u, %u], ",
+        str = str .. ("territory: [%u, %u, %u], "):format(
             ((traits.territory[1] == nil) and 0) or traits.territory[1],
             ((traits.territory[2] == nil) and 0) or traits.territory[2],
             ((traits.territory[2] == nil) and 0) or traits.territory[3]
         )
     end
     if traits.tolerantFlyer ~= nil then
-        str = str .. string.format("tolerantFlyer: '%s', ", tostring(traits.tolerantFlyer))
+        str = str .. ("tolerantFlyer: '%s', "):format(tostring(traits.tolerantFlyer))
     end
     if traits.humidityTolerance ~= nil then
-        str = str .. string.format("humidityTolerance: '%s', ", traits.humidityTolerance)
+        str = str .. ("humidityTolerance: '%s', "):format(traits.humidityTolerance)
     end
     if traits.temperatureTolerance ~= nil then
-        str = str .. string.format("temperatureTolerance: '%s', ", traits.temperatureTolerance)
+        str = str .. ("temperatureTolerance: '%s', "):format(traits.temperatureTolerance)
     end
 
     if str:reverse():find("%s,") == 1 then

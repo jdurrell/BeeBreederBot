@@ -103,7 +103,7 @@ function BeeServer:RunServer(command, flags, values)
     elseif command == "import" then
         self:ImportCommandHandler(flags, values)
     else
-        Print(string.format("Unrecognized command '%s'.", command))
+        Print(("Unrecognized command '%s'."):format(command))
         self:shutdown(1)
     end
 
@@ -122,7 +122,7 @@ function BeeServer:TemplateCommand(flags, values)
     for k, v in pairs(values) do
         local stringLower = v:lower()
         if ValidTraitValues[k] == nil then
-            Print(string.format("Unrecognized option '%s'", k))
+            Print(("Unrecognized option '%s'"):format(k))
             self:shutdown(1)
         end
 
@@ -132,10 +132,10 @@ function BeeServer:TemplateCommand(flags, values)
             if type(realValue) == "table" then
                 -- Some string items are ambiguous due to overlap between mods.
                 -- Ask the user directly to disambiguate.
-                Print(string.format("Value '%s' for trait '%s' is ambiguous: Please select one of the following: ", v, k))
+                Print(("Value '%s' for trait '%s' is ambiguous: Please select one of the following: "):format(v, k))
                 ---@cast realValue table
                 for i, v2 in ipairs(realValue) do
-                    Print(string.format("[%d]: %s", i, v2))
+                    Print(("[%d]: %s"):format(i, v2))
                 end
 
                 local value = self.term.read()
@@ -153,27 +153,27 @@ function BeeServer:TemplateCommand(flags, values)
             local expectedType = type(ValidTraitValues[k][1])
             if expectedType == "boolean" then
                 if (v:lower() ~= "true") and (v:lower() ~= "false") then
-                    Print(string.format("Unrecognized value '%s' for boolean field '%s'. Expected 'true' or 'false'", v, k))
+                    Print(("Unrecognized value '%s' for boolean field '%s'. Expected 'true' or 'false'"):format(v, k))
                     self:shutdown(1)
                 end
                 realValue = (v:lower() == "true")
             elseif expectedType == "number" then
                 local integerValue = tonumber(v, 10)
                 if not type(integerValue) == "number" then
-                    Print(string.format("Unrecognized value '%s' for integer field '%s'.", k, v))
+                    Print(("Unrecognized value '%s' for integer field '%s'."):format(k, v))
                     self:shutdown(1)
                 end
                 realValue = integerValue
             elseif expectedType == "string" then
                 realValue = v
             else
-                Print(string.format("Unrecognized type %s.", expectedType))
+                Print(("Unrecognized type %s."):format(expectedType))
                 self:shutdown(1)
             end
         end
 
         if not TableContains(ValidTraitValues[k], realValue) then
-            Print(string.format("Unrecognized value for field %s: '%s'", k, v))
+            Print(("Unrecognized value for field %s: '%s'"):format(k, v))
             self:shutdown(1)
         end
 
@@ -189,7 +189,7 @@ function BeeServer:TemplateCommand(flags, values)
         end
     end
 
-    Print(string.format("Making internal template: %s.", TraitsToString(payload.traits)))
+    Print(("Making internal template: %s."):format(TraitsToString(payload.traits)))
     self:RunCommand(CommLayer.MessageCode.MakeTemplateCommand, payload)
 end
 
@@ -252,7 +252,7 @@ function BeeServer:RunCommand(messageCode, payload)
         elseif messageHandlerTable[message.code] ~= nil then
             messageHandlerTable[message.code](self, addr, message.transactionId, message.payload)
         else
-            Print(string.format("Received unidentified message code: %d", message.code))
+            Print(("Received unidentified message code: %d"):format(message.code))
         end
         ::continue::
     end
@@ -311,7 +311,7 @@ function BeeServer:DefaultGenomeHandler(addr, transactionId, data)
         end
 
         if not found then
-            Print(string.format("Failed to find trait '%s' in default genome for species '%s'", trait, data.species))
+            Print(("Failed to find trait '%s' in default genome for species '%s'"):format(trait, data.species))
             return
         end
     end
@@ -345,7 +345,7 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
     end
 
     if validTargets == nil then
-        Print(string.format("Error: Failed to find valid breeding target for trait '%s' with value '%s'",
+        Print(("Error: Failed to find valid breeding target for trait '%s' with value '%s'"):format(
             data.trait, TraitToString(data.trait, data.value)
         ))
         self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, transactionId, {})
@@ -354,7 +354,7 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
 
     local path = GraphQuery.QueryBestBreedingPath(self.beeGraph, data.existingSpecies, validTargets)
     if path == nil then
-        Print(string.format("Error: Failed to find breeding path for trait '%s' with value '%s'",
+        Print(("Error: Failed to find breeding path for trait '%s' with value '%s'"):format(
             data.trait, TraitToString(data.trait, data.value)
         ))
         self.comm:SendMessage(addr, CommLayer.MessageCode.TraitBreedPathResponse, transactionId, {})
@@ -364,11 +364,9 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
     -- Sleep after printing things because OpenComputers' screen is really small.
     -- This gives the player some time to actually look at it.
     -- TODO: Switch this to something that requires scrolling to the end and back up.
-    Print(string.format("Breeding trait '%s: %s' through:",
-        data.trait, TraitToString(data.trait, data.value)
-    ))
+    Print(("Breeding trait '%s: %s' through:"):format(data.trait, TraitToString(data.trait, data.value)))
     for _, v in ipairs(path) do
-        Print(string.format("  %s + %s = %s", v.parent1, v.parent2, v.target))
+        Print(("  %s + %s = %s"):format(v.parent1, v.parent2, v.target))
         Sleep(0.5)
     end
     Sleep(2)
@@ -378,10 +376,10 @@ function BeeServer:TraitBreedPathHandler(addr, transactionId, data)
         if (v.conditions ~= nil) and MutationConditionsSet.FoundationIsPlaceableBlock(v.conditions) then
             if not printedFoundations then
                 printedFoundations = true
-                Print(string.format("\nPlease gather the following foundations:"))
+                Print("\nPlease gather the following foundations:")
                 Sleep(0.5)
             end
-            Print(string.format("  %s", v.conditions.foundation))
+            Print(("  %s"):format(v.conditions.foundation))
             Sleep(0.5)
         end
     end
@@ -404,7 +402,7 @@ function BeeServer:PromptConditionsHandler(addr, transactionId, data)
     local pathNode = data.pathNode
     if MutationConditionsSet.IsTrivialConditions(pathNode.conditions) then
         -- If there are no conditions, then immediately tell the robot it can continue.
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. No conditions are required.",
+        Print(("Robot is breeding '%s' from '%s' and '%s'. No conditions are required."):format(
             pathNode.target, pathNode.parent1, pathNode.parent2
         ))
         self.comm:SendMessage(addr, CommLayer.MessageCode.PromptConditionsResponse, transactionId)
@@ -412,13 +410,13 @@ function BeeServer:PromptConditionsHandler(addr, transactionId, data)
     end
 
     while true do
-        Print(string.format("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:",
+        Print(("Robot is breeding '%s' from '%s' and '%s'. The following conditions are required:"):format(
             pathNode.target, pathNode.parent1, pathNode.parent2
         ))
         MutationConditionsSet.PrintConditions(pathNode.conditions)
         if MutationConditionsSet.RequiresManualBreed(pathNode.conditions) then
             Print("Conditions cannot be ensured by the breeder. Breed a starter drone population from the parents under the above conditions.")
-            Print(string.format("parent1: %s, parent2: %s, target: %s", pathNode.parent1, pathNode.parent2, pathNode.target))
+            Print(("parent1: %s, parent2: %s, target: %s"):format(pathNode.parent1, pathNode.parent2, pathNode.target))
         elseif MutationConditionsSet.RequiresManualSetup(pathNode.conditions) then
             Print("Conditions cannot be managed by the breeder. Set up the conditions manually.")
         else
@@ -441,7 +439,7 @@ function BeeServer:PrintErrorHandler(addr, transactionId, data)
     if data.errorMessage == nil then
         Print("Robot error: unknown.")
     else
-        Print(string.format("Robot error: %s", data.errorMessage))
+        Print(("Robot error: %s"):format(data.errorMessage))
     end
 end
 

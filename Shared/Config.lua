@@ -9,7 +9,7 @@ function M.LoadConfig(path, config, debug)
     local configfile, err = io.open(path, "r")
     if configfile == nil then
         if debug then
-            Print(string.format("Did not find existing config file at %s: %s.", path, err))
+            Print(("Did not find existing config file at %s: %s."):format(path, err))
         end
 
         return false
@@ -22,13 +22,13 @@ function M.LoadConfig(path, config, debug)
         end
 
         if #fields ~= 2 then
-            Print(string.format("Failed to parse config file. Invalid line: '%s'.", line))
+            Print(("Failed to parse config file. Invalid line: '%s'."):format(line))
             configfile:close()
             return false
         end
 
         if config[fields[1]] == nil then
-            Print(string.format("Unrecognized config option '%s'.", fields[1]))
+            Print(("Unrecognized config option '%s'."):format(fields[1]))
             configfile:close()
             return false
         end
@@ -39,7 +39,7 @@ function M.LoadConfig(path, config, debug)
             elseif fields[2] == "false" then
                 config[fields[1]] = false
             else
-                Print(string.format("Unrecognized boolean option '%s'.", fields[2]))
+                Print(("Unrecognized boolean option '%s'."):format(fields[2]))
             end
         elseif type(config[fields[1]]) == "number" then
             config[fields[1]] = tonumber(fields[2])
@@ -54,7 +54,7 @@ end
 
 function M.PrintConfig(config)
     for k, v in pairs(config) do
-        Print(string.format("%s=%s", k, tostring(v)))
+        Print(("%s=%s"):format(k, tostring(v)))
     end
     Print("")
 end

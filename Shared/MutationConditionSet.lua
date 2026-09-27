@@ -218,28 +218,28 @@ end
 ---@param conditions MutationConditionSet
 function ConditionFunctions.PrintConditions(conditions)
     if conditions.biome ~= nil then
-        Print(string.format("biome: %s", conditions.biome))
+        Print(("biome: %s"):format(conditions.biome))
     end
     if conditions.dimension ~= nil then
-        Print(string.format("dimension: %s", conditions.dimension))
+        Print(("dimension: %s"):format(conditions.dimension))
     end
     if conditions.foundation ~= nil then
-        Print(string.format("foundation: %s", conditions.foundation))
+        Print(("foundation: %s"):format(conditions.foundation))
     end
     if conditions.humidity ~= nil then
-        Print(string.format("humidity: %s", conditions.humidity))
+        Print(("humidity: %s"):format(conditions.humidity))
     end
     if conditions.temperature1 ~= nil then
-        Print(string.format("temperature1: %s", conditions.temperature1))
+        Print(("temperature1: %s"):format(conditions.temperature1))
     end
     if conditions.temperature2 ~= nil then
-        Print(string.format("temperature2: %s", conditions.temperature2))
+        Print(("temperature2: %s"):format(conditions.temperature2))
     end
     if conditions.timeCalendar ~= nil then
-        Print(string.format("Calendar time: %s", conditions.timeCalendar))
+        Print(("Calendar time: %s"):format(conditions.timeCalendar))
     end
     if conditions.timePeriodic ~= nil then
-        Print(string.format("Periodic time: %s", conditions.timePeriodic))
+        Print(("Periodic time: %s"):format(conditions.timePeriodic))
     end
 end
 
