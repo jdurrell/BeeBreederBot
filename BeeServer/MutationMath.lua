@@ -1,5 +1,7 @@
 -- This file contains math for determining chances of getting a given mutation from given combinations of species.
 
+require("Shared.Shared")
+
 local M = {}
 
 ---@param x integer
@@ -191,16 +193,35 @@ end
 ---@param parent2 string
 ---@param target string
 ---@param beeGraph SpeciesGraph
----@return number, number  -- targetMutationProbability, nonTargetMutationProbability
+---@return number targetMutationProbability, number nonTargetMutationProbability
 function M.CalculateBreedInfo(parent1, parent2, target, beeGraph)
     local parent1Node = beeGraph[parent1]
 
     -- Fetch each possible child mutation and their "NEI" chances from these parents.
     local siblings = {}
     local childMutationChances = {}
+
+    local targetFoundation = nil
+    if parent1Node.childMutations[target] ~= nil then
+        for i, v in ipairs(parent1Node.childMutations[target]) do
+            if (v.parent == parent2) and (v.conditions ~= nil) then
+                targetFoundation = v.conditions.foundation
+            end
+        end
+    end
+
     for result, info in pairs(parent1Node.childMutations) do
-        for _, v in ipairs(info) do
-            if v.parent == parent2 then
+        for k, v in ipairs(info) do
+            -- If the target requires a particular foundation, then this will have been placed below the apiaries.
+            -- Only count mutations that work under the same foundation.
+            -- TODO: We should probably verify that there are no other mismatched conditions.
+            -- TODO: We could theoretically check for other conditions here, but foundations are the only one where
+            --       the breeding algorithm will use this anyways.
+            local foundationOrNil = nil
+            if v.conditions ~= nil then
+                foundationOrNil = v.conditions.foundation
+            end
+            if (v.parent == parent2) and (foundationOrNil == targetFoundation) then
                 childMutationChances[result] = v.chance
                 table.insert(siblings, result)
             end

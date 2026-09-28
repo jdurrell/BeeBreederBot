@@ -296,3 +296,98 @@ TestCalculateBreedInfo = {}
         Luaunit.assertAlmostEquals(targetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result4"]["Root1-Root2"].targetMutChance, Res.MathMargin)
         Luaunit.assertAlmostEquals(nonTargetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result4"]["Root1-Root2"].nonTargetMutChance, Res.MathMargin)
     end
+
+    function TestCalculateBreedInfo:TestTargetDifferentFoundations()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        graph["Root1"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root2"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root1"].childMutations["Result3"][1].conditions = { foundation = "foundation3"}
+        graph["Root2"].childMutations["Result3"][1].conditions = { foundation = "foundation3"}
+        graph["Root1"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+        graph["Root2"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root2", "Root1", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+    end
+
+    function TestCalculateBreedInfo:TestTargetHasNilFoundation()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        graph["Root1"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root2"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root1"].childMutations["Result3"][1].conditions = { foundation = "foundation3"}
+        graph["Root2"].childMutations["Result3"][1].conditions = { foundation = "foundation3"}
+        graph["Root1"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+        graph["Root2"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root2", "Root1", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+    end
+
+    function TestCalculateBreedInfo:TestSiblingsHaveNilFoundation()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        graph["Root1"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+        graph["Root2"].childMutations["Result4"][1].conditions = { foundation = "foundation4"}
+
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+        local targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root2", "Root1", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.5)
+        Luaunit.assertEquals(nonTargetChance, 0)
+    end
+
+    function TestCalculateBreedInfo:TestSiblingsHaveSameFoundation()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        graph["Root1"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result2"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result2"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result3"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result3"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result4"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result4"][1].conditions = { foundation = "foundation1"}
+
+        local targetChance, nonTargetChance
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result1"]["Root1-Root2"].targetMutChance, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result1"]["Root1-Root2"].nonTargetMutChance, Res.MathMargin)
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result2", graph)
+        Luaunit.assertAlmostEquals(targetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result2"]["Root1-Root2"].targetMutChance, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result2"]["Root1-Root2"].nonTargetMutChance, Res.MathMargin)
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result3", graph)
+        Luaunit.assertAlmostEquals(targetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result3"]["Root1-Root2"].targetMutChance, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result3"]["Root1-Root2"].nonTargetMutChance, Res.MathMargin)
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result4", graph)
+        Luaunit.assertAlmostEquals(targetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result4"]["Root1-Root2"].targetMutChance, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, Res.BeeGraphSimpleDuplicateMutations.ExpectedBreedInfo["Result4"]["Root1-Root2"].nonTargetMutChance, Res.MathMargin)
+    end
+
+    function TestCalculateBreedInfo:TestSiblingsHaveMixedFoundations()
+        local graph = Res.BeeGraphSimpleDuplicateMutations:GetGraph()
+        graph["Root1"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result1"][1].conditions = { foundation = "foundation1"}
+        graph["Root1"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root2"].childMutations["Result2"][1].conditions = { foundation = "foundation2"}
+        graph["Root1"].childMutations["Result3"][1].conditions = { foundation = "foundation1"}
+        graph["Root2"].childMutations["Result3"][1].conditions = { foundation = "foundation1"}
+
+        local targetChance, nonTargetChance
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root1", "Root2", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.35, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, 0.45, Res.MathMargin)
+        targetChance, nonTargetChance = MutationMath.CalculateBreedInfo("Root2", "Root1", "Result1", graph)
+        Luaunit.assertAlmostEquals(targetChance, 0.35, Res.MathMargin)
+        Luaunit.assertAlmostEquals(nonTargetChance, 0.45, Res.MathMargin)
+    end

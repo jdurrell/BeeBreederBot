@@ -1,6 +1,8 @@
 -- This program is the main executable for the bee-graph server.
 -- The bee-graph server analyzes the bee breeding data from the apiary adapter
 -- and communicates with the breeder robot to give it instructions on which bees to breed.
+-- TODO: Could we potentially save on memory by unloading some of these tables at runtime after we use them at startup?
+--       Or querying them dynamically from disk instead?
 
 -- Import BeeBreederBot libraries.
 require("Shared.Shared")
